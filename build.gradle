@@ -110,16 +110,18 @@ task run(type: JavaExec, dependsOn: classes) {
 }
 
 // Narrated FIT codec round-trip demonstration (lives in fitforge.examples).
+// Depends on `check` so scalafix, scalafmt and tests must pass before the demo runs.
 // Usage: ./gradlew codecDemo --args="/path/to/activity.fit"
-task codecDemo(type: JavaExec, dependsOn: classes) {
+task codecDemo(type: JavaExec, dependsOn: check) {
   description = 'Narrated FIT codec round-trip demonstration'
   mainClass = 'fitforge.examples.FitCodecDemo'
   classpath sourceSets.main.runtimeClasspath
 }
 
 // Join two recordings into one, with a logged report + layout summary.
+// Depends on `check` so scalafix, scalafmt and tests must pass before the demo runs.
 // Usage: ./gradlew mergeDemo --args="samples/ride.fit"   (omit args for a synthetic join)
-task mergeDemo(type: JavaExec, dependsOn: classes) {
+task mergeDemo(type: JavaExec, dependsOn: check) {
   description = 'Demonstrates joining two recordings with a merge report'
   mainClass = 'fitforge.examples.FitMergeDemo'
   classpath sourceSets.main.runtimeClasspath
