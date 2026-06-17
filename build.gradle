@@ -18,6 +18,16 @@ repositories {
   mavenCentral()
 }
 
+// Build, test and run on JDK 21 (LTS). Gradle selects a JDK 21 toolchain that it
+// auto-detects on the machine; if your JDK 21 lives in a non-standard location
+// (e.g. a keg-only Homebrew install), point Gradle at it with
+// `org.gradle.java.installations.paths` in ~/.gradle/gradle.properties.
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(21)
+  }
+}
+
 dependencies {
   implementation(
     [ libs.scala
@@ -62,7 +72,7 @@ tasks.withType(ScalaCompile).configureEach {
   // -Xfatal-warnings turns every lint into a build failure (the "deny" gate).
   // -release 17 keeps bytecode runnable on the temurin:17 Docker base.
   scalaCompileOptions.additionalParameters = [
-    '-release', '17',
+    '-release', '21',
     '-deprecation',
     '-feature',
     '-Wunused:all',
