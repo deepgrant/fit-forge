@@ -1,0 +1,139 @@
+buildscript {
+  repositories { mavenCentral() }
+  dependencies {
+    classpath 'com.palantir.gradle.docker:gradle-docker:0.37.0'
+  }
+}
+
+plugins {
+  id 'scala'
+  id 'io.github.cosmicsilence.scalafix' version '0.2.6'
+  id 'com.diffplug.spotless' version '7.0.2'
+}
+apply plugin: 'com.palantir.docker'
+
+apply from: "$projectDir/gradle/dependencies.gradle"
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  implementation(
+    [ libs.scala
+    , libs.scalaXML
+    , libs.scalaCollectionsCompat
+    , libs.pekko_actor
+    , libs.pekko_http
+    , libs.pekko_http_xml
+    , libs.pekko_slf4j
+    , libs.pekko_stream
+    , libs.slf4j
+    , libs.logback_classic
+    , libs.logback_core
+    , libs.pprint
+    , libs.sprayJSON
+    , libs.garminFit
+    , libs.bcprov
+    , libs.bcpkix
+    ]
+  )
+  testImplementation libs.scalaTest
+  testRuntimeOnly 'co.helmethair:scalatest-junit-runner:0.2.0'
+  testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
+}
+
+// Custom source layout (mirrors MBTATracker): code under source/scala,
+// resources under source/resources, tests under source/test.
+sourceSets {
+  main {
+    scala.srcDir "source/scala"
+    resources.srcDirs = files("source/resources")
+    ext.set('allScala', scala)  // scalafix plugin expects allScala (Gradle 9 / Scala plugin compatibility)
+  }
+  test {
+    scala.srcDir "source/test/scala"
+    resources.srcDirs = files("source/test/resources")
+    ext.set('allScala', scala)
+  }
+}
+
+tasks.withType(ScalaCompile).configureEach {
+  // -Xfatal-warnings turns every lint into a build failure (the "deny" gate).
+  // -release 17 keeps bytecode runnable on the temurin:17 Docker base.
+  scalaCompileOptions.additionalParameters = [
+    '-release', '17',
+    '-deprecation',
+    '-feature',
+    '-Wunused:all',
+    '-Wvalue-discard',
+    '-Werror',
+  ]
+}
+
+// Scalafmt formatting gate (the scalafix plugin handles import ordering / deny rules).
+spotless {
+  scala {
+    scalafmt('3.8.3').configFile('.scalafmt.conf')
+  }
+}
+
+test {
+  useJUnitPlatform()
+  testLogging {
+    events 'passed', 'skipped', 'failed'
+    showStandardStreams = true
+  }
+}
+
+jar {
+  manifest {
+    attributes(
+      [ "Implementation-Title"   : "fit-forge"
+      , "Implementation-Version" : "1.0"
+      , "Implementation-Vendor"  : "fit-forge"
+      ]
+    )
+  }
+}
+
+task copyRuntimeDeps(type: Copy, dependsOn: jar) {
+  description = 'Copy all runtime JARs (app + deps) into build/libs for Docker multi-stage builds'
+  from configurations.runtimeClasspath
+  into "$buildDir/libs"
+}
+
+task run(type: JavaExec, dependsOn: classes) {
+  description = 'Run the fit-forge HTTP service'
+  mainClass = 'fitforge.FitForgeMain'
+  classpath sourceSets.main.runtimeClasspath
+}
+
+// Narrated FIT codec round-trip demonstration (lives in fitforge.examples).
+// Usage: ./gradlew codecDemo --args="/path/to/activity.fit"
+task codecDemo(type: JavaExec, dependsOn: classes) {
+  description = 'Narrated FIT codec round-trip demonstration'
+  mainClass = 'fitforge.examples.FitCodecDemo'
+  classpath sourceSets.main.runtimeClasspath
+}
+
+task cleanFrontend(type: Delete) {
+  delete "$projectDir/frontend/dist"
+}
+
+task cleanAll(dependsOn: [clean, cleanFrontend]) {
+  description = 'Clean Scala build output and Angular frontend dist'
+}
+
+docker {
+  name "fit-forge:1.0"
+  dockerfile file('Dockerfile')
+  files 'docker-run.sh'
+  copySpec.from("$buildDir/libs") { into 'libs' }
+  copySpec.from("frontend/dist/fit-forge-frontend") { into 'static' }
+  pull true
+}
+
+tasks.named('dockerPrepare') {
+  dependsOn copyRuntimeDeps
+}

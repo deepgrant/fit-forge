@@ -1,0 +1,1051 @@
+{
+    "version": "1.4.0",
+    "project": {
+        "name": "fit-forge-test",
+        "directory": "/Users/gmills/Development/GIT/fit-forge",
+        "workspaceDir": "/Users/gmills/Development/GIT/fit-forge",
+        "sources": [
+            "/Users/gmills/Development/GIT/fit-forge/source/test/scala",
+            "/Users/gmills/Development/GIT/fit-forge/src/test/scala",
+            "/Users/gmills/Development/GIT/fit-forge/src/test/java"
+        ],
+        "dependencies": [
+            "fit-forge"
+        ],
+        "classpath": [
+            "/Users/gmills/Development/GIT/fit-forge/.bloop/fit-forge/build/classes",
+            "/Users/gmills/Development/GIT/fit-forge/source/resources",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-http-xml_3/1.3.0/7ba9d4f91739ba4bfb0b763e9319b9daee9dd618/pekko-http-xml_3-1.3.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest_3/3.2.19/e93bad4d3da3705446569085aab67e978f7485e5/scalatest_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-featurespec_3/3.2.19/2afa0ba275c6b24f9cd27fb71da7d222b43591ca/scalatest-featurespec_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-flatspec_3/3.2.19/a95158a09a7ac65adbbd0de6fe65d6d0b6aaad55/scalatest-flatspec_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-freespec_3/3.2.19/f00dd1ac0107ee2beab9fd4d44208cec411ccf20/scalatest-freespec_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-funsuite_3/3.2.19/5dd75633e7671072f88c7a84218e0dcd97fea526/scalatest-funsuite_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-funspec_3/3.2.19/48751d9d2a022510ecba14fd479529dbef1764ec/scalatest-funspec_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-propspec_3/3.2.19/6e5aa18878f69109e4080ca97da50e520ddfe0d4/scalatest-propspec_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-refspec_3/3.2.19/88160253f5bd278eeb78ba315f3b29475fad2114/scalatest-refspec_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-wordspec_3/3.2.19/8608175a7b03081e80bed32ef5ac2daadf07f418/scalatest-wordspec_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-diagrams_3/3.2.19/45e41a48bbee2a1d4d4008d08720e2368c0e9e82/scalatest-diagrams_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-shouldmatchers_3/3.2.19/62251750a0c8a9bfdea43e830dea18d45075c75b/scalatest-shouldmatchers_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-mustmatchers_3/3.2.19/978bec77fcb36688b03fbf7c1d34f2cff55bd55b/scalatest-mustmatchers_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-matchers-core_3/3.2.19/6aba956733cd56e48d7defa14a982e8377581f5a/scalatest-matchers-core_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-core_3/3.2.19/dbdada24120fcfca3e5391c590b84372b25a51b3/scalatest-core_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang.modules/scala-xml_3/2.4.0/b09380d0ebb77c772db3e84544f01feed61a230c/scala-xml_3-2.4.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang.modules/scala-collection-compat_3/2.13.0/5c90a0d2f9d097ef45d47911b438d78728cbe432/scala-collection-compat_3-2.13.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-slf4j_3/1.6.0/ef7746335920cfd02ca8ecdc7fabcc6dd14ba84b/pekko-slf4j_3-1.6.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-stream_3/1.6.0/4a00b7ba988bcd34226fb81df77576c250459446/pekko-stream_3-1.6.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-actor_3/1.6.0/21fe7f50454cd72fece20d32c9bc5df28095f44b/pekko-actor_3-1.6.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-http_3/1.3.0/3da02daeff353223a61deae61c3f1c470898be66/pekko-http_3-1.3.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.lihaoyi/pprint_3/0.9.0/731c17511bc678c4c7101c36e9d480b8c4a59f08/pprint_3-0.9.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/io.spray/spray-json_3/1.3.6/2536de5846f836782d5ab00ab8d46c47dee80e4b/spray-json_3-1.3.6.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-http-core_3/1.3.0/9270a9aa26b692d4c2054f59d120b9e9ff2732ba/pekko-http-core_3-1.3.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.typesafe/ssl-config-core_3/0.7.1/fa7421673a8a3d4d26949b3869e18a060b559f30/ssl-config-core_3-0.7.1.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.lihaoyi/fansi_3/0.5.0/d5f75d4cc9f880fb5c3f8779f3d3a3f36b0f2b2a/fansi_3-0.5.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.lihaoyi/sourcecode_3/0.4.0/40f09dadb1ee1c87fe422fde577b2996619c5c3f/sourcecode_3-0.4.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-parsing_3/1.3.0/58d0ce5f3dffd886e76798990de2f53cbfb6f7b9/pekko-parsing_3-1.3.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.parboiled/parboiled_3/2.5.1/4eb15fe93fd9d5945e006f2c5067d4d96245d352/parboiled_3-2.5.1.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalactic/scalactic_3/3.2.19/568eeb37bc037ecabce2b232b5f5870eee033c7f/scalactic_3-3.2.19.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala3-library_3/3.8.4/ada8b099f5425afff3e9164afd6601bed4ef2e21/scala3-library_3-3.8.4.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/ch.qos.logback/logback-classic/1.5.18/fc371f3fc97a639de2d67947cffb7518ec5e3d40/logback-classic-1.5.18.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/2.0.17/d9e58ac9c7779ba3bf8142aff6c830617a7fe60f/slf4j-api-2.0.17.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/ch.qos.logback/logback-core/1.5.18/6c0375624f6f36b4e089e2488ba21334a11ef13f/logback-core-1.5.18.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.garmin/fit/21.205.0/434d5fe750772bd6b48231591c0155d7583826d0/fit-21.205.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcpkix-jdk18on/1.80/5277dfaaef2e92ce1d802499599a0ca7488f86e6/bcpkix-jdk18on-1.80.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcutil-jdk18on/1.80.2/5aa52bcc7b7d5dc8975a3df9e657abdb5cea62be/bcutil-jdk18on-1.80.2.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcprov-jdk18on/1.80.2/698ebb5539a939849576a6854bd52e191cbe1c5c/bcprov-jdk18on-1.80.2.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala-library/3.8.4/e44f14c38dba7da4d7050cbf72fbf9dcbb6f9e7d/scala-library-3.8.4.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.typesafe/config/1.4.6/cdf54f700375ae6bd3de8649559b01653b0bead2/config-1.4.6.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-protobuf-v3_3/1.6.0/d64026a0967c04bfb38b35e5e758f74526a33c8/pekko-protobuf-v3_3-1.6.0.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.reactivestreams/reactive-streams/1.0.4/3864a1320d97d7b045f729a326e1e077661f31b7/reactive-streams-1.0.4.jar",
+            "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-compatible/3.2.19/609bc82cc06a1322f60039a81fc003ee81d7064f/scalatest-compatible-3.2.19.jar"
+        ],
+        "out": "/Users/gmills/Development/GIT/fit-forge/.bloop/fit-forge-test/build",
+        "classesDir": "/Users/gmills/Development/GIT/fit-forge/.bloop/fit-forge-test/build/classes",
+        "resources": [
+            "/Users/gmills/Development/GIT/fit-forge/source/test/resources"
+        ],
+        "scala": {
+            "organization": "org.scala-lang",
+            "name": "scala-compiler",
+            "version": "3.8.4",
+            "options": [
+                "-Werror",
+                "-Wunused:all",
+                "-Wvalue-discard",
+                "-deprecation",
+                "-feature",
+                "-release",
+                "17",
+                "-unchecked"
+            ],
+            "jars": [
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scaladoc_3/3.8.4/7af826d5189a72b4a35ffee43d97b1fe888f51f4/scaladoc_3-3.8.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala3-tasty-inspector_3/3.8.4/83b00736a290fa598ece0f89654dcfa206971337/scala3-tasty-inspector_3-3.8.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala3-compiler_3/3.8.4/fd73bbbad42749465ad03a55fec3115657bf6f77/scala3-compiler_3-3.8.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala3-sbt-bridge/3.8.4/48402b299339b22d732e1ff51c032af1507f7f28/scala3-sbt-bridge-3.8.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala3-interfaces/3.8.4/82aad3e62ec2486d3d932da97ce328a31603593e/scala3-interfaces-3.8.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/tasty-core_3/3.8.4/706998b3a218f2977bc60c43db25e3db7090581d/tasty-core_3-3.8.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala3-library_3/3.8.4/ada8b099f5425afff3e9164afd6601bed4ef2e21/scala3-library_3-3.8.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang.modules/scala-asm/9.9.0-scala-1/9de6fe27c09c69521a2603b34c8dcc39c9f3b736/scala-asm-9.9.0-scala-1.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-sbt/compiler-interface/1.10.7/3b4631f767f092224ab60a7dde61edd612cf9f26/compiler-interface-1.10.7.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-ext-anchorlink/0.62.2/3aa453b87258a448dfd8d01010d94e3a2832884d/flexmark-ext-anchorlink-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-ext-autolink/0.62.2/e72d9a9beffc30512e0231a2754d65dd32144744/flexmark-ext-autolink-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-ext-emoji/0.62.2/c1f1b1909bfb6c0f4301a9227745a3ab33b0d08f/flexmark-ext-emoji-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-jira-converter/0.62.2/c172ad9cde6317d84fc15fae53f8eab42d982ade/flexmark-jira-converter-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-ext-gfm-strikethrough/0.62.2/7c0657d663269223c7a5bf29f12982d38d382168/flexmark-ext-gfm-strikethrough-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-ext-gfm-tasklist/0.62.2/1c0fd7a70afac3a93459e49089e2d1b2bf72e590/flexmark-ext-gfm-tasklist-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-ext-wikilink/0.62.2/e07a39268a2091451f3456cb5d9e955bf276f3f4/flexmark-ext-wikilink-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-ext-tables/0.62.2/c95068a1450835c2695750ece82c996a7b57bbd3/flexmark-ext-tables-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-ext-yaml-front-matter/0.62.2/ab1caa230841406bf39fb8f3d69bf82a145fbec3/flexmark-ext-yaml-front-matter-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-ext-ins/0.62.2/234bf93924c93ee2d6d948da5ed82120b0e455c9/flexmark-ext-ins-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-ext-superscript/0.62.2/4bbdbed56d2da352177fdd5ae1c64ac07ace52d9/flexmark-ext-superscript-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark/0.62.2/606a88e1d15aa8debd97cb5dfdf788ddc6fb5b5e/flexmark-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-util/0.62.2/6e38dcd6bb4ccfc13d513aaba350404977fa85bd/flexmark-util-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-util-format/0.62.2/58548be1fc0682698721c0c278451a41f361d3a/flexmark-util-format-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-util-ast/0.62.2/c0b998d5570295f104a4ffee4f8eec305d7db327/flexmark-util-ast-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-util-builder/0.62.2/22c85efb51d4aa25540b8b0d880be7ad4a8baec1/flexmark-util-builder-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-util-dependency/0.62.2/ae5afa76a669e06b3a65255c2ed775ede5cd3eb1/flexmark-util-dependency-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-util-html/0.62.2/6d830cb37e48fd9dca44bf15fbc3a86aa7d82c5a/flexmark-util-html-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-util-options/0.62.2/d871763fff2226c271cc3333e98729ce6211065c/flexmark-util-options-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-util-sequence/0.62.2/87af2803a63b5b07cc42d9c1d98f8ecd4f83fbcc/flexmark-util-sequence-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-util-data/0.62.2/2df8ce1abab2e40edc7d340962025ee1dd09fe02/flexmark-util-data-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/nl.big-o/liqp/0.8.2/ceba9a3456962a22ef0a837af9e4d48b62b63f93/liqp-0.8.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.jsoup/jsoup/1.17.2/1e75b08d7019546a954f1e359477f916f537a34d/jsoup-1.17.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/tools.jackson.core/jackson-databind/3.1.2/2550e04829fc14566ddab7b9564ba886a9c6a532/jackson-databind-3.1.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/tools.jackson.core/jackson-core/3.1.2/d0da2e67ffb0b7cf5aba0436b315aa3eb3eb37ca/jackson-core-3.1.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/tools.jackson.dataformat/jackson-dataformat-yaml/3.1.2/3d782286464620deeed1f1733a960e7fd4c179df/jackson-dataformat-yaml-3.1.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala-library/3.8.4/e44f14c38dba7da4d7050cbf72fbf9dcbb6f9e7d/scala-library-3.8.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-sbt/util-interface/1.10.7/8055cc08d80513c42618838239e39de1e0a88a69/util-interface-1.10.7.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-util-collection/0.62.2/85253a62761533ce7709f81b0c581c8473f825ec/flexmark-util-collection-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-util-misc/0.62.2/18133dd81887c512e2f56feb3c14a8a1210f30ea/flexmark-util-misc-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.vladsch.flexmark/flexmark-util-visitor/0.62.2/ca49bd94860a5ccedd82bde96ece831f16c66ff1/flexmark-util-visitor-0.62.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/15.0/d40ab99147584cf6cfb5245be67b3fee2c7220f9/annotations-15.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.nibor.autolink/autolink/0.6.0/3986d016a14e8c81afeec752f19af29b20e8367b/autolink-0.6.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.antlr/antlr4-runtime/4.7.2/e27d8ab4f984f9d186f54da984a6ab1cccac755e/antlr4-runtime-4.7.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.fasterxml.jackson.core/jackson-core/2.12.1/7c5493930e439be6fcec80a9afd6516b8e5e8760/jackson-core-2.12.1.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.fasterxml.jackson.datatype/jackson-datatype-jsr310/2.12.1/a245631c624e9c38dd0563c1100243c2f0be8335/jackson-datatype-jsr310-2.12.1.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.fasterxml.jackson.core/jackson-databind/2.12.1/8a97e00e429c42f74757b0a8cd1d39dddd41524f/jackson-databind-2.12.1.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.fasterxml.jackson.core/jackson-annotations/2.21/b1bc1868bf02dc0bd6c7836257a036a331005309/jackson-annotations-2.21.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/ua.co.k/strftime4j/1.0.5/726bbb2dd522a43c1fd3fb0568693bb5cbdcddf/strftime4j-1.0.5.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.snakeyaml/snakeyaml-engine/3.0.1/aaa97268dd9fcf97a3e44c96e6a50961d65199dd/snakeyaml-engine-3.0.1.jar"
+            ],
+            "setup": {
+                "order": "mixed",
+                "addLibraryToBootClasspath": true,
+                "addCompilerToClasspath": false,
+                "addExtraJarsToClasspath": false,
+                "manageBootClasspath": true,
+                "filterLibraryFromClasspath": true
+            }
+        },
+        "java": {
+            "options": [
+                "-target",
+                "17",
+                "-source",
+                "17",
+                "-h",
+                "/Users/gmills/Development/GIT/fit-forge/build/generated/sources/headers/java/test",
+                "-g",
+                "-sourcepath",
+                "",
+                "-proc:none",
+                "-XDuseUnsharedTable=true"
+            ]
+        },
+        "test": {
+            "frameworks": [
+                {
+                    "names": [
+                        "com.novocode.junit.JUnitFramework"
+                    ]
+                },
+                {
+                    "names": [
+                        "org.scalatest.tools.Framework",
+                        "org.scalatest.tools.ScalaTestFramework"
+                    ]
+                },
+                {
+                    "names": [
+                        "org.scalacheck.ScalaCheckFramework"
+                    ]
+                },
+                {
+                    "names": [
+                        "org.specs.runner.SpecsFramework",
+                        "org.specs2.runner.Specs2Framework",
+                        "org.specs2.runner.SpecsFramework"
+                    ]
+                },
+                {
+                    "names": [
+                        "utest.runner.Framework"
+                    ]
+                },
+                {
+                    "names": [
+                        "munit.Framework"
+                    ]
+                }
+            ],
+            "options": {
+                "excludes": [
+                    
+                ],
+                "arguments": [
+                    {
+                        "args": [
+                            "-v",
+                            "-a"
+                        ],
+                        "framework": {
+                            "names": [
+                                "com.novocode.junit.JUnitFramework"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "platform": {
+            "name": "jvm",
+            "config": {
+                "home": "/opt/homebrew/Cellar/openjdk@17/17.0.4.1/libexec/openjdk.jdk/Contents/Home",
+                "options": [
+                    
+                ]
+            },
+            "mainClass": [
+                
+            ],
+            "classpath": [
+                "/Users/gmills/Development/GIT/fit-forge/.bloop/fit-forge/build/classes",
+                "/Users/gmills/Development/GIT/fit-forge/source/resources",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-http-xml_3/1.3.0/7ba9d4f91739ba4bfb0b763e9319b9daee9dd618/pekko-http-xml_3-1.3.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest_3/3.2.19/e93bad4d3da3705446569085aab67e978f7485e5/scalatest_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-featurespec_3/3.2.19/2afa0ba275c6b24f9cd27fb71da7d222b43591ca/scalatest-featurespec_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-flatspec_3/3.2.19/a95158a09a7ac65adbbd0de6fe65d6d0b6aaad55/scalatest-flatspec_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-freespec_3/3.2.19/f00dd1ac0107ee2beab9fd4d44208cec411ccf20/scalatest-freespec_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-funsuite_3/3.2.19/5dd75633e7671072f88c7a84218e0dcd97fea526/scalatest-funsuite_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-funspec_3/3.2.19/48751d9d2a022510ecba14fd479529dbef1764ec/scalatest-funspec_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-propspec_3/3.2.19/6e5aa18878f69109e4080ca97da50e520ddfe0d4/scalatest-propspec_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-refspec_3/3.2.19/88160253f5bd278eeb78ba315f3b29475fad2114/scalatest-refspec_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-wordspec_3/3.2.19/8608175a7b03081e80bed32ef5ac2daadf07f418/scalatest-wordspec_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-diagrams_3/3.2.19/45e41a48bbee2a1d4d4008d08720e2368c0e9e82/scalatest-diagrams_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-shouldmatchers_3/3.2.19/62251750a0c8a9bfdea43e830dea18d45075c75b/scalatest-shouldmatchers_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-mustmatchers_3/3.2.19/978bec77fcb36688b03fbf7c1d34f2cff55bd55b/scalatest-mustmatchers_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-matchers-core_3/3.2.19/6aba956733cd56e48d7defa14a982e8377581f5a/scalatest-matchers-core_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-core_3/3.2.19/dbdada24120fcfca3e5391c590b84372b25a51b3/scalatest-core_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang.modules/scala-xml_3/2.4.0/b09380d0ebb77c772db3e84544f01feed61a230c/scala-xml_3-2.4.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang.modules/scala-collection-compat_3/2.13.0/5c90a0d2f9d097ef45d47911b438d78728cbe432/scala-collection-compat_3-2.13.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-slf4j_3/1.6.0/ef7746335920cfd02ca8ecdc7fabcc6dd14ba84b/pekko-slf4j_3-1.6.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-stream_3/1.6.0/4a00b7ba988bcd34226fb81df77576c250459446/pekko-stream_3-1.6.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-actor_3/1.6.0/21fe7f50454cd72fece20d32c9bc5df28095f44b/pekko-actor_3-1.6.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-http_3/1.3.0/3da02daeff353223a61deae61c3f1c470898be66/pekko-http_3-1.3.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.lihaoyi/pprint_3/0.9.0/731c17511bc678c4c7101c36e9d480b8c4a59f08/pprint_3-0.9.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/io.spray/spray-json_3/1.3.6/2536de5846f836782d5ab00ab8d46c47dee80e4b/spray-json_3-1.3.6.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-http-core_3/1.3.0/9270a9aa26b692d4c2054f59d120b9e9ff2732ba/pekko-http-core_3-1.3.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.typesafe/ssl-config-core_3/0.7.1/fa7421673a8a3d4d26949b3869e18a060b559f30/ssl-config-core_3-0.7.1.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.lihaoyi/fansi_3/0.5.0/d5f75d4cc9f880fb5c3f8779f3d3a3f36b0f2b2a/fansi_3-0.5.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.lihaoyi/sourcecode_3/0.4.0/40f09dadb1ee1c87fe422fde577b2996619c5c3f/sourcecode_3-0.4.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-parsing_3/1.3.0/58d0ce5f3dffd886e76798990de2f53cbfb6f7b9/pekko-parsing_3-1.3.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.parboiled/parboiled_3/2.5.1/4eb15fe93fd9d5945e006f2c5067d4d96245d352/parboiled_3-2.5.1.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalactic/scalactic_3/3.2.19/568eeb37bc037ecabce2b232b5f5870eee033c7f/scalactic_3-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala3-library_3/3.8.4/ada8b099f5425afff3e9164afd6601bed4ef2e21/scala3-library_3-3.8.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/ch.qos.logback/logback-classic/1.5.18/fc371f3fc97a639de2d67947cffb7518ec5e3d40/logback-classic-1.5.18.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/2.0.17/d9e58ac9c7779ba3bf8142aff6c830617a7fe60f/slf4j-api-2.0.17.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/ch.qos.logback/logback-core/1.5.18/6c0375624f6f36b4e089e2488ba21334a11ef13f/logback-core-1.5.18.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.garmin/fit/21.205.0/434d5fe750772bd6b48231591c0155d7583826d0/fit-21.205.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcpkix-jdk18on/1.80/5277dfaaef2e92ce1d802499599a0ca7488f86e6/bcpkix-jdk18on-1.80.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcutil-jdk18on/1.80.2/5aa52bcc7b7d5dc8975a3df9e657abdb5cea62be/bcutil-jdk18on-1.80.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcprov-jdk18on/1.80.2/698ebb5539a939849576a6854bd52e191cbe1c5c/bcprov-jdk18on-1.80.2.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/co.helmethair/scalatest-junit-runner/0.2.0/bd66024849c5f5efbcc5ba791ce00a2ace1ae6bd/scalatest-junit-runner-0.2.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-engine/1.11.4/21f61b123ad6ac8f7e73971bff3a096c8d8e1cd0/junit-platform-engine-1.11.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-commons/1.11.4/8898eea3ed0da2641548d602c3e308804f166303/junit-platform-commons-1.11.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-launcher/1.11.4/3d83c201899d8c5e74e1a5d628eab900342a0e48/junit-platform-launcher-1.11.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala-library/3.8.4/e44f14c38dba7da4d7050cbf72fbf9dcbb6f9e7d/scala-library-3.8.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.typesafe/config/1.4.6/cdf54f700375ae6bd3de8649559b01653b0bead2/config-1.4.6.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-protobuf-v3_3/1.6.0/d64026a0967c04bfb38b35e5e758f74526a33c8/pekko-protobuf-v3_3-1.6.0.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.reactivestreams/reactive-streams/1.0.4/3864a1320d97d7b045f729a326e1e077661f31b7/reactive-streams-1.0.4.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-compatible/3.2.19/609bc82cc06a1322f60039a81fc003ee81d7064f/scalatest-compatible-3.2.19.jar",
+                "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.opentest4j/opentest4j/1.3.0/152ea56b3a72f655d4fd677fc0ef2596c3dd5e6e/opentest4j-1.3.0.jar"
+            ]
+        },
+        "resolution": {
+            "modules": [
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-wordspec_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-wordspec_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-wordspec_3/3.2.19/8608175a7b03081e80bed32ef5ac2daadf07f418/scalatest-wordspec_3-3.2.19.jar"
+                        },
+                        {
+                            "name": "scalatest-wordspec_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-wordspec_3/3.2.19/68924501fcf4b9dbd291da9546a29ff18b5bfcff/scalatest-wordspec_3-3.2.19-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "com.lihaoyi",
+                    "name": "fansi_3",
+                    "version": "0.5.0",
+                    "artifacts": [
+                        {
+                            "name": "fansi_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.lihaoyi/fansi_3/0.5.0/1474d507c6be4621d8c2ad74128ca283854a1cc9/fansi_3-0.5.0-sources.jar"
+                        },
+                        {
+                            "name": "fansi_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.lihaoyi/fansi_3/0.5.0/d5f75d4cc9f880fb5c3f8779f3d3a3f36b0f2b2a/fansi_3-0.5.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scala-lang.modules",
+                    "name": "scala-collection-compat_3",
+                    "version": "2.13.0",
+                    "artifacts": [
+                        {
+                            "name": "scala-collection-compat_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang.modules/scala-collection-compat_3/2.13.0/ba46a8f5bcdef12afd33085d4947531d1d927ab4/scala-collection-compat_3-2.13.0-sources.jar"
+                        },
+                        {
+                            "name": "scala-collection-compat_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang.modules/scala-collection-compat_3/2.13.0/5c90a0d2f9d097ef45d47911b438d78728cbe432/scala-collection-compat_3-2.13.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "co.helmethair",
+                    "name": "scalatest-junit-runner",
+                    "version": "0.2.0",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-junit-runner",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/co.helmethair/scalatest-junit-runner/0.2.0/8583f908c809d821e244f5673f131f96989b3dd5/scalatest-junit-runner-0.2.0-sources.jar"
+                        },
+                        {
+                            "name": "scalatest-junit-runner",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/co.helmethair/scalatest-junit-runner/0.2.0/bd66024849c5f5efbcc5ba791ce00a2ace1ae6bd/scalatest-junit-runner-0.2.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.slf4j",
+                    "name": "slf4j-api",
+                    "version": "2.0.17",
+                    "artifacts": [
+                        {
+                            "name": "slf4j-api",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/2.0.17/d9e58ac9c7779ba3bf8142aff6c830617a7fe60f/slf4j-api-2.0.17.jar"
+                        },
+                        {
+                            "name": "slf4j-api",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/2.0.17/d7da5e7fecb3544b1e32f86dc0ef5d5ecf9f381b/slf4j-api-2.0.17-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.bouncycastle",
+                    "name": "bcprov-jdk18on",
+                    "version": "1.80.2",
+                    "artifacts": [
+                        {
+                            "name": "bcprov-jdk18on",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcprov-jdk18on/1.80.2/698ebb5539a939849576a6854bd52e191cbe1c5c/bcprov-jdk18on-1.80.2.jar"
+                        },
+                        {
+                            "name": "bcprov-jdk18on",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcprov-jdk18on/1.80.2/2016c7182e4e4928a3e59ca52081ba5ef12431e2/bcprov-jdk18on-1.80.2-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-mustmatchers_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-mustmatchers_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-mustmatchers_3/3.2.19/f3b56d62ea6c8cce867424db7e2e98e5f6fb3cfe/scalatest-mustmatchers_3-3.2.19-sources.jar"
+                        },
+                        {
+                            "name": "scalatest-mustmatchers_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-mustmatchers_3/3.2.19/978bec77fcb36688b03fbf7c1d34f2cff55bd55b/scalatest-mustmatchers_3-3.2.19.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.pekko",
+                    "name": "pekko-protobuf-v3_3",
+                    "version": "1.6.0",
+                    "artifacts": [
+                        {
+                            "name": "pekko-protobuf-v3_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-protobuf-v3_3/1.6.0/bf0802995090a444d537eeab9a91ff86b0602a6/pekko-protobuf-v3_3-1.6.0-sources.jar"
+                        },
+                        {
+                            "name": "pekko-protobuf-v3_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-protobuf-v3_3/1.6.0/d64026a0967c04bfb38b35e5e758f74526a33c8/pekko-protobuf-v3_3-1.6.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.pekko",
+                    "name": "pekko-actor_3",
+                    "version": "1.6.0",
+                    "artifacts": [
+                        {
+                            "name": "pekko-actor_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-actor_3/1.6.0/df8be745ed83f1577467e7115a647309c7019a23/pekko-actor_3-1.6.0-sources.jar"
+                        },
+                        {
+                            "name": "pekko-actor_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-actor_3/1.6.0/21fe7f50454cd72fece20d32c9bc5df28095f44b/pekko-actor_3-1.6.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.junit.platform",
+                    "name": "junit-platform-engine",
+                    "version": "1.11.4",
+                    "artifacts": [
+                        {
+                            "name": "junit-platform-engine",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-engine/1.11.4/9e12d99def318784875efc0804bae79bc45c61f8/junit-platform-engine-1.11.4-sources.jar"
+                        },
+                        {
+                            "name": "junit-platform-engine",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-engine/1.11.4/21f61b123ad6ac8f7e73971bff3a096c8d8e1cd0/junit-platform-engine-1.11.4.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.pekko",
+                    "name": "pekko-http-xml_3",
+                    "version": "1.3.0",
+                    "artifacts": [
+                        {
+                            "name": "pekko-http-xml_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-http-xml_3/1.3.0/7ba9d4f91739ba4bfb0b763e9319b9daee9dd618/pekko-http-xml_3-1.3.0.jar"
+                        },
+                        {
+                            "name": "pekko-http-xml_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-http-xml_3/1.3.0/2e9400682bd1effe092e63785dadf750596480c1/pekko-http-xml_3-1.3.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-flatspec_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-flatspec_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-flatspec_3/3.2.19/a95158a09a7ac65adbbd0de6fe65d6d0b6aaad55/scalatest-flatspec_3-3.2.19.jar"
+                        },
+                        {
+                            "name": "scalatest-flatspec_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-flatspec_3/3.2.19/3638e33d12486b41b4529c5424e894a6f8b6e71e/scalatest-flatspec_3-3.2.19-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-freespec_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-freespec_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-freespec_3/3.2.19/f00dd1ac0107ee2beab9fd4d44208cec411ccf20/scalatest-freespec_3-3.2.19.jar"
+                        },
+                        {
+                            "name": "scalatest-freespec_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-freespec_3/3.2.19/3f4955998f042c269655409bde5ce1c4d9990e07/scalatest-freespec_3-3.2.19-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-refspec_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-refspec_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-refspec_3/3.2.19/ecb193086c0e738731a1dd63904b63fb32ba605a/scalatest-refspec_3-3.2.19-sources.jar"
+                        },
+                        {
+                            "name": "scalatest-refspec_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-refspec_3/3.2.19/88160253f5bd278eeb78ba315f3b29475fad2114/scalatest-refspec_3-3.2.19.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scala-lang",
+                    "name": "scala3-library_3",
+                    "version": "3.8.4",
+                    "artifacts": [
+                        {
+                            "name": "scala3-library_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala3-library_3/3.8.4/9583a219e2add15489aa33e9bc1dc14570b29b4a/scala3-library_3-3.8.4-sources.jar"
+                        },
+                        {
+                            "name": "scala3-library_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala3-library_3/3.8.4/ada8b099f5425afff3e9164afd6601bed4ef2e21/scala3-library_3-3.8.4.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.junit.platform",
+                    "name": "junit-platform-commons",
+                    "version": "1.11.4",
+                    "artifacts": [
+                        {
+                            "name": "junit-platform-commons",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-commons/1.11.4/1acfe264ada9081bba59c937a8b0cae0619491bc/junit-platform-commons-1.11.4-sources.jar"
+                        },
+                        {
+                            "name": "junit-platform-commons",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-commons/1.11.4/8898eea3ed0da2641548d602c3e308804f166303/junit-platform-commons-1.11.4.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scala-lang.modules",
+                    "name": "scala-xml_3",
+                    "version": "2.4.0",
+                    "artifacts": [
+                        {
+                            "name": "scala-xml_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang.modules/scala-xml_3/2.4.0/b09380d0ebb77c772db3e84544f01feed61a230c/scala-xml_3-2.4.0.jar"
+                        },
+                        {
+                            "name": "scala-xml_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang.modules/scala-xml_3/2.4.0/f59d3db3831aa5672b7b20e08d00e6cc0b6db16c/scala-xml_3-2.4.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-funspec_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-funspec_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-funspec_3/3.2.19/48751d9d2a022510ecba14fd479529dbef1764ec/scalatest-funspec_3-3.2.19.jar"
+                        },
+                        {
+                            "name": "scalatest-funspec_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-funspec_3/3.2.19/78601919b348edb97738bd22bd14605038998dba/scalatest-funspec_3-3.2.19-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-compatible",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-compatible",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-compatible/3.2.19/79d241dc3db3aaeabef4abd497303513b63f5564/scalatest-compatible-3.2.19-sources.jar"
+                        },
+                        {
+                            "name": "scalatest-compatible",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-compatible/3.2.19/609bc82cc06a1322f60039a81fc003ee81d7064f/scalatest-compatible-3.2.19.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-diagrams_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-diagrams_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-diagrams_3/3.2.19/cc9ce2a5306740a6bd45d4c9dbafbe17879328bb/scalatest-diagrams_3-3.2.19-sources.jar"
+                        },
+                        {
+                            "name": "scalatest-diagrams_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-diagrams_3/3.2.19/45e41a48bbee2a1d4d4008d08720e2368c0e9e82/scalatest-diagrams_3-3.2.19.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "com.lihaoyi",
+                    "name": "pprint_3",
+                    "version": "0.9.0",
+                    "artifacts": [
+                        {
+                            "name": "pprint_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.lihaoyi/pprint_3/0.9.0/4d9c454313bbf1ce4910a7744a4c7113c731ed73/pprint_3-0.9.0-sources.jar"
+                        },
+                        {
+                            "name": "pprint_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.lihaoyi/pprint_3/0.9.0/731c17511bc678c4c7101c36e9d480b8c4a59f08/pprint_3-0.9.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.pekko",
+                    "name": "pekko-stream_3",
+                    "version": "1.6.0",
+                    "artifacts": [
+                        {
+                            "name": "pekko-stream_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-stream_3/1.6.0/4a00b7ba988bcd34226fb81df77576c250459446/pekko-stream_3-1.6.0.jar"
+                        },
+                        {
+                            "name": "pekko-stream_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-stream_3/1.6.0/3bff4f7b765282c6fa98e0b4f2935e16192782f3/pekko-stream_3-1.6.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-shouldmatchers_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-shouldmatchers_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-shouldmatchers_3/3.2.19/dae30911e116b7f54256068a04f727db2e84e006/scalatest-shouldmatchers_3-3.2.19-sources.jar"
+                        },
+                        {
+                            "name": "scalatest-shouldmatchers_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-shouldmatchers_3/3.2.19/62251750a0c8a9bfdea43e830dea18d45075c75b/scalatest-shouldmatchers_3-3.2.19.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.bouncycastle",
+                    "name": "bcpkix-jdk18on",
+                    "version": "1.80",
+                    "artifacts": [
+                        {
+                            "name": "bcpkix-jdk18on",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcpkix-jdk18on/1.80/2c0ddd727cf5536caf04dae81f7aae2f5cf3667a/bcpkix-jdk18on-1.80-sources.jar"
+                        },
+                        {
+                            "name": "bcpkix-jdk18on",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcpkix-jdk18on/1.80/5277dfaaef2e92ce1d802499599a0ca7488f86e6/bcpkix-jdk18on-1.80.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.pekko",
+                    "name": "pekko-http_3",
+                    "version": "1.3.0",
+                    "artifacts": [
+                        {
+                            "name": "pekko-http_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-http_3/1.3.0/919062c868b9994fc8e681a5487f8614748fa360/pekko-http_3-1.3.0-sources.jar"
+                        },
+                        {
+                            "name": "pekko-http_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-http_3/1.3.0/3da02daeff353223a61deae61c3f1c470898be66/pekko-http_3-1.3.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest_3/3.2.19/bd5f5e48a767638d56383c2dcda9e4e330c888fa/scalatest_3-3.2.19-sources.jar"
+                        },
+                        {
+                            "name": "scalatest_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest_3/3.2.19/e93bad4d3da3705446569085aab67e978f7485e5/scalatest_3-3.2.19.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-featurespec_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-featurespec_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-featurespec_3/3.2.19/2afa0ba275c6b24f9cd27fb71da7d222b43591ca/scalatest-featurespec_3-3.2.19.jar"
+                        },
+                        {
+                            "name": "scalatest-featurespec_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-featurespec_3/3.2.19/81b641d085987c9e67e299e7e213cc4742eff06a/scalatest-featurespec_3-3.2.19-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "com.typesafe",
+                    "name": "config",
+                    "version": "1.4.6",
+                    "artifacts": [
+                        {
+                            "name": "config",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.typesafe/config/1.4.6/cdf54f700375ae6bd3de8649559b01653b0bead2/config-1.4.6.jar"
+                        },
+                        {
+                            "name": "config",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.typesafe/config/1.4.6/f60d23b758c4da6cc4c02161fa5a7b0e9b9713e3/config-1.4.6-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-matchers-core_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-matchers-core_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-matchers-core_3/3.2.19/6aba956733cd56e48d7defa14a982e8377581f5a/scalatest-matchers-core_3-3.2.19.jar"
+                        },
+                        {
+                            "name": "scalatest-matchers-core_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-matchers-core_3/3.2.19/74cfef6db5e78cf7d7270ac551c579a8de7d2169/scalatest-matchers-core_3-3.2.19-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.reactivestreams",
+                    "name": "reactive-streams",
+                    "version": "1.0.4",
+                    "artifacts": [
+                        {
+                            "name": "reactive-streams",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.reactivestreams/reactive-streams/1.0.4/d3cddd3497e618c6d3810ef439f13666f889abe4/reactive-streams-1.0.4-sources.jar"
+                        },
+                        {
+                            "name": "reactive-streams",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.reactivestreams/reactive-streams/1.0.4/3864a1320d97d7b045f729a326e1e077661f31b7/reactive-streams-1.0.4.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.pekko",
+                    "name": "pekko-parsing_3",
+                    "version": "1.3.0",
+                    "artifacts": [
+                        {
+                            "name": "pekko-parsing_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-parsing_3/1.3.0/58d0ce5f3dffd886e76798990de2f53cbfb6f7b9/pekko-parsing_3-1.3.0.jar"
+                        },
+                        {
+                            "name": "pekko-parsing_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-parsing_3/1.3.0/6359847180180eef174417bb45757e64a45912db/pekko-parsing_3-1.3.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.pekko",
+                    "name": "pekko-slf4j_3",
+                    "version": "1.6.0",
+                    "artifacts": [
+                        {
+                            "name": "pekko-slf4j_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-slf4j_3/1.6.0/9a177ec82f6eea3be1a740c072c180207f6cf19f/pekko-slf4j_3-1.6.0-sources.jar"
+                        },
+                        {
+                            "name": "pekko-slf4j_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-slf4j_3/1.6.0/ef7746335920cfd02ca8ecdc7fabcc6dd14ba84b/pekko-slf4j_3-1.6.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "com.garmin",
+                    "name": "fit",
+                    "version": "21.205.0",
+                    "artifacts": [
+                        {
+                            "name": "fit",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.garmin/fit/21.205.0/75b420aecd95685a3123d66993d0335bf1968fc6/fit-21.205.0-sources.jar"
+                        },
+                        {
+                            "name": "fit",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.garmin/fit/21.205.0/434d5fe750772bd6b48231591c0155d7583826d0/fit-21.205.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-funsuite_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-funsuite_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-funsuite_3/3.2.19/c6ad79ccdf85dbbdbaa0b9c097fcd47834db4373/scalatest-funsuite_3-3.2.19-sources.jar"
+                        },
+                        {
+                            "name": "scalatest-funsuite_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-funsuite_3/3.2.19/5dd75633e7671072f88c7a84218e0dcd97fea526/scalatest-funsuite_3-3.2.19.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-propspec_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-propspec_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-propspec_3/3.2.19/6e5aa18878f69109e4080ca97da50e520ddfe0d4/scalatest-propspec_3-3.2.19.jar"
+                        },
+                        {
+                            "name": "scalatest-propspec_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-propspec_3/3.2.19/c884b2751cc71bb62b9d489fc7cc7bf4147ec813/scalatest-propspec_3-3.2.19-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalatest",
+                    "name": "scalatest-core_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalatest-core_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-core_3/3.2.19/dbdada24120fcfca3e5391c590b84372b25a51b3/scalatest-core_3-3.2.19.jar"
+                        },
+                        {
+                            "name": "scalatest-core_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalatest/scalatest-core_3/3.2.19/e82c7c01408d913deec3ada89823c10bb5d2d3ed/scalatest-core_3-3.2.19-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.junit.platform",
+                    "name": "junit-platform-launcher",
+                    "version": "1.11.4",
+                    "artifacts": [
+                        {
+                            "name": "junit-platform-launcher",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-launcher/1.11.4/d705f6b0d147036b7d84dca5eaad35b41d64592a/junit-platform-launcher-1.11.4-sources.jar"
+                        },
+                        {
+                            "name": "junit-platform-launcher",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.junit.platform/junit-platform-launcher/1.11.4/3d83c201899d8c5e74e1a5d628eab900342a0e48/junit-platform-launcher-1.11.4.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "ch.qos.logback",
+                    "name": "logback-core",
+                    "version": "1.5.18",
+                    "artifacts": [
+                        {
+                            "name": "logback-core",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/ch.qos.logback/logback-core/1.5.18/f0838c78e8957d0ea1a6b55a2df250bf2d559d9c/logback-core-1.5.18-sources.jar"
+                        },
+                        {
+                            "name": "logback-core",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/ch.qos.logback/logback-core/1.5.18/6c0375624f6f36b4e089e2488ba21334a11ef13f/logback-core-1.5.18.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "ch.qos.logback",
+                    "name": "logback-classic",
+                    "version": "1.5.18",
+                    "artifacts": [
+                        {
+                            "name": "logback-classic",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/ch.qos.logback/logback-classic/1.5.18/c18967160fa1b855dd90a43d69e7bad0328cf19c/logback-classic-1.5.18-sources.jar"
+                        },
+                        {
+                            "name": "logback-classic",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/ch.qos.logback/logback-classic/1.5.18/fc371f3fc97a639de2d67947cffb7518ec5e3d40/logback-classic-1.5.18.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "com.typesafe",
+                    "name": "ssl-config-core_3",
+                    "version": "0.7.1",
+                    "artifacts": [
+                        {
+                            "name": "ssl-config-core_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.typesafe/ssl-config-core_3/0.7.1/fa7421673a8a3d4d26949b3869e18a060b559f30/ssl-config-core_3-0.7.1.jar"
+                        },
+                        {
+                            "name": "ssl-config-core_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.typesafe/ssl-config-core_3/0.7.1/a2277d3d38d48a25ba3e8da30479d6e8e6c87123/ssl-config-core_3-0.7.1-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.parboiled",
+                    "name": "parboiled_3",
+                    "version": "2.5.1",
+                    "artifacts": [
+                        {
+                            "name": "parboiled_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.parboiled/parboiled_3/2.5.1/d2f889f68c791cd6d87cc9d627f6bb2d4d763364/parboiled_3-2.5.1-sources.jar"
+                        },
+                        {
+                            "name": "parboiled_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.parboiled/parboiled_3/2.5.1/4eb15fe93fd9d5945e006f2c5067d4d96245d352/parboiled_3-2.5.1.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scalactic",
+                    "name": "scalactic_3",
+                    "version": "3.2.19",
+                    "artifacts": [
+                        {
+                            "name": "scalactic_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalactic/scalactic_3/3.2.19/621a6356e969fbb8ab02e0bae9db49b3bfe9f671/scalactic_3-3.2.19-sources.jar"
+                        },
+                        {
+                            "name": "scalactic_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scalactic/scalactic_3/3.2.19/568eeb37bc037ecabce2b232b5f5870eee033c7f/scalactic_3-3.2.19.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "com.lihaoyi",
+                    "name": "sourcecode_3",
+                    "version": "0.4.0",
+                    "artifacts": [
+                        {
+                            "name": "sourcecode_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.lihaoyi/sourcecode_3/0.4.0/d17799e6e2222b5af29454fe9812534eac926955/sourcecode_3-0.4.0-sources.jar"
+                        },
+                        {
+                            "name": "sourcecode_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/com.lihaoyi/sourcecode_3/0.4.0/40f09dadb1ee1c87fe422fde577b2996619c5c3f/sourcecode_3-0.4.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "io.spray",
+                    "name": "spray-json_3",
+                    "version": "1.3.6",
+                    "artifacts": [
+                        {
+                            "name": "spray-json_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/io.spray/spray-json_3/1.3.6/401ed886c6467984cdc988c08fbc29c26fc0bea7/spray-json_3-1.3.6-sources.jar"
+                        },
+                        {
+                            "name": "spray-json_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/io.spray/spray-json_3/1.3.6/2536de5846f836782d5ab00ab8d46c47dee80e4b/spray-json_3-1.3.6.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.scala-lang",
+                    "name": "scala-library",
+                    "version": "3.8.4",
+                    "artifacts": [
+                        {
+                            "name": "scala-library",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala-library/3.8.4/2626e91ee16c1843798435a84a526f9108c46979/scala-library-3.8.4-sources.jar"
+                        },
+                        {
+                            "name": "scala-library",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.scala-lang/scala-library/3.8.4/e44f14c38dba7da4d7050cbf72fbf9dcbb6f9e7d/scala-library-3.8.4.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.opentest4j",
+                    "name": "opentest4j",
+                    "version": "1.3.0",
+                    "artifacts": [
+                        {
+                            "name": "opentest4j",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.opentest4j/opentest4j/1.3.0/afb8ff23cffb021c56f333953aebfe6e8818568e/opentest4j-1.3.0-sources.jar"
+                        },
+                        {
+                            "name": "opentest4j",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.opentest4j/opentest4j/1.3.0/152ea56b3a72f655d4fd677fc0ef2596c3dd5e6e/opentest4j-1.3.0.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.bouncycastle",
+                    "name": "bcutil-jdk18on",
+                    "version": "1.80.2",
+                    "artifacts": [
+                        {
+                            "name": "bcutil-jdk18on",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcutil-jdk18on/1.80.2/2a7dc6441fb9bf7516f71f8dce946435866588f2/bcutil-jdk18on-1.80.2-sources.jar"
+                        },
+                        {
+                            "name": "bcutil-jdk18on",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcutil-jdk18on/1.80.2/5aa52bcc7b7d5dc8975a3df9e657abdb5cea62be/bcutil-jdk18on-1.80.2.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.apache.pekko",
+                    "name": "pekko-http-core_3",
+                    "version": "1.3.0",
+                    "artifacts": [
+                        {
+                            "name": "pekko-http-core_3",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-http-core_3/1.3.0/9270a9aa26b692d4c2054f59d120b9e9ff2732ba/pekko-http-core_3-1.3.0.jar"
+                        },
+                        {
+                            "name": "pekko-http-core_3",
+                            "classifier": "sources",
+                            "path": "/Users/gmills/.gradle/caches/modules-2/files-2.1/org.apache.pekko/pekko-http-core_3/1.3.0/8ff42b83c5996b421121f616fcb9a9e876508c32/pekko-http-core_3-1.3.0-sources.jar"
+                        }
+                    ]
+                }
+            ]
+        },
+        "tags": [
+            "test"
+        ]
+    }
+}
