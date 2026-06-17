@@ -98,6 +98,30 @@ final class FitMergeSpec extends AnyFunSuite with Matchers {
     merged.messages.exists(_.globalNum == 23) shouldBe true
   }
 
+  test("mergeWithReport logs segments, the gap, and the final layout") {
+    val segA = segment(t0, 60, 0.0)
+    val segB = segment(t0.plus(660, ChronoUnit.SECONDS), 60, 0.0) // 10-minute gap (601s after segA ends)
+    val MergeOutcome(merged, report) = FitMerge.mergeWithReport(Seq(segA, segB)).toOption.get
+
+    report.segments.map(_.records) shouldBe Vector(60, 60)
+    report.gaps.map(_.afterSegment) shouldBe Vector(1)
+    report.gaps.head.seconds shouldBe 601.0 +- 0.001
+    report.movingSeconds should be < report.elapsedSeconds
+    report.layout.totalMessages shouldBe merged.messages.size
+    report.layout.counts.toMap.get("record") shouldBe Some(120)
+    report.layout.counts.toMap.get("session") shouldBe Some(1)
+  }
+
+  test("joining two segments keeps every record under one session/activity") {
+    val merged = FitMerge
+      .merge(Seq(segment(t0, 100, 0.0), segment(t0.plus(900, ChronoUnit.SECONDS), 100, 0.0)))
+      .toOption
+      .get
+    merged.records should have size 200
+    merged.sessions should have size 1
+    merged.messages.count(_.globalNum == FitProfile.Mesg.Activity) shouldBe 1
+  }
+
   test("merged file survives a codec round-trip") {
     val codec = new GarminFitCodec()
     val merged =

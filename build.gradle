@@ -117,6 +117,14 @@ task codecDemo(type: JavaExec, dependsOn: classes) {
   classpath sourceSets.main.runtimeClasspath
 }
 
+// Join two recordings into one, with a logged report + layout summary.
+// Usage: ./gradlew mergeDemo --args="samples/ride.fit"   (omit args for a synthetic join)
+task mergeDemo(type: JavaExec, dependsOn: classes) {
+  description = 'Demonstrates joining two recordings with a merge report'
+  mainClass = 'fitforge.examples.FitMergeDemo'
+  classpath sourceSets.main.runtimeClasspath
+}
+
 task cleanFrontend(type: Delete) {
   delete "$projectDir/frontend/dist"
 }

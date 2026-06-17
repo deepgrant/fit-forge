@@ -9,6 +9,8 @@ import com.garmin.fit.Field
 import com.garmin.fit.FileEncoder
 import com.garmin.fit.Fit
 import com.garmin.fit.Mesg
+import com.garmin.fit.MesgDefinition
+import com.garmin.fit.MesgDefinitionListener
 import com.garmin.fit.MesgListener
 
 /**
@@ -41,6 +43,21 @@ final class GarminFitCodec extends FitCodec {
     val out = Files.readAllBytes(tmp)
     Files.deleteIfExists(tmp): Unit
     out
+  }
+
+  def stats(bytes: Array[Byte]): FitStats = {
+    val decoder   = new Decoder(bytes)
+    val devCounts = Vector.newBuilder[Int]
+    val defCounts = Vector.newBuilder[Int]
+    decoder.addListener(new MesgListener {
+      override def onMesg(mesg: Mesg): Unit = devCounts += mesg.getDeveloperFields.asScala.size
+    })
+    decoder.addListener(new MesgDefinitionListener {
+      override def onMesgDefinition(mesgDef: MesgDefinition): Unit = defCounts += 1
+    })
+    decoder.read(): Unit
+    val devs = devCounts.result()
+    FitStats(dataMessages = devs.size, definitionMessages = defCounts.result().size, developerFields = devs.sum)
   }
 }
 

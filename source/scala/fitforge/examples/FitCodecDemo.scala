@@ -132,6 +132,19 @@ object FitCodecDemo {
     val redecoded = codec.decode(reencoded)
     println(s"  -> re-encoded to ${reencoded.length} bytes; re-decoded ${redecoded.records.size} records")
 
+    val outPath = roundTripPath(Paths.get(path))
+    Files.write(outPath, reencoded): Unit
+    println(s"  -> wrote round-tripped file to $outPath")
+
+    val before = codec.stats(in)
+    val after  = codec.stats(reencoded)
+    println(s"  -> file size:           ${in.length} bytes -> ${reencoded.length} bytes")
+    println(
+      s"  -> definition messages: ${before.definitionMessages} -> ${after.definitionMessages}  (FIT structural overhead)"
+    )
+    println(s"  -> data messages:       ${before.dataMessages} -> ${after.dataMessages}")
+    println(s"  -> developer fields:    ${before.developerFields} -> ${after.developerFields}")
+
     println("\nVerifying the second decode matches the first (option 3 = nothing lost):")
     val strings = stringValues(decoded)
     val results = Vector(
@@ -228,6 +241,13 @@ object FitCodecDemo {
   private def humanDuration(d: Duration): String = {
     val s = d.getSeconds
     f"${s / 3600}%dh ${(s % 3600) / 60}%02dm ${s % 60}%02ds"
+  }
+
+  /** Sibling output path for the re-encoded file, e.g. `ride.fit` -> `ride.roundtrip.fit`. */
+  private def roundTripPath(in: java.nio.file.Path): java.nio.file.Path = {
+    val name = in.getFileName.toString
+    val base = if (name.contains(".")) name.substring(0, name.lastIndexOf('.')) else name
+    Option(in.getParent).getOrElse(Paths.get(".")).resolve(s"$base.roundtrip.fit")
   }
 
   /** Every string field value in the file, sorted — the fragile part of a round-trip. */

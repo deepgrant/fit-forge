@@ -14,4 +14,7 @@ trait FitCodec {
 
   /** Encode the domain model into a valid `.fit` activity file. */
   def encode(file: FitFile): Array[Byte]
+
+  /** Low-level structural counts (definition vs data messages, developer fields) for diagnostics. */
+  def stats(bytes: Array[Byte]): FitStats
 }

@@ -48,3 +48,6 @@ final case class FitMessage(globalNum: Int, fields: Vector[RawField], original: 
 object FitMessage {
   def apply(globalNum: Int): FitMessage = FitMessage(globalNum, Vector.empty, None)
 }
+
+/** Low-level structural counts for a FIT byte stream (diagnostics: explains size differences). */
+final case class FitStats(dataMessages: Int, definitionMessages: Int, developerFields: Int)

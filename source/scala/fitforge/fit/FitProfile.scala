@@ -28,6 +28,26 @@ object FitProfile {
     val Record: Int   = 20
     val Event: Int    = 21
     val Activity: Int = 34
+
+    private val names: Map[Int, String] = Map(
+      0   -> "file_id",
+      18  -> "session",
+      19  -> "lap",
+      20  -> "record",
+      21  -> "event",
+      22  -> "source",
+      23  -> "device_info",
+      34  -> "activity",
+      49  -> "file_creator",
+      78  -> "hrv",
+      104 -> "battery",
+      147 -> "sensor",
+      206 -> "field_description",
+      207 -> "developer_data_id",
+    )
+
+    /** Human name for a global message number, or `mesg_<n>` if unknown. */
+    def nameOf(num: Int): String = names.getOrElse(num, s"mesg_$num")
   }
 
   object Rec {

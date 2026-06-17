@@ -18,6 +18,27 @@ enum LapStrategy {
 /** Options controlling a merge. */
 final case class MergeOptions(lapStrategy: LapStrategy = LapStrategy.OnePerSegment)
 
+/** What was read from one input recording. */
+final case class SegmentInfo(records: Int, start: Instant, end: Instant, distanceM: Option[Double])
+
+/** A preserved pause: the gap after segment `afterSegment` (1-based). */
+final case class GapInfo(afterSegment: Int, seconds: Double)
+
+/** A structured log of a merge: what was read, what changed, and the final file's layout. */
+final case class MergeReport(
+    segments: Vector[SegmentInfo],
+    gaps: Vector[GapInfo],
+    totalDistanceM: Option[Double],
+    elapsedSeconds: Double,
+    movingSeconds: Double,
+    timerEventsAdded: Int,
+    lapStrategy: LapStrategy,
+    layout: FitLayout,
+)
+
+/** A merge result paired with its report. */
+final case class MergeOutcome(file: FitFile, report: MergeReport)
+
 /**
  * Joins multiple activity recordings of a single ride into one continuous file.
  *
@@ -33,7 +54,18 @@ object FitMerge {
   private val Handled: Set[Int] = Set(Mesg.FileId, Mesg.Record, Mesg.Event, Mesg.Lap, Mesg.Session, Mesg.Activity)
 
   /** Merge `files` (in any order) into one activity, or describe why it can't. */
-  def merge(files: Seq[FitFile], options: MergeOptions = MergeOptions()): Either[String, FitFile] = {
+  def merge(files: Seq[FitFile], options: MergeOptions = MergeOptions()): Either[String, FitFile] =
+    validated(files).map(assemble(_, options))
+
+  /** As [[merge]], but also returns a [[MergeReport]] logging what was read and changed. */
+  def mergeWithReport(files: Seq[FitFile], options: MergeOptions = MergeOptions()): Either[String, MergeOutcome] =
+    validated(files).map { ordered =>
+      val merged = assemble(ordered, options)
+      MergeOutcome(merged, buildReport(ordered, merged, options))
+    }
+
+  /** Validate inputs and return the segments ordered by start time. */
+  private def validated(files: Seq[FitFile]): Either[String, Seq[FitFile]] = {
     for {
       nonEmpty <- Either.cond(files.nonEmpty, files, "No files to merge")
       withRecords <- Either.cond(
@@ -43,7 +75,34 @@ object FitMerge {
       )
       ordered = withRecords.sortBy(_.records.head.timestamp)
       _ <- ensureNoOverlap(ordered)
-    } yield assemble(ordered, options)
+    } yield ordered
+  }
+
+  private def buildReport(ordered: Seq[FitFile], merged: FitFile, options: MergeOptions): MergeReport = {
+    val segments = ordered.map { f =>
+      val rs = f.records
+      SegmentInfo(rs.size, rs.head.timestamp, rs.last.timestamp, rs.lastOption.flatMap(_.distanceM))
+    }.toVector
+
+    val gaps = ordered
+      .sliding(2)
+      .zipWithIndex
+      .collect { case (Seq(a, b), i) => GapInfo(i + 1, seconds(a.records.last.timestamp, b.records.head.timestamp)) }
+      .toVector
+
+    val start = ordered.head.records.head.timestamp
+    val end   = ordered.last.records.last.timestamp
+
+    MergeReport(
+      segments = segments,
+      gaps = gaps,
+      totalDistanceM = merged.sessions.headOption.flatMap(_.totalDistanceM),
+      elapsedSeconds = seconds(start, end),
+      movingSeconds = ordered.map(f => seconds(f.records.head.timestamp, f.records.last.timestamp)).sum,
+      timerEventsAdded = timerEvents(ordered).size,
+      lapStrategy = options.lapStrategy,
+      layout = FitLayout.of(merged),
+    )
   }
 
   private def ensureNoOverlap(ordered: Seq[FitFile]): Either[String, Unit] = {
