@@ -10,6 +10,7 @@ import fitforge.fit.Event
 import fitforge.fit.FileId
 import fitforge.fit.FitCodec
 import fitforge.fit.FitFile
+import fitforge.fit.FitSummary
 import fitforge.fit.FitValue
 import fitforge.fit.GarminFitCodec
 import fitforge.fit.GpsPoint
@@ -127,6 +128,8 @@ object FitCodecDemo {
     decoded.records.headOption.foreach(r => println(s"    first sample at ${r.timestamp}"))
     decoded.records.lastOption.foreach(r => println(s"    last  sample at ${r.timestamp}"))
 
+    printOverview(decoded)
+
     println("\nRe-encoding the decoded model, then decoding that again...")
     val reencoded = codec.encode(decoded)
     val redecoded = codec.decode(reencoded)
@@ -182,6 +185,47 @@ object FitCodecDemo {
       ),
     )
     summarise("Real-file round-trip", results.forall(identity))
+  }
+
+  /** Dump the devices used and the headline ride statistics. */
+  private def printOverview(file: FitFile): Unit = {
+    val devices = FitSummary.devices(file)
+    println(s"\nPrimary recording device: ${FitSummary.primaryDevice(file).map(_.displayName).getOrElse("unknown")}")
+    println("Devices used in the recording:")
+    if (devices.isEmpty) println("  (none recorded)")
+    else
+      devices.foreach { d =>
+        val bits = Vector(
+          d.kind.map(k => s"kind: $k"),
+          d.sourceType.map(t => s"conn: $t"),
+          d.batteryStatus.map(s => s"battery: $s"),
+          d.softwareVersion.map(v => f"sw $v%.2f"),
+          d.serialNumber.map(s => s"serial $s"),
+        ).flatten.mkString(", ")
+        val suffix = if (bits.isEmpty) "" else s"  ($bits)"
+        println(s"  [${d.index}] ${d.displayName}$suffix")
+      }
+
+    val r = FitSummary.ride(file)
+    println("\nRide summary:")
+    println(s"  activity type:  ${r.sport.map(_.toLowerCase).getOrElse("-")}")
+    println(s"  total distance: ${r.totalDistanceM.map(distance).getOrElse("-")}")
+    println(s"  elapsed time:   ${r.elapsedSeconds.map(hms).getOrElse("-")}")
+    println(s"  moving time:    ${r.movingSeconds.map(hms).getOrElse("-")}")
+    println(s"  avg speed:      ${r.avgSpeedMps.map(speed).getOrElse("-")}")
+    println(s"  max speed:      ${r.maxSpeedMps.map(speed).getOrElse("-")}")
+    r.avgPowerW.foreach(p => println(f"  avg power:      ${p}%.0f W"))
+    r.maxPowerW.foreach(p => println(f"  max power:      ${p}%.0f W"))
+    r.avgTempC.foreach(t => println(s"  avg temp:       ${temp(t)}"))
+    r.maxTempC.foreach(t => println(s"  max temp:       ${temp(t)}"))
+  }
+
+  private def distance(m: Double): String = f"${m / 1000.0}%.2f km / ${m / 1609.344}%.2f mi"
+  private def speed(mps: Double): String  = f"${mps * 3.6}%.1f km/h / ${mps * 2.236936}%.1f mph"
+  private def temp(c: Double): String     = f"$c%.1f °C / ${c * 9.0 / 5.0 + 32.0}%.1f °F"
+  private def hms(seconds: Double): String = {
+    val s = seconds.toLong
+    f"${s / 3600}%dh ${(s % 3600) / 60}%02dm ${s % 60}%02ds"
   }
 
   // ── output helpers ──────────────────────────────────────────────────────────
