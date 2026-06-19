@@ -3,7 +3,6 @@
 *.log
 
 # Local FIT sample files (ride data — not committed)
-samples/
 *.fit
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
