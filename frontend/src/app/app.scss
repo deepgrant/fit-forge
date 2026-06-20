@@ -246,7 +246,10 @@ h2 {
 }
 
 .upload-panel {
-  min-height: 560px;
+  height: 560px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .route-panel {
@@ -303,11 +306,18 @@ h2 {
 
 .segment-list {
   display: grid;
+  align-content: start;
   gap: 10px;
+  flex: 1 1 auto;
   margin-top: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
 }
 
 .segment-row {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: 34px 1fr 34px;
   gap: 10px;
@@ -569,6 +579,21 @@ select {
   display: grid;
   gap: 8px;
   margin-top: 12px;
+}
+
+.summary-panel {
+  max-height: clamp(520px, calc(100vh - 120px), 980px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.device-list {
+  min-height: 0;
+  max-height: clamp(220px, calc(100vh - 360px), 680px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
 }
 
 .report-row {
