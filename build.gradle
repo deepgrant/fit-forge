@@ -115,7 +115,7 @@ task copyRuntimeDeps(type: Copy, dependsOn: jar) {
 }
 
 task lambdaSmoke(type: JavaExec, dependsOn: classes) {
-  description = 'Invoke the Lambda handler with a local /health event'
+  description = 'Invoke the Lambda handler locally without touching AWS'
   mainClass = 'ffmforge.lambda.LambdaSmokeMain'
   classpath sourceSets.main.runtimeClasspath
 }

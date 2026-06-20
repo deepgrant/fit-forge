@@ -51,9 +51,9 @@ final class FFMForgeLambdaSpec extends AnyFunSuite with Matchers {
     super.withFixture(test)
   }
 
-  test("health returns a Lambda proxy response") {
-    val res = api.handle(event("GET", "/health"))
-    res.parseJson.asJsObject.fields("statusCode").convertTo[Int] shouldBe StatusCodes.OK.intValue
+  test("unknown route returns NotFound") {
+    val res = api.handle(event("GET", "/ffmforge/v1/unknown"))
+    res.parseJson.asJsObject.fields("statusCode").convertTo[Int] shouldBe StatusCodes.NotFound.intValue
   }
 
   test("presigned upload, describe, merge and presigned download use real S3") {

@@ -101,7 +101,6 @@ GET /ffmforge/v1/fit/{id}/download
   -> short-lived presigned GET URL
 
 GET /ffmforge/v1/version
-GET /health
 ```
 
 Errors map from the domain: invalid FIT → `422`; merge conflict/overlap → `409`;

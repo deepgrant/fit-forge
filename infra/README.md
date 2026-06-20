@@ -21,7 +21,7 @@ runtime reason.
   frontend domain.
 - Private FIT data S3 bucket with encryption, browser CORS for presigned
   uploads/downloads, and a 1-day lifecycle backstop on `fit/`.
-- ECR repository for the Lambda container image.
+- Existing ECR repository lookup for the Lambda container image.
 - Lambda execution role and least-privilege S3 policy.
 - Lambda function using the supplied image URI.
 - API Gateway HTTP API routed through CloudFront at `/ffmforge/v1/*`.
@@ -40,6 +40,7 @@ export TF_VAR_hosted_zone_name="..."
 export TF_VAR_domain_name="..."
 export TF_VAR_frontend_bucket_name="..."
 export TF_VAR_data_bucket_name="..."
+export TF_VAR_ecr_repository_name="..."
 export TF_VAR_lambda_image_uri="..."
 ```
 
@@ -47,18 +48,28 @@ export TF_VAR_lambda_image_uri="..."
 
 ## Bootstrap
 
-The Lambda image must exist before the full stack can create the function.
+The Lambda image must exist before the full stack can create the function. ECR
+is expected to already exist; OpenTofu looks it up by `ecr_repository_name` and
+does not create or manage that repository.
 
-1. Create ECR first:
+1. Build the local Lambda image:
 
    ```bash
-   tofu init
-   tofu apply -target=aws_ecr_repository.app
+   ./gradlew docker
    ```
 
-2. Build and push the Lambda image to ECR.
+2. Tag and push it to the existing ECR repo:
 
-3. Set `TF_VAR_lambda_image_uri` to the pushed image URI.
+   ```bash
+   aws ecr get-login-password --region "$TF_VAR_aws_region" \
+     | docker login --username AWS --password-stdin "<account>.dkr.ecr.<region>.amazonaws.com"
+
+   docker tag ffm-forge:1.0 "<account>.dkr.ecr.<region>.amazonaws.com/<repo>:latest"
+   docker push "<account>.dkr.ecr.<region>.amazonaws.com/<repo>:latest"
+   ```
+
+3. Set `TF_VAR_lambda_image_uri` to the pushed image URI, preferably an immutable
+   tag or digest once we move beyond the first smoke deployment.
 
 4. Apply the full stack:
 

@@ -46,6 +46,12 @@ variable "lambda_image_uri" {
   sensitive   = true
 }
 
+variable "ecr_repository_name" {
+  description = "Existing ECR repository name for the Lambda container image"
+  type        = string
+  sensitive   = true
+}
+
 variable "app_name" {
   description = "Name used for AWS resource names"
   type        = string

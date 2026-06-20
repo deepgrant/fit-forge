@@ -31,7 +31,7 @@ object LambdaSmokeMain {
     )(using
       scala.concurrent.ExecutionContext.global
     )
-    println(api.handle("""{"rawPath":"/health","requestContext":{"http":{"method":"GET"}}}"""))
+    println(api.handle("""{"rawPath":"/ffmforge/v1/smoke","requestContext":{"http":{"method":"GET"}}}"""))
   }
 }
 

@@ -88,8 +88,6 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
     }
 
   private def route(event: LambdaEvent): String = (event.method, event.path) match {
-    case ("GET", "/health") => response(StatusCodes.OK, JsObject("ok" -> JsBoolean(true)))
-
     case ("POST", "/ffmforge/v1/uploads") =>
       val req = event.bodyJson.convertTo[UploadUrlRequest]
       val urls = await(Future.traverse(req.files) { name =>
