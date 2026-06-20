@@ -76,18 +76,18 @@ const DescribeResponseSchema = z.object({
 const MergeReportSchema = z.object({
   segments: z.array(
     z.object({
-      index: z.number(),
       records: z.number(),
-      startTime: MaybeString,
-      endTime: MaybeString,
+      start: z.string(),
+      end: z.string(),
+      distanceM: MaybeNumber,
     }),
   ),
   gaps: z.array(z.object({ afterSegment: z.number(), seconds: z.number() })),
-  lapStrategy: z.string(),
-  totalRecords: z.number(),
   totalDistanceM: MaybeNumber,
   elapsedSeconds: MaybeNumber,
   movingSeconds: MaybeNumber,
+  timerEventsAdded: z.number(),
+  lapStrategy: z.string(),
   layout: FitLayoutSchema,
 });
 

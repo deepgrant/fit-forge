@@ -2,7 +2,7 @@ import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, computed, e
 
 import { FfmForgeApi, messageOf } from './api-client';
 import { distance, duration, fileSize, power, speed, temp, timeRange } from './format';
-import type { MergeResponse, RouteTrack, SegmentFile, TrackFeature, TrackGeoJson, UploadFileResult } from './models';
+import type { DeviceInfo, MergeResponse, RouteTrack, SegmentFile, TrackFeature, TrackGeoJson, UploadFileResult } from './models';
 
 type Theme = 'light' | 'dark';
 type LapStrategy = 'OnePerSegment' | 'KeepOriginal';
@@ -39,6 +39,16 @@ interface MapLibreGlobal {
   LngLatBounds: new () => MapBounds;
   Map: new (options: Readonly<Record<string, unknown>>) => MapLibreMap;
   NavigationControl: new (options: Readonly<Record<string, unknown>>) => unknown;
+}
+
+interface DisplayDevice {
+  readonly key: string;
+  readonly name: string;
+  readonly kind: string;
+  readonly sourceType?: string;
+  readonly batteryStatus?: string;
+  readonly recordingCount: number;
+  readonly occurrenceCount: number;
 }
 
 declare const maplibregl: MapLibreGlobal;
@@ -83,8 +93,11 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly canMerge = computed(() => this.readyIds().length >= 2 && this.busy() === null);
   protected readonly primaryActivity = computed(() => this.descriptions().at(0));
   protected readonly report = computed(() => this.dryRun()?.report ?? this.merged()?.report);
-  protected readonly devices = computed(() => this.descriptions().flatMap((file) => file.devices));
-  protected readonly totalRecords = computed(() => this.report()?.totalRecords ?? this.descriptions().reduce((sum, file) => sum + file.layout.totalMessages, 0));
+  protected readonly displayDevices = computed(() => this.groupDevices(this.descriptions()));
+  protected readonly totalRecords = computed(() => {
+    const report = this.report();
+    return report?.segments.reduce((sum, segment) => sum + segment.records, 0) ?? this.descriptions().reduce((sum, file) => sum + file.layout.totalMessages, 0);
+  });
   protected readonly gapSeconds = computed(() => this.report()?.gaps.reduce((sum, gap) => sum + gap.seconds, 0) ?? 0);
   protected readonly gapWeight = computed(() => Math.max(1, this.gapSeconds()));
   protected readonly displayDistanceM = computed(() => this.report()?.totalDistanceM ?? this.primaryActivity()?.summary.totalDistanceM);
@@ -286,6 +299,72 @@ export class App implements AfterViewInit, OnDestroy {
     this.theme.set(theme);
     document.documentElement.dataset['theme'] = theme;
     window.localStorage.setItem('ffmforge-theme', theme);
+  }
+
+  private groupDevices(files: readonly UploadFileResult[]): readonly DisplayDevice[] {
+    const grouped = new Map<
+      string,
+      {
+        device: DeviceInfo;
+        readonly recordingIds: Set<string>;
+        occurrenceCount: number;
+      }
+    >();
+
+    for (const file of files) {
+      for (const device of file.devices) {
+        const key = this.deviceKey(device);
+        const existing = grouped.get(key);
+        if (existing) {
+          existing.device = this.preferredDevice(existing.device, device);
+          existing.recordingIds.add(file.id);
+          existing.occurrenceCount += 1;
+        } else {
+          grouped.set(key, {
+            device,
+            recordingIds: new Set([file.id]),
+            occurrenceCount: 1,
+          });
+        }
+      }
+    }
+
+    return Array.from(grouped.entries())
+      .map(([key, value]) => ({
+        key,
+        name: this.deviceName(value.device),
+        kind: value.device.kind ?? 'device',
+        sourceType: value.device.sourceType,
+        batteryStatus: value.device.batteryStatus,
+        recordingCount: value.recordingIds.size,
+        occurrenceCount: value.occurrenceCount,
+      }))
+      .sort((a, b) => `${a.kind}:${a.name}:${a.sourceType ?? ''}`.localeCompare(`${b.kind}:${b.name}:${b.sourceType ?? ''}`));
+  }
+
+  private deviceKey(device: DeviceInfo): string {
+    if (device.serialNumber !== undefined) return `serial:${device.serialNumber}`;
+    if (device.product !== undefined) {
+      return ['product', device.manufacturer, device.product, device.kind ?? 'device', device.sourceType ?? ''].join(':').toLowerCase();
+    }
+    return ['label', this.deviceName(device), device.kind ?? 'device', device.sourceType ?? ''].join(':').toLowerCase();
+  }
+
+  private preferredDevice(a: DeviceInfo, b: DeviceInfo): DeviceInfo {
+    return this.deviceScore(b) > this.deviceScore(a) ? b : a;
+  }
+
+  private deviceScore(device: DeviceInfo): number {
+    return (
+      (device.productName ? 8 : 0) +
+      (device.serialNumber !== undefined ? 4 : 0) +
+      (device.product !== undefined ? 2 : 0) +
+      (device.batteryStatus ? 1 : 0)
+    );
+  }
+
+  private deviceName(device: DeviceInfo): string {
+    return device.productName ?? device.manufacturer;
   }
 
   private loadMapLibre(): Promise<void> {

@@ -196,7 +196,7 @@
           <div class="report-grid">
             <div><span>Segments</span><b>{{ report.segments.length }}</b></div>
             <div><span>Gaps</span><b>{{ report.gaps.length }}</b></div>
-            <div><span>Records</span><b>{{ report.totalRecords }}</b></div>
+            <div><span>Records</span><b>{{ totalRecords() }}</b></div>
             <div><span>Messages</span><b>{{ report.layout.totalMessages }}</b></div>
           </div>
           <div class="report-list">
@@ -235,21 +235,24 @@
           </div>
 
           <div class="device-list">
-            @if (devices().length === 0) {
+            @if (displayDevices().length === 0) {
               <div class="empty-state">No device metadata recorded.</div>
             }
-            @for (device of devices(); track device.index) {
+            @for (device of displayDevices(); track device.key) {
               <div class="device-row">
                 <span class="device-dot"></span>
                 <div>
-                  <b>{{ device.productName ?? device.manufacturer }}</b>
+                  <b>{{ device.name }}</b>
                   <span>
-                    {{ device.kind ?? 'device' }}
+                    {{ device.kind }}
                     @if (device.sourceType) {
                       · {{ device.sourceType }}
                     }
                     @if (device.batteryStatus) {
                       · {{ device.batteryStatus }}
+                    }
+                    @if (device.recordingCount > 1) {
+                      · {{ device.recordingCount }} recordings
                     }
                   </span>
                 </div>

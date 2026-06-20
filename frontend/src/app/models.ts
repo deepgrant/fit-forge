@@ -55,10 +55,10 @@ export interface UploadFileResult {
 }
 
 export interface SegmentInfo {
-  readonly index: number;
   readonly records: number;
-  readonly startTime?: string;
-  readonly endTime?: string;
+  readonly start: string;
+  readonly end: string;
+  readonly distanceM?: number;
 }
 
 export interface GapInfo {
@@ -69,11 +69,11 @@ export interface GapInfo {
 export interface MergeReport {
   readonly segments: readonly SegmentInfo[];
   readonly gaps: readonly GapInfo[];
-  readonly lapStrategy: string;
-  readonly totalRecords: number;
   readonly totalDistanceM?: number;
   readonly elapsedSeconds?: number;
   readonly movingSeconds?: number;
+  readonly timerEventsAdded: number;
+  readonly lapStrategy: string;
   readonly layout: FitLayout;
 }
 
