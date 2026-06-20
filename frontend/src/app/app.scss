@@ -622,22 +622,76 @@ select {
 }
 
 .device-row {
-  gap: 10px;
+  align-items: flex-start;
+  gap: 12px;
   border: 1px solid var(--ff-border);
   border-radius: 10px;
   padding: 10px;
 }
 
-.device-row div {
+.device-main {
+  min-width: 0;
   display: grid;
-  gap: 3px;
+  gap: 5px;
 }
 
-.device-dot {
-  width: 10px;
-  height: 10px;
+.device-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.device-title-line b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ff-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manufacturer-mark {
+  width: 58px;
+  min-height: 28px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--ff-border);
+  border-radius: 8px;
+  color: var(--ff-text);
+  background: var(--ff-raised);
+  font-family: "Space Grotesk", Inter, sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.garmin-mark {
+  border-color: color-mix(in srgb, var(--ff-text), transparent 70%);
+  color: #ffffff;
+  background: #111827;
+}
+
+.polar-mark {
+  border-color: color-mix(in srgb, #d9182b, transparent 56%);
+  color: #ffffff;
+  background: #d9182b;
+}
+
+.device-type {
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--ff-active), transparent 58%);
   border-radius: 999px;
-  background: var(--ff-active);
+  padding: 2px 7px;
+  color: color-mix(in srgb, var(--ff-active), var(--ff-text) 28%);
+  background: color-mix(in srgb, var(--ff-active), transparent 90%);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.device-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
 }
 
 .empty-state {

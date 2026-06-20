@@ -72,12 +72,14 @@ object FitSummary {
 
   private def toDevice(m: FitMessage): Option[DeviceInfo] =
     m.numeric(Dev.DeviceIndex).map { idx =>
-      val source = m.numeric(Dev.SourceType).map(_.toInt)
+      val source       = m.numeric(Dev.SourceType).map(_.toInt)
+      val manufacturer = m.numeric(Dev.Manufacturer).map(v => ManufacturerEnum.nameOf(v.toInt)).getOrElse("unknown")
+      val product      = m.numeric(Dev.Product).map(_.toInt)
       DeviceInfo(
         index = idx.toInt,
-        manufacturer = m.numeric(Dev.Manufacturer).map(v => ManufacturerEnum.nameOf(v.toInt)).getOrElse("unknown"),
-        productName = m.text(Dev.ProductName),
-        product = m.numeric(Dev.Product).map(_.toInt),
+        manufacturer = manufacturer,
+        productName = m.text(Dev.ProductName).orElse(GarminProductResolver.nameOf(manufacturer, product)),
+        product = product,
         kind = m.numeric(Dev.DeviceType).flatMap { dt =>
           if (source.contains(1)) AntplusDeviceTypeEnum.nameOf(dt.toInt) else None
         },

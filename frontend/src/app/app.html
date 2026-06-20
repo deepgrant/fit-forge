@@ -243,21 +243,33 @@
             }
             @for (device of displayDevices(); track device.key) {
               <div class="device-row">
-                <span class="device-dot"></span>
-                <div>
-                  <b>{{ device.name }}</b>
-                  <span>
-                    {{ device.kind }}
-                    @if (device.sourceType) {
-                      · {{ device.sourceType }}
+                <span
+                  class="manufacturer-mark"
+                  [class.garmin-mark]="device.isGarmin"
+                  [class.polar-mark]="device.isPolar"
+                  [attr.aria-label]="device.manufacturer + ' device'"
+                >
+                  {{ device.markText }}
+                </span>
+                <div class="device-main">
+                  <div class="device-title-line">
+                    <b>{{ device.name }}</b>
+                    <span class="device-type">{{ device.typeLabel }}</span>
+                  </div>
+                  <span class="device-meta">
+                    @if (device.sourceLabel) {
+                      Connection: {{ device.sourceLabel }}
+                    } @else {
+                      Connection: unknown
                     }
-                    @if (device.batteryStatus) {
-                      · {{ device.batteryStatus }}
+                    @if (device.statusLabel) {
+                      · Status: {{ device.statusLabel }}
                     }
                     @if (device.recordingCount > 1) {
                       · {{ device.recordingCount }} recordings
                     }
                   </span>
+                  <span class="device-id">{{ device.idLabel }}</span>
                 </div>
               </div>
             }

@@ -51,6 +51,7 @@ final class FitSummarySpec extends AnyFunSuite with Matchers {
     val headUnit = FitMessage(FitProfile.Mesg.DeviceInfo)
       .setNumeric(FitProfile.Dev.DeviceIndex, 0)
       .setNumeric(FitProfile.Dev.Manufacturer, 1) // Garmin
+      .setNumeric(FitProfile.Dev.Product, 4440)   // Edge 1050
       .setNumeric(FitProfile.Dev.SourceType, 5)   // local
     val hrStrap = FitMessage(FitProfile.Mesg.DeviceInfo)
       .setNumeric(FitProfile.Dev.DeviceIndex, 4)
@@ -62,6 +63,14 @@ final class FitSummarySpec extends AnyFunSuite with Matchers {
     FitSummary.devices(file) should have size 2
     FitSummary.primaryDevice(file).map(_.index) shouldBe Some(0)
     FitSummary.primaryDevice(file).map(_.manufacturer) shouldBe Some("Garmin")
+    FitSummary.primaryDevice(file).flatMap(_.productName) shouldBe Some("Edge 1050")
     FitSummary.devices(file).find(_.index == 4).flatMap(_.kind) shouldBe Some("heart_rate")
+  }
+
+  test("Garmin product ids are resolved through the FIT SDK product table") {
+    GarminProductResolver.nameOf("Garmin", Some(4440)) shouldBe Some("Edge 1050")
+    GarminProductResolver.nameOf("Garmin", Some(3808)) shouldBe Some("Varia RCT715")
+    GarminProductResolver.nameOf("Garmin", Some(4470)) shouldBe Some("Varia Vue")
+    GarminProductResolver.nameOf("Polar", Some(4440)) shouldBe None
   }
 }

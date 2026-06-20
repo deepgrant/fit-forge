@@ -43,10 +43,15 @@ interface MapLibreGlobal {
 
 interface DisplayDevice {
   readonly key: string;
+  readonly manufacturer: string;
+  readonly isGarmin: boolean;
+  readonly isPolar: boolean;
+  readonly markText: string;
   readonly name: string;
-  readonly kind: string;
-  readonly sourceType?: string;
-  readonly batteryStatus?: string;
+  readonly typeLabel: string;
+  readonly sourceLabel?: string;
+  readonly statusLabel?: string;
+  readonly idLabel: string;
   readonly recordingCount: number;
   readonly occurrenceCount: number;
 }
@@ -332,14 +337,19 @@ export class App implements AfterViewInit, OnDestroy {
     return Array.from(grouped.entries())
       .map(([key, value]) => ({
         key,
+        manufacturer: value.device.manufacturer,
+        isGarmin: this.isManufacturer(value.device, 'garmin'),
+        isPolar: this.isManufacturer(value.device, 'polar'),
+        markText: this.deviceMarkText(value.device.manufacturer),
         name: this.deviceName(value.device),
-        kind: value.device.kind ?? 'device',
-        sourceType: value.device.sourceType,
-        batteryStatus: value.device.batteryStatus,
+        typeLabel: this.deviceTypeLabel(value.device),
+        sourceLabel: this.deviceSourceLabel(value.device.sourceType),
+        statusLabel: this.titleize(value.device.batteryStatus),
+        idLabel: this.deviceIdLabel(value.device),
         recordingCount: value.recordingIds.size,
         occurrenceCount: value.occurrenceCount,
       }))
-      .sort((a, b) => `${a.kind}:${a.name}:${a.sourceType ?? ''}`.localeCompare(`${b.kind}:${b.name}:${b.sourceType ?? ''}`));
+      .sort((a, b) => `${a.typeLabel}:${a.name}:${a.sourceLabel ?? ''}`.localeCompare(`${b.typeLabel}:${b.name}:${b.sourceLabel ?? ''}`));
   }
 
   private deviceKey(device: DeviceInfo): string {
@@ -364,7 +374,74 @@ export class App implements AfterViewInit, OnDestroy {
   }
 
   private deviceName(device: DeviceInfo): string {
-    return device.productName ?? device.manufacturer;
+    return device.productName ?? `${device.manufacturer} ${this.deviceTypeLabel(device).toLowerCase()}`;
+  }
+
+  private deviceTypeLabel(device: DeviceInfo): string {
+    const accessoryType = this.garminAccessoryTypeLabel(device);
+    if (accessoryType !== undefined) return accessoryType;
+
+    const kind = device.kind ?? 'device';
+    if (kind === 'device' && device.sourceType === 'local') return 'Recording device';
+    if (kind === 'device') return 'Device';
+    return this.titleize(kind) ?? kind;
+  }
+
+  private garminAccessoryTypeLabel(device: DeviceInfo): string | undefined {
+    if (!this.isManufacturer(device, 'garmin')) return undefined;
+
+    const productName = device.productName?.toLowerCase() ?? '';
+    if (device.product === 4470 || productName.includes('varia vue')) return 'Headlight camera';
+    if (device.product === 3808 || productName.includes('varia rct')) return 'Radar camera';
+    if (productName.includes('varia radar')) return 'Radar';
+    if (productName.includes('varia ut') || productName.includes('varia headlight')) return 'Headlight';
+    if (productName.includes('varia taillight')) return 'Tail light';
+    return undefined;
+  }
+
+  private deviceSourceLabel(sourceType: string | undefined): string | undefined {
+    if (sourceType === undefined) return undefined;
+    if (sourceType.toLowerCase() === 'antplus') return 'ANT+';
+    if (sourceType.toLowerCase() === 'local') return 'Local';
+    return this.titleize(sourceType);
+  }
+
+  private deviceIdLabel(device: DeviceInfo): string {
+    const parts = [`FIT index ${device.index}`];
+    if (device.serialNumber !== undefined) parts.push(`serial ${device.serialNumber}`);
+    if (device.product !== undefined) parts.push(`product ${device.product}`);
+    if (device.softwareVersion !== undefined) parts.push(`software ${device.softwareVersion}`);
+    return parts.join(' / ');
+  }
+
+  private deviceMarkText(manufacturer: string): string {
+    const normalized = this.normalizeManufacturer(manufacturer);
+    if (normalized === 'garmin') return 'GARMIN';
+    if (normalized === 'polar') return 'POLAR';
+    return manufacturer
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part.at(0))
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  }
+
+  private isManufacturer(device: DeviceInfo, manufacturer: string): boolean {
+    return this.normalizeManufacturer(device.manufacturer) === manufacturer;
+  }
+
+  private normalizeManufacturer(manufacturer: string): string {
+    return manufacturer.trim().toLowerCase();
+  }
+
+  private titleize(value: string | undefined): string | undefined {
+    if (value === undefined) return undefined;
+    return value
+      .split(/[_\s-]+/)
+      .filter(Boolean)
+      .map((part) => part.at(0)!.toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ');
   }
 
   private loadMapLibre(): Promise<void> {
