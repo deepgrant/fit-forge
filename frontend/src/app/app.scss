@@ -10,6 +10,16 @@
     var(--ff-bg);
 }
 
+.app-footer {
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: 0 clamp(18px, 3vw, 34px) 28px;
+  color: var(--ff-text-2);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 .topbar {
   min-height: 64px;
   display: grid;

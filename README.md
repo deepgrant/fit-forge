@@ -240,8 +240,6 @@ Implemented routes include:
 - `GET /fit/{id}/download` - create a presigned download URL.
 - `POST /fit/codec-demo` - deployed Lambda codec round-trip demo.
 
-There is intentionally no `/health` route in the Lambda/API deployment.
-
 ---
 
 ## Runnable Demos
