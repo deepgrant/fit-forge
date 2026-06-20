@@ -44,16 +44,54 @@ resource "aws_cloudfront_cache_policy" "api_disabled" {
 
   parameters_in_cache_key_and_forwarded_to_origin {
     cookies_config {
-      cookie_behavior = "all"
+      cookie_behavior = "none"
     }
     headers_config {
-      header_behavior = "whitelist"
-      headers {
-        items = ["authorization", "content-type", "origin"]
-      }
+      header_behavior = "none"
     }
     query_strings_config {
-      query_string_behavior = "all"
+      query_string_behavior = "none"
+    }
+  }
+}
+
+resource "aws_cloudfront_origin_request_policy" "api" {
+  name = "${var.app_name}-api-origin-request"
+
+  cookies_config {
+    cookie_behavior = "all"
+  }
+
+  headers_config {
+    header_behavior = "whitelist"
+    headers {
+      items = ["authorization", "content-type", "origin"]
+    }
+  }
+
+  query_strings_config {
+    query_string_behavior = "all"
+  }
+}
+
+resource "aws_cloudfront_response_headers_policy" "api_cors" {
+  name = "${var.app_name}-api-cors"
+
+  cors_config {
+    access_control_allow_credentials = false
+    access_control_max_age_sec       = 300
+    origin_override                  = true
+
+    access_control_allow_headers {
+      items = ["content-type"]
+    }
+
+    access_control_allow_methods {
+      items = ["GET", "POST", "OPTIONS"]
+    }
+
+    access_control_allow_origins {
+      items = ["https://${var.domain_name}"]
     }
   }
 }
@@ -98,12 +136,14 @@ resource "aws_cloudfront_distribution" "app" {
   }
 
   ordered_cache_behavior {
-    path_pattern           = "/ffmforge/v1/*"
-    target_origin_id       = "api-gateway"
-    viewer_protocol_policy = "https-only"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"]
-    cached_methods         = ["GET", "HEAD"]
-    cache_policy_id        = aws_cloudfront_cache_policy.api_disabled.id
+    path_pattern               = "/ffmforge/v1/*"
+    target_origin_id           = "api-gateway"
+    viewer_protocol_policy     = "https-only"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"]
+    cached_methods             = ["GET", "HEAD"]
+    cache_policy_id            = aws_cloudfront_cache_policy.api_disabled.id
+    origin_request_policy_id   = aws_cloudfront_origin_request_policy.api.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.api_cors.id
   }
 
   custom_error_response {

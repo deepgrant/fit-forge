@@ -2,6 +2,7 @@ resource "aws_lambda_function" "api" {
   function_name = var.app_name
   package_type  = "Image"
   image_uri     = var.lambda_image_uri
+  architectures = ["arm64"]
   role          = aws_iam_role.lambda.arn
   timeout       = 60
   memory_size   = 2048
