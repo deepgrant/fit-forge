@@ -11,7 +11,7 @@
   <line x1="0" y1="48" x2="680" y2="48" stroke="#E3E5E9"/>
   <rect x="16" y="11" width="26" height="26" rx="7" fill="#FF6A1A"/>
   <use href="#hmr" transform="translate(21,16) scale(0.667)"/>
-  <text x="50" y="30" font-size="16" font-weight="700" fill="#15181E">fit<tspan fill="#E1590F">forge</tspan></text>
+  <text x="50" y="30" font-size="16" font-weight="700" fill="#15181E">FFM<tspan fill="#E1590F">Forge</tspan></text>
   <text x="664" y="30" text-anchor="end" font-size="13" fill="#5A6472">Join     Activities</text>
 
   <text x="24" y="80" font-size="20" font-weight="700" fill="#15181E">Join your ride recordings</text>

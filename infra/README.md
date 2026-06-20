@@ -1,32 +1,65 @@
-# fit-forge infrastructure (OpenTofu)
+# FFMForge infrastructure (OpenTofu)
 
-Beginnings of the AWS infrastructure for fit-forge. This provisions the data and
-image foundation; cloud **compute (ECS/EKS) is deferred**.
+Serverless AWS infrastructure for FFMForge, managed with **OpenTofu**. We do
+not use Terraform CLI for this project. OpenTofu keeps Terraform-compatible HCL
+syntax and local filenames (for example the `terraform {}` settings block and
+`.terraform/` plugin directory), but the supported command is `tofu`.
+
+Values such as region, profile, hosted zone id/name, domain name, bucket names,
+and image URI are deployment inputs and must not be committed.
 
 ## What it creates
-- **S3 bucket** (`s3.tf`) — private, encrypted, with a **1-day lifecycle rule** on
-  the `fit/` prefix as the hard backstop for the app's short (~2h) TTL.
-- **IAM** (`iam.tf`) — a least-privilege policy (`Get/Put/Delete/ListBucket`) and a
-  role the backend container assumes. The trust policy is a placeholder
-  (`ecs-tasks`) until the compute layer lands; on EKS it becomes an IRSA trust.
-  The app reads credentials via the AWS Default Credentials Provider Chain, so no
-  keys are ever configured in code.
-- **ECR repository** (`ecr.tf`) — for the backend image (scan-on-push,
-  untagged-image expiry).
 
-## Usage
+- Private frontend S3 bucket, served through CloudFront with Origin Access
+  Control.
+- ACM certificate and Route53 validation/alias records for the configured
+  frontend domain.
+- Private FIT data S3 bucket with encryption, browser CORS for presigned
+  uploads/downloads, and a 1-day lifecycle backstop on `fit/`.
+- ECR repository for the Lambda container image.
+- Lambda execution role and least-privilege S3 policy.
+- Lambda function using the supplied image URI.
+- API Gateway HTTP API routed through CloudFront at `/ffmforge/v1/*`.
+- EventBridge schedule that invokes the Lambda cleanup path every 15 minutes.
+
+## Configuration
+
+Use environment variables or an ignored OpenTofu variable file. Do not commit
+real values.
+
 ```bash
-cd infra
-tofu init
-tofu plan   -var="bucket_name=my-fit-forge-bucket"
-tofu apply  -var="bucket_name=my-fit-forge-bucket"
+export TF_VAR_aws_region="..."
+export TF_VAR_aws_profile="..."
+export TF_VAR_hosted_zone_id="..."
+export TF_VAR_hosted_zone_name="..."
+export TF_VAR_domain_name="..."
+export TF_VAR_frontend_bucket_name="..."
+export TF_VAR_data_bucket_name="..."
+export TF_VAR_lambda_image_uri="..."
 ```
-State is local for now (a remote backend — S3 + DynamoDB lock — is a follow-up).
-Requires OpenTofu ~> 1.8 and AWS credentials in your environment
-(`AWS_PROFILE` / SSO / env).
 
-## Local development
-You do **not** need this for local dev or tests. Local dev uses **LocalStack**
-via `docker-compose.yml` at the repo root (the backend auto-creates its bucket
-when `LOCAL_ENSURE_BUCKET=true`); unit tests connect to a LocalStack started out
-of band (see `docs/architecture.md`).
+`infra/local.auto.tfvars` is also supported for local use, and is ignored by git.
+
+## Bootstrap
+
+The Lambda image must exist before the full stack can create the function.
+
+1. Create ECR first:
+
+   ```bash
+   tofu init
+   tofu apply -target=aws_ecr_repository.app
+   ```
+
+2. Build and push the Lambda image to ECR.
+
+3. Set `TF_VAR_lambda_image_uri` to the pushed image URI.
+
+4. Apply the full stack:
+
+   ```bash
+   tofu apply
+   ```
+
+State is local for now and ignored by git. A remote encrypted state backend is a
+follow-up.

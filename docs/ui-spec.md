@@ -1,4 +1,4 @@
-# fit-forge — UI design spec
+# FFMForge — UI design spec
 
 > 🚧 Design reference for the (not-yet-built) frontend. It captures the **Forge**
 > visual language, the component inventory, and the core screens so the Angular
@@ -10,10 +10,10 @@
 
 ## Brand
 
-![fit-forge logo, light and dark](mockups/logo.svg)
+![FFMForge logo, light and dark](mockups/logo.svg)
 
 - **Mark:** a hammer in a rounded square (Tabler `ti-hammer`, dark `#1A1206` on
-  forge orange). **Wordmark:** "fit" + "forge", where **forge** takes the accent
+  forge orange). **Wordmark:** "FFM" + "Forge", where **Forge** takes the accent
   colour. Tagline: *forge every ride into one*.
 - **Favicon / app icon:** the hammer tile alone — a single glyph that stays
   legible down to 20px.

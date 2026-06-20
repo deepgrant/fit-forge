@@ -9,13 +9,13 @@
   <rect x="0.5" y="0.5" width="333" height="149" rx="14" fill="#FFFFFF" stroke="#E3E5E9"/>
   <rect x="60" y="49" width="52" height="52" rx="13" fill="#FF6A1A"/>
   <use href="#hmr" transform="translate(71,60) scale(1.25)"/>
-  <text x="128" y="86" font-size="30" font-weight="700" fill="#15181E">fit<tspan fill="#E1590F">forge</tspan></text>
+  <text x="128" y="86" font-size="28" font-weight="700" fill="#15181E">FFM<tspan fill="#E1590F">Forge</tspan></text>
   <text x="128" y="106" font-size="12" fill="#9AA3AF">light · default</text>
 
   <rect x="346.5" y="0.5" width="333" height="149" rx="14" fill="#0E1216" stroke="#2A323D"/>
   <rect x="406" y="49" width="52" height="52" rx="13" fill="#FF6A1A"/>
   <use href="#hmr" transform="translate(417,60) scale(1.25)"/>
-  <text x="474" y="86" font-size="30" font-weight="700" fill="#F2F4F7">fit<tspan fill="#FF6A1A">forge</tspan></text>
+  <text x="474" y="86" font-size="28" font-weight="700" fill="#F2F4F7">FFM<tspan fill="#FF6A1A">Forge</tspan></text>
   <text x="474" y="106" font-size="12" fill="#6B7480">dark</text>
 
   <rect x="0.5" y="160.5" width="679" height="79" rx="14" fill="#FFFFFF" stroke="#E3E5E9"/>

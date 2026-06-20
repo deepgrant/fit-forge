@@ -11,7 +11,7 @@
   <line x1="0" y1="48" x2="680" y2="48" stroke="#E3E5E9"/>
   <rect x="16" y="11" width="26" height="26" rx="7" fill="#FF6A1A"/>
   <use href="#hmr" transform="translate(21,16) scale(0.667)"/>
-  <text x="50" y="30" font-size="16" font-weight="700" fill="#15181E">fit<tspan fill="#E1590F">forge</tspan><tspan fill="#9AA3AF" font-weight="400">  · merge</tspan></text>
+  <text x="50" y="30" font-size="16" font-weight="700" fill="#15181E">FFM<tspan fill="#E1590F">Forge</tspan><tspan fill="#9AA3AF" font-weight="400">  · merge</tspan></text>
   <rect x="586" y="13" width="78" height="22" rx="11" fill="#F6F7F9" stroke="#E3E5E9"/>
   <circle cx="601" cy="24" r="5" fill="none" stroke="#5A6472" stroke-width="1.4"/>
   <text x="612" y="28" font-size="12" fill="#5A6472">Dark</text>

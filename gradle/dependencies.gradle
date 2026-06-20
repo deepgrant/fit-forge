@@ -12,13 +12,13 @@ versions +=
   , scalaTest: "3.2.19"
   , scalaXml: "2.4.0"
   , sprayJSON: "1.3.6"
-  , pekko: "1.6.0"                // Pekko core (latest stable 1.x)
-  , pekkoHttp: "1.3.0"            // Pekko HTTP (latest stable 1.x)
+  , pekkoHttp: "1.3.0"
   , slf4j: "2.0.16"
   , logback: "1.5.18"
   , pprint: "0.9.0"
   , garminFit: "21.205.0"         // Official Garmin FIT Java SDK (Maven Central)
-  , pekkoConnectors: "1.2.0"      // Pekko Connectors (Alpakka) S3
+  , awsSdk: "2.32.16"
+  , awsLambdaCore: "1.2.3"
   ]
 
 libs +=
@@ -27,20 +27,14 @@ libs +=
   , scalaCollectionsCompat: "org.scala-lang.modules:scala-collection-compat_3:${versions.scalaCollectionsCompat}"
   , scalaTest: "org.scalatest:scalatest_3:${versions.scalaTest}"
   , sprayJSON: "io.spray:spray-json_3:${versions.sprayJSON}"
-  , pekko_actor: "org.apache.pekko:pekko-actor_3:${versions.pekko}"
   , pekko_http: "org.apache.pekko:pekko-http_3:${versions.pekkoHttp}"
-  , pekko_http_xml: "org.apache.pekko:pekko-http-xml_3:${versions.pekkoHttp}"
-  , pekko_slf4j: "org.apache.pekko:pekko-slf4j_3:${versions.pekko}"
-  , pekko_stream: "org.apache.pekko:pekko-stream_3:${versions.pekko}"
-  , pekko_connectors_s3: "org.apache.pekko:pekko-connectors-s3_3:${versions.pekkoConnectors}"
-  , pekko_http_spray_json: "org.apache.pekko:pekko-http-spray-json_3:${versions.pekkoHttp}"
-  , pekko_http_testkit: "org.apache.pekko:pekko-http-testkit_3:${versions.pekkoHttp}"
-  , pekko_stream_testkit: "org.apache.pekko:pekko-stream-testkit_3:${versions.pekko}"
   , slf4j: "org.slf4j:slf4j-api:${versions.slf4j}"
   , logback_classic: "ch.qos.logback:logback-classic:${versions.logback}"
   , logback_core: "ch.qos.logback:logback-core:${versions.logback}"
   , pprint: "com.lihaoyi:pprint_3:${versions.pprint}"
   , garminFit: "com.garmin:fit:${versions.garminFit}"
+  , aws_s3: "software.amazon.awssdk:s3:${versions.awsSdk}"
+  , aws_lambda_core: "com.amazonaws:aws-lambda-java-core:${versions.awsLambdaCore}"
   , bcprov: "org.bouncycastle:bcprov-jdk18on:${versions.bouncyCastle}"
   , bcpkix: "org.bouncycastle:bcpkix-jdk18on:${versions.bouncyCastle}"
   ]

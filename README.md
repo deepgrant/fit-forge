@@ -1,4 +1,4 @@
-# fit-forge
+# FFMForge
 
 **FIT (Flexible and Interoperable Data Transfer) file editor and joiner.**
 
@@ -18,7 +18,7 @@ web application (HTTP API + Angular UI) is **not built yet**.
 ### What works today
 - **Lossless FIT codec** — decode/encode real `.fit` files via the official
   Garmin FIT Java SDK, wrapped behind a `FitCodec` facade. Every field and
-  message type round-trips, including manufacturer/developer fields fit-forge
+  message type round-trips, including manufacturer/developer fields FFMForge
   doesn't interpret (verified on real activity files).
 - **Merge engine** — join multiple recordings of one ride into a single
   activity. Gaps between recordings are **preserved as pauses** (so elapsed time
@@ -40,7 +40,7 @@ web application (HTTP API + Angular UI) is **not built yet**.
 
 This is a single-module Gradle build with a Scala 3 + Apache Pekko (Actor/Stream/HTTP) 
 backend and an Angular front-end served as static files. Today only the FIT-processing 
-core (the `fitforge.fit` package) exists.
+core (the `ffmforge.fit` package) exists.
 
 - **Language/build:** Scala 3.8.4, Gradle (wrapper, 9.x), JDK 21 target.
 - **Java version — pinned to JDK 21 (LTS):** the build declares a Gradle
@@ -60,12 +60,12 @@ Key source:
 
 | File | Purpose |
 |------|---------|
-| `source/scala/fitforge/fit/FitCodec.scala` | Codec facade (decode/encode/stats) |
-| `source/scala/fitforge/fit/GarminFitCodec.scala` | Garmin SDK implementation |
-| `source/scala/fitforge/fit/FitModel.scala` | Domain model + typed views |
-| `source/scala/fitforge/fit/FitMerge.scala` | Join engine + merge report |
-| `source/scala/fitforge/fit/FitSummary.scala` | Devices + ride statistics |
-| `source/scala/fitforge/fit/FitLayout.scala` | File layout summary |
+| `source/scala/ffmforge/fit/FitCodec.scala` | Codec facade (decode/encode/stats) |
+| `source/scala/ffmforge/fit/GarminFitCodec.scala` | Garmin SDK implementation |
+| `source/scala/ffmforge/fit/FitModel.scala` | Domain model + typed views |
+| `source/scala/ffmforge/fit/FitMerge.scala` | Join engine + merge report |
+| `source/scala/ffmforge/fit/FitSummary.scala` | Devices + ride statistics |
+| `source/scala/ffmforge/fit/FitLayout.scala` | File layout summary |
 
 ---
 

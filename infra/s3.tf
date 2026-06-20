@@ -1,17 +1,17 @@
-resource "aws_s3_bucket" "uploads" {
-  bucket = var.bucket_name
+resource "aws_s3_bucket" "frontend" {
+  bucket = var.frontend_bucket_name
 }
 
-resource "aws_s3_bucket_public_access_block" "uploads" {
-  bucket                  = aws_s3_bucket.uploads.id
+resource "aws_s3_bucket_public_access_block" "frontend" {
+  bucket                  = aws_s3_bucket.frontend.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "uploads" {
-  bucket = aws_s3_bucket.uploads.id
+resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
 
   rule {
     apply_server_side_encryption_by_default {
@@ -20,10 +20,42 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "uploads" {
   }
 }
 
-# Hard backstop for the app-enforced ~2h TTL: S3 lifecycle is day-granularity, so the
-# shortest it can do is 1 day. The application deletes objects much sooner.
-resource "aws_s3_bucket_lifecycle_configuration" "uploads" {
-  bucket = aws_s3_bucket.uploads.id
+resource "aws_s3_bucket" "data" {
+  bucket = var.data_bucket_name
+}
+
+resource "aws_s3_bucket_public_access_block" "data" {
+  bucket                  = aws_s3_bucket.data.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
+  bucket = aws_s3_bucket.data.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_cors_configuration" "data" {
+  bucket = aws_s3_bucket.data.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "HEAD", "PUT"]
+    allowed_origins = ["https://${var.domain_name}"]
+    expose_headers  = ["etag"]
+    max_age_seconds = 300
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "data" {
+  bucket = aws_s3_bucket.data.id
 
   rule {
     id     = "expire-fit-objects"

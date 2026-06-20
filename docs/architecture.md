@@ -1,147 +1,106 @@
-# fit-forge — architecture & interaction
+# FFMForge — architecture & interaction
 
-> 🚧 Design reference for the (not-yet-built) service + frontend. Records the
-> backend/frontend interaction model, the scaling approach, and the session
-> lifecycle decisions. Companion to [ui-spec.md](ui-spec.md).
+> 🚧 Design reference for the service + frontend. Companion to [ui-spec.md](ui-spec.md).
 
-## Model: a document editor
+## Model: a serverless document editor
 
-fit-forge is **action-driven request/response**: the user uploads binary `.fit`
-artifacts, the server transforms them (merge/edit), and returns a new artifact.
-No polling, no websockets.
+FFMForge is **action-driven request/response**: the user uploads binary `.fit`
+artifacts, Lambda transforms them (merge/edit), and the browser downloads a new
+artifact. No polling and no always-on application server.
 
-**Stack:** single-module Gradle, Pekko HTTP, Spray-JSON, self-signed HTTPS,
-Angular served as static files with a dev proxy, Zod at the API boundary,
-MapLibre GL for the map. Inputs/outputs add **multipart upload** and **streamed
-binary download**; the frontend uses **Angular 22 signals** for workspace state.
+The deployable shape is:
 
-## State + scaling: stateless pods, S3-backed sessions
+- Angular assets in a private S3 bucket.
+- CloudFront + ACM + Route53 for TLS and routing.
+- API Gateway HTTP API + Lambda for `/ffmforge/v1/*`.
+- A private S3 data bucket for uploaded, intermediate, and merged `.fit` files.
 
-Pods hold **no** session state. Uploaded/merged `.fit` **bytes** live in
-**AWS S3**, keyed by id; the id is the session / capability token. Each operation fetches bytes → decodes → acts → (for merge)
-stores the result under a new id. Re-decoding per op is cheap (ms) and keeps the
-codec losslessly correct for free (we never serialize the in-memory model / SDK
-refs — we keep the original bytes).
+## State + scaling
+
+Lambda owns no session state. Uploaded/merged `.fit` bytes live in AWS S3, keyed
+by opaque ids that encode expiry. Each operation fetches bytes, decodes, acts,
+and writes any result back to S3. Re-decoding per operation keeps the codec
+lossless because we never serialize the in-memory Garmin SDK-backed model.
 
 Consequences:
-- **No session affinity / sticky routing** — round-robin ingress; any pod serves
-  any request.
-- **Horizontal autoscale** (K8s HPA on CPU / in-flight; KEDA for scale-to-zero).
-  Scaling N→1 is safe because pods own nothing — drain connections and terminate.
-- Optional later: a best-effort per-pod LRU decode cache (perf only, not
-  correctness).
 
-Build implication: a `FitStore` trait (`put(bytes) → id`, `get(id) → bytes`,
-`delete(id)`, `sweepExpired`) with an AWS S3 implementation via
-**`pekko-connectors-s3`** (streams to/from S3). Credentials come from the AWS
-Default Credentials Provider Chain (`default` profile locally, IAM role in the
-cloud); region **us-east-1**. The bucket is created by OpenTofu (`infra/`), not
-by the app.
+- No session affinity or sticky routing.
+- No idle container cost.
+- Lambda concurrency scales with demand and scales back to zero when idle.
+- The frontend and data buckets are private; CloudFront and presigned URLs are
+  the public access points.
+
+Deployment-specific values (region, profile, hosted zone id/name, domain, bucket
+names, image URI) are supplied through ignored tfvars or environment variables.
+They must not be committed.
 
 ## Session lifecycle & TTL
 
-S3 lifecycle expiration is **day-granularity only** (minimum 1 day, run as a
-once-daily batch — an object can live up to ~48h before the rule reaps it). So
-lifecycle alone cannot give a short TTL. We enforce a short TTL in the app and
-use lifecycle only as a backstop:
+S3 lifecycle expiration is day-granularity only, so lifecycle alone cannot
+provide a short TTL. FFMForge enforces a short TTL in the app and uses lifecycle
+as a backstop:
 
-- Stamp each object with an **`expiresAt`** (object metadata/tag) at upload, set
-  to **now + 2h** (env-configurable, can be minutes).
-- **Check it on read** — any GET of an expired id returns `410 Gone` and lazily
-  deletes the object.
-- A lightweight **scheduled sweeper** (a Pekko scheduler in the pod) lists and
-  deletes expired objects so they don't linger.
-- The **S3 lifecycle rule = 1 day** is a guaranteed hard backstop (covers
-  anything the sweeper misses, e.g. all pods down).
+- Object ids include `expiresAt` (epoch millis), e.g. `fit/uploads/<expires>_<uuid>.fit`.
+- Lambda checks expiry on every read and returns `410 Gone` for expired ids.
+- EventBridge invokes the Lambda cleanup path every 15 minutes to delete expired objects.
+- S3 lifecycle expires `fit/` objects after 1 day as a hard backstop.
 
-**Defaults:** app TTL **2h** (tunable down to minutes), lifecycle backstop **1
-day** (an S3 bucket lifecycle rule).
+Defaults:
 
-## Frontend session handling: timeout + reset (no keep-alive)
+- Working object TTL: 2 hours.
+- Presigned upload/download URL TTL: 15 minutes.
+- S3 lifecycle backstop: 1 day.
 
-We **timeout**, not heartbeat. Keep-alive pinging means background timers, a
-refresh endpoint, and re-stamping `expiresAt` on every ping — which fights the
-short-TTL and privacy goals.
+## Frontend session handling
 
-- The client starts a timer matching the backend TTL; near expiry it shows a soft
-  "this session will expire soon" notice, and on expiry flips to a **"session
-  expired — re-upload"** empty state.
-- Every API call **defensively handles `410`/`404`** (the authoritative signal):
-  if an id is gone, reset the workspace and prompt to re-upload.
-- No keep-alive traffic. Re-uploading is a mild, honest cost — the user still has
-  the original `.fit` files locally, so it's never data loss.
+The frontend times out instead of sending keep-alive requests:
 
-## New-version detection → "refresh" toast
+- It starts a timer matching the backend TTL.
+- Near expiry, it shows a soft warning.
+- On expiry, it resets to a “session expired — re-upload” state.
+- Every API call handles `410`/`404` defensively and prompts re-upload.
 
-Standard SPA "new build available" pattern, cheap because Angular already hashes
-asset filenames:
+## New-version detection
 
-- The build writes a **`version.json`** (git sha / image tag) into the static
-  assets. The running SPA knows its own **baked-in version**.
-- The SPA **polls `version.json`** (served uncached) **every ~60s and on
-  window-focus**. When the served version ≠ the baked-in version, it shows a
-  **floating toast: "A new version of fitforge is available · Refresh"**.
-- Click → `window.location.reload()` → new `index.html` + new hashed bundles
-  load. No service worker required.
-
-The container image's version identifier (md5 / tag) feeds straight into
-`version.json` at build time, so a new container push is exactly what trips the
-toast. (Angular-native alternative: `SwUpdate` via a PWA service worker — only
-worth it if offline support is wanted later.)
+Angular writes a `version.json` into the frontend assets during deployment. The
+SPA polls it every ~60 seconds and on window focus. If the served version differs
+from the baked-in version, the UI shows a floating “new version available ·
+Refresh” toast and reloads on click.
 
 ## API surface
 
-Path prefix **`/fitforge/v1/`** (versioned; allows `/v2/` later). `/health` is
-kept un-versioned for LB / k8s probes.
+CloudFront routes `/ffmforge/v1/*` to API Gateway. `.fit` bytes move directly
+between the browser and S3 via presigned URLs.
 
+```text
+POST /ffmforge/v1/uploads
+  -> { files: [{ id, name, url, expiresAt }] }
+
+POST /ffmforge/v1/fit/describe
+  -> summaries/devices/layout for uploaded ids
+
+POST /ffmforge/v1/fit/merge
+  -> dry run: MergeReport
+  -> real run: stored result id + MergeReport
+
+GET /ffmforge/v1/fit/{id}/download
+  -> short-lived presigned GET URL
+
+GET /ffmforge/v1/version
+GET /health
 ```
-POST /fitforge/v1/fit/upload         multipart(N files)
-     → [{ id, fileId, summary: RideSummary, devices: DeviceInfo[],
-           layout: FitLayout }]  + cross-file gapAnalysis
-GET  /fitforge/v1/fit/{id}/track     → GeoJSON LineString (+ start/end/gap features)
-GET  /fitforge/v1/fit/{id}/summary   → RideSummary + devices
-POST /fitforge/v1/fit/merge          { ids[], gapHandling, lapStrategy, dryRun }
-     → { id?, report: MergeReport }      (dryRun: report only, no stored file)
-GET  /fitforge/v1/fit/{id}/download  → application/octet-stream (.fit)
-POST /fitforge/v1/fit/{id}/edit      (later) { ops[] } → { id, ... }
-GET  /health
-```
 
-The merge **`dryRun`** flag returns an authoritative `MergeReport` without
-producing a stored file — it powers the live merge report in the UI; "Merge &
-download" runs it for real.
-
-**Errors** map from the domain: invalid FIT → `422` + message; `FitMerge`
-`Left(...)` (e.g. overlapping segments) → `409` + that message; expired/unknown
-id → `410`/`404` → client resets and re-prompts upload.
-
-## Data contract
-
-Responses serialize types that already exist in the codec layer:
-`RideSummary` / `DeviceInfo` (summary), `MergeReport` / `MergeOutcome` (merge),
-`FitLayout` (file layout). The track endpoint derives GeoJSON from
-`FitFile.records`. Units stay SI on the wire; the UI formats metric + imperial.
+Errors map from the domain: invalid FIT → `422`; merge conflict/overlap → `409`;
+expired id → `410`; unknown id → `404`.
 
 ## Frontend
 
-Angular 22, standalone components, **signals** for workspace state
-(`segments`, `order`, `options`, `mergeReport`, `result`); **Zod** schemas mirror
-each response; **MapLibre GL** renders `/track` with the Forge route styling.
-Theme via `[data-theme]` (default light) + SCSS custom properties — see
-[ui-spec.md](ui-spec.md).
+Angular 22, standalone components, signals for workspace state, Zod schemas at
+the API boundary, and MapLibre GL for `/track`-derived route rendering. Theme via
+`[data-theme]` (default light) + SCSS custom properties — see [ui-spec.md](ui-spec.md).
 
 ## Privacy
 
-Ride GPS data is personal: S3 TTL eviction (≤ 2h app / 1 day backstop), nothing
-persisted long-term, no accounts in v1. The id is an unguessable capability
-token.
-
-## Dev / prod wiring
-
-In dev, `ng serve` proxies API calls to the backend; in prod the backend serves
-the built Angular as static files. The backend uses **real AWS S3** everywhere
-(`default` profile locally via the credential chain, IAM role in the cloud),
-region **us-east-1**, against the OpenTofu-provisioned bucket. `./gradlew run`
-runs it locally; `docker-compose.yml` runs the container with `~/.aws` mounted.
-Tests hit the same real bucket and cancel themselves when no AWS credentials
-resolve.
+Ride GPS data is personal. Objects are short-lived, private, encrypted at rest,
+and accessed only through unguessable ids and short-lived presigned URLs. No
+accounts in v1.

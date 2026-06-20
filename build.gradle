@@ -33,13 +33,9 @@ dependencies {
     [ libs.scala
     , libs.scalaXML
     , libs.scalaCollectionsCompat
-    , libs.pekko_actor
+    , libs.aws_s3
+    , libs.aws_lambda_core
     , libs.pekko_http
-    , libs.pekko_http_xml
-    , libs.pekko_slf4j
-    , libs.pekko_stream
-    , libs.pekko_connectors_s3
-    , libs.pekko_http_spray_json
     , libs.slf4j
     , libs.logback_classic
     , libs.logback_core
@@ -51,8 +47,6 @@ dependencies {
     ]
   )
   testImplementation libs.scalaTest
-  testImplementation libs.pekko_http_testkit
-  testImplementation libs.pekko_stream_testkit
   testRuntimeOnly 'co.helmethair:scalatest-junit-runner:0.2.0'
   testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
 }
@@ -94,8 +88,8 @@ spotless {
 
 test {
   useJUnitPlatform()
-  // Tests use real AWS S3 (default-profile creds, us-east-1); S3 specs cancel themselves
-  // when no AWS credentials resolve, so the suite stays green without AWS access.
+  // AWS S3 specs require externally supplied AWS credentials + FITFORGE_TEST_BUCKET.
+  // They cancel themselves when those inputs are unavailable.
   testLogging {
     events 'passed', 'skipped', 'failed'
     showStandardStreams = true
@@ -105,9 +99,9 @@ test {
 jar {
   manifest {
     attributes(
-      [ "Implementation-Title"   : "fit-forge"
+      [ "Implementation-Title"   : "FFMForge"
       , "Implementation-Version" : "1.0"
-      , "Implementation-Vendor"  : "fit-forge"
+      , "Implementation-Vendor"  : "FFMForge"
       ]
     )
   }
@@ -119,22 +113,18 @@ task copyRuntimeDeps(type: Copy, dependsOn: jar) {
   into "$buildDir/libs"
 }
 
-// Runs the backend against real AWS S3 using the `default` profile (us-east-1, bucket
-// fit-forge-uploads by default). The bucket must already exist (see infra/ — OpenTofu).
-task run(type: JavaExec, dependsOn: classes) {
-  description = 'Run the fit-forge HTTP service against AWS S3 (default profile)'
-  mainClass = 'fitforge.FitForgeMain'
+task lambdaSmoke(type: JavaExec, dependsOn: classes) {
+  description = 'Invoke the Lambda handler with a local /health event'
+  mainClass = 'ffmforge.lambda.LambdaSmokeMain'
   classpath sourceSets.main.runtimeClasspath
-  environment 'AWS_PROFILE', System.getenv().getOrDefault('AWS_PROFILE', 'default')
-  environment 'AWS_REGION', System.getenv().getOrDefault('AWS_REGION', 'us-east-1')
 }
 
-// Narrated FIT codec round-trip demonstration (lives in fitforge.examples).
+// Narrated FIT codec round-trip demonstration (lives in ffmforge.examples).
 // Depends on `check` so scalafix, scalafmt and tests must pass before the demo runs.
 // Usage: ./gradlew codecDemo --args="/path/to/activity.fit"
 task codecDemo(type: JavaExec, dependsOn: check) {
   description = 'Narrated FIT codec round-trip demonstration'
-  mainClass = 'fitforge.examples.FitCodecDemo'
+  mainClass = 'ffmforge.examples.FitCodecDemo'
   classpath sourceSets.main.runtimeClasspath
 }
 
@@ -143,7 +133,7 @@ task codecDemo(type: JavaExec, dependsOn: check) {
 // Usage: ./gradlew mergeDemo --args="samples/ride.fit"   (omit args for a synthetic join)
 task mergeDemo(type: JavaExec, dependsOn: check) {
   description = 'Demonstrates joining two recordings with a merge report'
-  mainClass = 'fitforge.examples.FitMergeDemo'
+  mainClass = 'ffmforge.examples.FitMergeDemo'
   classpath sourceSets.main.runtimeClasspath
 }
 
@@ -156,9 +146,8 @@ task cleanAll(dependsOn: [clean, cleanFrontend]) {
 }
 
 docker {
-  name "fit-forge:1.0"
+  name "ffm-forge:1.0"
   dockerfile file('Dockerfile')
-  files 'docker-run.sh'
   copySpec.from("$buildDir/libs") { into 'libs' }
   // Frontend static files are added here once the Angular app exists (task #5).
   pull true
