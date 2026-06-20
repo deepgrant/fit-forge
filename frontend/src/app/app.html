@@ -44,67 +44,133 @@
     }
 
     <div class="grid">
-      <section class="panel upload-panel">
-        <div class="panel-heading">
-          <div>
-            <p class="panel-kicker">Input recordings</p>
-            <h2>Segments</h2>
+      <div class="left-stack">
+        <section class="panel upload-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Input recordings</p>
+              <h2>Segments</h2>
+            </div>
+            <button type="button" class="ghost-button" (click)="clearWorkspace()" [disabled]="segments().length === 0">Clear</button>
           </div>
-          <button type="button" class="ghost-button" (click)="clearWorkspace()" [disabled]="segments().length === 0">Clear</button>
-        </div>
 
-        <label class="drop-zone" (drop)="onDrop($event)" (dragover)="allowDrop($event)">
-          <input type="file" accept=".fit" multiple (change)="onFilesSelected($event)" />
-          <span class="drop-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 16V4" />
-              <path d="m7 9 5-5 5 5" />
-              <path d="M20 16.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2.5" />
-            </svg>
-          </span>
-          <span class="drop-title">Drop FIT recordings here</span>
-          <span class="drop-copy">or choose files from disk</span>
-        </label>
+          <label class="drop-zone" (drop)="onDrop($event)" (dragover)="allowDrop($event)">
+            <input type="file" accept=".fit" multiple (change)="onFilesSelected($event)" />
+            <span class="drop-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 16V4" />
+                <path d="m7 9 5-5 5 5" />
+                <path d="M20 16.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2.5" />
+              </svg>
+            </span>
+            <span class="drop-title">Drop FIT recordings here</span>
+            <span class="drop-copy">or choose files from disk</span>
+          </label>
 
-        <div class="segment-list">
-          @if (segments().length === 0) {
-            <div class="empty-state">Add two or more ride segments to preview the merge.</div>
-          }
+          <div class="segment-list">
+            @if (segments().length === 0) {
+              <div class="empty-state">Add two or more ride segments to preview the merge.</div>
+            }
 
-          @for (segment of segments(); track segment.localId; let index = $index) {
-            <article class="segment-row" [class.failed]="segment.state === 'failed'">
-              <div class="segment-index">{{ index + 1 }}</div>
-              <div class="segment-main">
-                <div class="segment-title">
-                  <span>{{ segment.file.name }}</span>
-                  <span class="badge" [class.valid]="segment.state === 'ready'" [class.bad]="segment.state === 'failed'">
-                    {{ segment.state }}
-                  </span>
-                </div>
-                <div class="segment-meta">
-                  {{ fileSize(segment.file.size) }}
-                  @if (descriptions()[index]; as described) {
-                    · {{ timeRange(described.summary.elapsedSeconds ? described.fileId.timeCreated : undefined, described.fileId.timeCreated) }}
-                    · {{ distance(described.summary.totalDistanceM) }}
-                    · {{ described.layout.totalMessages }} messages
+            @for (segment of segments(); track segment.localId; let index = $index) {
+              <article class="segment-row" [class.failed]="segment.state === 'failed'">
+                <div class="segment-index">{{ index + 1 }}</div>
+                <div class="segment-main">
+                  <div class="segment-title">
+                    <span>{{ segment.file.name }}</span>
+                    <span class="badge" [class.valid]="segment.state === 'ready'" [class.bad]="segment.state === 'failed'">
+                      {{ segment.state }}
+                    </span>
+                  </div>
+                  <div class="segment-meta">
+                    {{ fileSize(segment.file.size) }}
+                    @if (descriptions()[index]; as described) {
+                      · {{ timeRange(described.summary.elapsedSeconds ? described.fileId.timeCreated : undefined, described.fileId.timeCreated) }}
+                      · {{ distance(described.summary.totalDistanceM) }}
+                      · {{ described.layout.totalMessages }} messages
+                    }
+                  </div>
+                  @if (segment.error) {
+                    <div class="segment-error">{{ segment.error }}</div>
                   }
                 </div>
-                @if (segment.error) {
-                  <div class="segment-error">{{ segment.error }}</div>
-                }
-              </div>
-              <button type="button" class="icon-button" (click)="removeSegment(segment.localId)" aria-label="Remove segment">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 6 6 18" />
-                  <path d="m6 6 12 12" />
-                </svg>
-              </button>
-            </article>
-          }
-        </div>
-      </section>
+                <button type="button" class="icon-button" (click)="removeSegment(segment.localId)" aria-label="Remove segment">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </svg>
+                </button>
+              </article>
+            }
+          </div>
+        </section>
 
-      <section class="panel route-panel">
+        <aside class="panel controls-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Merge options</p>
+              <h2>Rules</h2>
+            </div>
+          </div>
+
+          <div class="option-card selected">
+            <span class="radio-dot"></span>
+            <div>
+              <b>Preserve gaps as pauses</b>
+              <p>Elapsed time keeps the full journey; moving time excludes the recording break.</p>
+            </div>
+          </div>
+
+          <label class="select-label">
+            Lap strategy
+            <select [value]="lapStrategy()" (change)="setLapStrategy($event)">
+              <option value="OnePerSegment">One lap per recording</option>
+              <option value="KeepOriginal">Keep original laps</option>
+            </select>
+          </label>
+
+          <button type="button" class="secondary-button" (click)="dryRunMerge()" [disabled]="!canMerge()">Preview merge</button>
+          <button type="button" class="primary-button" (click)="mergeAndDownload()" [disabled]="!canMerge()">Merge & download .fit</button>
+        </aside>
+
+        <section class="panel report-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Verification</p>
+              <h2>Merge report</h2>
+            </div>
+            @if (report()) {
+              <span class="badge valid">lossless</span>
+            }
+          </div>
+
+          @if (report(); as report) {
+            <div class="report-grid">
+              <div><span>Segments</span><b>{{ report.segments.length }}</b></div>
+              <div><span>Gaps</span><b>{{ report.gaps.length }}</b></div>
+              <div><span>Records</span><b>{{ totalRecords() }}</b></div>
+              <div><span>Messages</span><b>{{ report.layout.totalMessages }}</b></div>
+            </div>
+            <div class="report-list">
+              @for (gap of report.gaps; track gap.afterSegment) {
+                <div class="report-row gap-row">
+                  <span>Gap after segment {{ gap.afterSegment + 1 }}</span>
+                  <b>{{ duration(gap.seconds) }}</b>
+                </div>
+              }
+              <div class="report-row">
+                <span>Lap strategy</span>
+                <b>{{ report.lapStrategy }}</b>
+              </div>
+            </div>
+          } @else {
+            <div class="empty-state">Run a preview to inspect gaps, record counts, and output layout before merging.</div>
+          }
+        </section>
+      </div>
+
+      <div class="right-stack">
+        <section class="panel route-panel">
         <div class="panel-heading">
           <div>
             <p class="panel-kicker">Route preview</p>
@@ -151,72 +217,9 @@
             <b>{{ totalRecords() || '-' }}</b>
           </div>
         </div>
-      </section>
+        </section>
 
-      <aside class="panel controls-panel">
-        <div class="panel-heading">
-          <div>
-            <p class="panel-kicker">Merge options</p>
-            <h2>Rules</h2>
-          </div>
-        </div>
-
-        <div class="option-card selected">
-          <span class="radio-dot"></span>
-          <div>
-            <b>Preserve gaps as pauses</b>
-            <p>Elapsed time keeps the full journey; moving time excludes the recording break.</p>
-          </div>
-        </div>
-
-        <label class="select-label">
-          Lap strategy
-          <select [value]="lapStrategy()" (change)="setLapStrategy($event)">
-            <option value="OnePerSegment">One lap per recording</option>
-            <option value="KeepOriginal">Keep original laps</option>
-          </select>
-        </label>
-
-        <button type="button" class="secondary-button" (click)="dryRunMerge()" [disabled]="!canMerge()">Preview merge</button>
-        <button type="button" class="primary-button" (click)="mergeAndDownload()" [disabled]="!canMerge()">Merge & download .fit</button>
-      </aside>
-
-      <section class="panel report-panel">
-        <div class="panel-heading">
-          <div>
-            <p class="panel-kicker">Verification</p>
-            <h2>Merge report</h2>
-          </div>
-          @if (report()) {
-            <span class="badge valid">lossless</span>
-          }
-        </div>
-
-        @if (report(); as report) {
-          <div class="report-grid">
-            <div><span>Segments</span><b>{{ report.segments.length }}</b></div>
-            <div><span>Gaps</span><b>{{ report.gaps.length }}</b></div>
-            <div><span>Records</span><b>{{ totalRecords() }}</b></div>
-            <div><span>Messages</span><b>{{ report.layout.totalMessages }}</b></div>
-          </div>
-          <div class="report-list">
-            @for (gap of report.gaps; track gap.afterSegment) {
-              <div class="report-row gap-row">
-                <span>Gap after segment {{ gap.afterSegment + 1 }}</span>
-                <b>{{ duration(gap.seconds) }}</b>
-              </div>
-            }
-            <div class="report-row">
-              <span>Lap strategy</span>
-              <b>{{ report.lapStrategy }}</b>
-            </div>
-          </div>
-        } @else {
-          <div class="empty-state">Run a preview to inspect gaps, record counts, and output layout before merging.</div>
-        }
-      </section>
-
-      <section class="panel summary-panel">
+        <section class="panel summary-panel">
         <div class="panel-heading">
           <div>
             <p class="panel-kicker">Activity summary</p>
@@ -262,7 +265,8 @@
         } @else {
           <div class="empty-state">Upload a FIT file to see ride statistics and device metadata.</div>
         }
-      </section>
+        </section>
+      </div>
     </div>
   </section>
 </main>

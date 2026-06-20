@@ -219,12 +219,16 @@ h2 {
 
 .grid {
   display: grid;
-  grid-template-columns: minmax(330px, 0.95fr) minmax(420px, 1.35fr) minmax(290px, 0.75fr);
-  grid-template-areas:
-    "upload route controls"
-    "report summary summary";
+  grid-template-columns: minmax(330px, 0.72fr) minmax(650px, 1.8fr);
   gap: 14px;
   align-items: start;
+}
+
+.left-stack,
+.right-stack {
+  display: grid;
+  gap: 14px;
+  align-content: start;
 }
 
 .panel {
@@ -242,25 +246,11 @@ h2 {
 }
 
 .upload-panel {
-  grid-area: upload;
   min-height: 560px;
 }
 
 .route-panel {
-  grid-area: route;
   min-height: 560px;
-}
-
-.controls-panel {
-  grid-area: controls;
-}
-
-.report-panel {
-  grid-area: report;
-}
-
-.summary-panel {
-  grid-area: summary;
 }
 
 .drop-zone {
@@ -639,12 +629,6 @@ select {
 
   .grid {
     grid-template-columns: 1fr;
-    grid-template-areas:
-      "upload"
-      "route"
-      "controls"
-      "report"
-      "summary";
   }
 }
 
