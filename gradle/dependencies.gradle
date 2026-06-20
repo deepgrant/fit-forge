@@ -18,6 +18,7 @@ versions +=
   , logback: "1.5.18"
   , pprint: "0.9.0"
   , garminFit: "21.205.0"         // Official Garmin FIT Java SDK (Maven Central)
+  , pekkoConnectors: "1.2.0"      // Pekko Connectors (Alpakka) S3
   ]
 
 libs +=
@@ -31,6 +32,10 @@ libs +=
   , pekko_http_xml: "org.apache.pekko:pekko-http-xml_3:${versions.pekkoHttp}"
   , pekko_slf4j: "org.apache.pekko:pekko-slf4j_3:${versions.pekko}"
   , pekko_stream: "org.apache.pekko:pekko-stream_3:${versions.pekko}"
+  , pekko_connectors_s3: "org.apache.pekko:pekko-connectors-s3_3:${versions.pekkoConnectors}"
+  , pekko_http_spray_json: "org.apache.pekko:pekko-http-spray-json_3:${versions.pekkoHttp}"
+  , pekko_http_testkit: "org.apache.pekko:pekko-http-testkit_3:${versions.pekkoHttp}"
+  , pekko_stream_testkit: "org.apache.pekko:pekko-stream-testkit_3:${versions.pekko}"
   , slf4j: "org.slf4j:slf4j-api:${versions.slf4j}"
   , logback_classic: "ch.qos.logback:logback-classic:${versions.logback}"
   , logback_core: "ch.qos.logback:logback-core:${versions.logback}"

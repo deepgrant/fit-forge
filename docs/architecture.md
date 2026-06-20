@@ -32,10 +32,11 @@ Consequences:
   correctness).
 
 Build implication: a `FitStore` trait (`put(bytes) → id`, `get(id) → bytes`,
-`delete(id)`) with an AWS S3 implementation via **`pekko-connectors-s3`**
-(streams to/from S3) and an in-memory impl for tests. Local dev points the same
-S3 client at a local endpoint (**LocalStack**, via docker-compose) using the AWS
-SDK endpoint override.
+`delete(id)`, `sweepExpired`) with an AWS S3 implementation via
+**`pekko-connectors-s3`** (streams to/from S3). Credentials come from the AWS
+Default Credentials Provider Chain (`default` profile locally, IAM role in the
+cloud); region **us-east-1**. The bucket is created by OpenTofu (`infra/`), not
+by the app.
 
 ## Session lifecycle & TTL
 
@@ -138,5 +139,9 @@ token.
 ## Dev / prod wiring
 
 In dev, `ng serve` proxies API calls to the backend; in prod the backend serves
-the built Angular as static files. Local dev runs against **LocalStack** (an
-S3-compatible endpoint, via docker-compose) using the AWS SDK endpoint override.
+the built Angular as static files. The backend uses **real AWS S3** everywhere
+(`default` profile locally via the credential chain, IAM role in the cloud),
+region **us-east-1**, against the OpenTofu-provisioned bucket. `./gradlew run`
+runs it locally; `docker-compose.yml` runs the container with `~/.aws` mounted.
+Tests hit the same real bucket and cancel themselves when no AWS credentials
+resolve.

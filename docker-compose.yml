@@ -1,0 +1,16 @@
+# Run the backend container against real AWS S3 using your `default` profile.
+# Build the image first:  ./gradlew dockerPrepare docker   (produces fit-forge:1.0)
+# The bucket must already exist (see infra/ — OpenTofu).  Then:  docker compose up
+services:
+  fitforge:
+    image: fit-forge:1.0
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      S3_BUCKET: fit-forge-uploads
+      AWS_REGION: us-east-1
+      AWS_PROFILE: default
+    volumes:
+      # Mount the default-profile credentials read-only (container runs as root → /root/.aws).
+      - ${HOME}/.aws:/root/.aws:ro
