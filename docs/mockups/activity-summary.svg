@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 432" font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <defs>
+    <g id="hmr" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11.414 10l-7.383 7.418a2.091 2.091 0 0 0 0 2.967a2.11 2.11 0 0 0 2.976 0l7.407 -7.385"/>
+      <path d="M18.121 15.293l2.586 -2.586a1 1 0 0 0 0 -1.414l-7.586 -7.586a1 1 0 0 0 -1.414 0l-2.586 2.586a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0"/>
+    </g>
+  </defs>
+
+  <rect x="0.5" y="0.5" width="679" height="431" rx="14" fill="#FFFFFF" stroke="#E3E5E9"/>
+
+  <line x1="0" y1="52" x2="680" y2="52" stroke="#E3E5E9"/>
+  <rect x="16" y="13" width="26" height="26" rx="7" fill="#FF6A1A"/>
+  <use href="#hmr" transform="translate(21,18) scale(0.667)"/>
+  <text x="50" y="27" font-size="15" font-weight="700" fill="#15181E">Lunch ride</text>
+  <text x="50" y="43" font-size="12" fill="#9AA3AF">13 Jul 2025 · cycling · recorded on Garmin Edge</text>
+  <rect x="566" y="15" width="98" height="24" rx="8" fill="#FFFFFF" stroke="#E3E5E9"/>
+  <text x="615" y="31" text-anchor="middle" font-size="13" font-weight="500" fill="#15181E">Download</text>
+
+  <rect x="24" y="64" width="632" height="92" rx="10" fill="#F6F7F9" stroke="#E3E5E9"/>
+  <path d="M48,132 C120,104 120,72 190,84 S300,148 360,120 S470,66 520,98 S600,142 632,116" fill="none" stroke="#FF6A1A" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="48" cy="132" r="6" fill="#1F9D6B"/>
+  <circle cx="632" cy="116" r="6" fill="#E0453C"/>
+
+  <g>
+    <rect x="24" y="168" width="202" height="62" rx="8" fill="#F6F7F9"/>
+    <text x="38" y="189" font-size="12" fill="#5A6472">Distance</text>
+    <text x="38" y="212" font-size="20" font-weight="500" fill="#15181E">32.21 km</text>
+    <text x="158" y="212" font-size="12" fill="#9AA3AF">20.01 mi</text>
+
+    <rect x="238" y="168" width="202" height="62" rx="8" fill="#F6F7F9"/>
+    <text x="252" y="189" font-size="12" fill="#5A6472">Moving time</text>
+    <text x="252" y="212" font-size="20" font-weight="500" fill="#15181E">1:33:08</text>
+    <text x="360" y="212" font-size="12" fill="#9AA3AF">elapsed 1:46:31</text>
+
+    <rect x="452" y="168" width="204" height="62" rx="8" fill="#F6F7F9"/>
+    <text x="466" y="189" font-size="12" fill="#5A6472">Avg speed</text>
+    <text x="466" y="212" font-size="20" font-weight="500" fill="#15181E">20.7 km/h</text>
+    <text x="586" y="212" font-size="12" fill="#9AA3AF">12.9 mph</text>
+
+    <rect x="24" y="238" width="202" height="62" rx="8" fill="#F6F7F9"/>
+    <text x="38" y="259" font-size="12" fill="#5A6472">Max speed</text>
+    <text x="38" y="282" font-size="20" font-weight="500" fill="#15181E">42.2 km/h</text>
+    <text x="158" y="282" font-size="12" fill="#9AA3AF">26.2 mph</text>
+
+    <rect x="238" y="238" width="202" height="62" rx="8" fill="#F6F7F9"/>
+    <text x="252" y="259" font-size="12" fill="#5A6472">Avg temp</text>
+    <text x="252" y="282" font-size="20" font-weight="500" fill="#15181E">29.7 °C</text>
+    <text x="360" y="282" font-size="12" fill="#9AA3AF">85.5 °F</text>
+
+    <rect x="452" y="238" width="204" height="62" rx="8" fill="#F6F7F9"/>
+    <text x="466" y="259" font-size="12" fill="#5A6472">Max temp</text>
+    <text x="466" y="282" font-size="20" font-weight="500" fill="#15181E">32.0 °C</text>
+    <text x="586" y="282" font-size="12" fill="#9AA3AF">89.6 °F</text>
+  </g>
+
+  <text x="24" y="328" font-size="13" fill="#5A6472">Devices used</text>
+  <g font-size="14">
+    <circle cx="32" cy="346" r="3" fill="#FF6A1A"/>
+    <text x="44" y="350" fill="#15181E">Garmin Edge <tspan fill="#9AA3AF" font-size="12">· head unit</tspan></text>
+    <circle cx="32" cy="370" r="3" fill="#FF6A1A"/>
+    <text x="44" y="374" fill="#15181E">Polar Verity <tspan fill="#9AA3AF" font-size="12">· heart rate (ANT+)</tspan></text>
+    <text x="330" y="374" font-size="12" fill="#1F9D6B">battery ok</text>
+    <circle cx="32" cy="394" r="3" fill="#FF6A1A"/>
+    <text x="44" y="398" fill="#15181E">Speed &amp; cadence <tspan fill="#9AA3AF" font-size="12">· 2 sensors (ANT+)</tspan></text>
+    <text x="330" y="398" font-size="12" fill="#1F9D6B">battery ok</text>
+  </g>
+
+  <text x="392" y="328" font-size="13" fill="#5A6472">Elevation</text>
+  <rect x="392" y="336" width="264" height="74" rx="8" fill="#F6F7F9" stroke="#E3E5E9"/>
+  <path d="M404,392 L432,382 L462,388 L492,360 L524,368 L556,344 L590,356 L624,340 L644,372 L644,402 L404,402 Z" fill="#FDEAD9"/>
+  <path d="M404,392 L432,382 L462,388 L492,360 L524,368 L556,344 L590,356 L624,340 L644,372" fill="none" stroke="#FF6A1A" stroke-width="2"/>
+  <text x="404" y="356" font-size="11" fill="#9A6206">↑ 412 m gain</text>
+</svg>

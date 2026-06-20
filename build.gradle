@@ -1,3 +1,6 @@
+import java.util.regex.Matcher
+import java.util.regex.Pattern
+
 buildscript {
   repositories { mavenCentral() }
   dependencies {
@@ -33,11 +36,10 @@ dependencies {
     [ libs.scala
     , libs.scalaXML
     , libs.scalaCollectionsCompat
-    , libs.pekko_actor
+    , libs.aws_s3
+    , libs.aws_lambda_core
+    , libs.typesafe_config
     , libs.pekko_http
-    , libs.pekko_http_xml
-    , libs.pekko_slf4j
-    , libs.pekko_stream
     , libs.slf4j
     , libs.logback_classic
     , libs.logback_core
@@ -90,6 +92,8 @@ spotless {
 
 test {
   useJUnitPlatform()
+  // AWS S3 specs require externally supplied AWS credentials + FITFORGE_TEST_BUCKET.
+  // They cancel themselves when those inputs are unavailable.
   testLogging {
     events 'passed', 'skipped', 'failed'
     showStandardStreams = true
@@ -99,9 +103,9 @@ test {
 jar {
   manifest {
     attributes(
-      [ "Implementation-Title"   : "fit-forge"
+      [ "Implementation-Title"   : "FFMForge"
       , "Implementation-Version" : "1.0"
-      , "Implementation-Vendor"  : "fit-forge"
+      , "Implementation-Vendor"  : "FFMForge"
       ]
     )
   }
@@ -113,19 +117,30 @@ task copyRuntimeDeps(type: Copy, dependsOn: jar) {
   into "$buildDir/libs"
 }
 
-task run(type: JavaExec, dependsOn: classes) {
-  description = 'Run the fit-forge HTTP service'
-  mainClass = 'fitforge.FitForgeMain'
+task lambdaSmoke(type: JavaExec, dependsOn: classes) {
+  description = 'Invoke the Lambda handler locally without touching AWS'
+  mainClass = 'ffmforge.lambda.LambdaSmokeMain'
   classpath sourceSets.main.runtimeClasspath
 }
 
-// Narrated FIT codec round-trip demonstration (lives in fitforge.examples).
+// Narrated FIT codec round-trip demonstration (lives in ffmforge.examples).
 // Depends on `check` so scalafix, scalafmt and tests must pass before the demo runs.
 // Usage: ./gradlew codecDemo --args="/path/to/activity.fit"
 task codecDemo(type: JavaExec, dependsOn: check) {
   description = 'Narrated FIT codec round-trip demonstration'
-  mainClass = 'fitforge.examples.FitCodecDemo'
+  mainClass = 'ffmforge.examples.FitCodecDemo'
   classpath sourceSets.main.runtimeClasspath
+}
+
+// Deployed Lambda equivalent of codecDemo.
+// Uploads a local FIT file through the public API, then asks Lambda to run the round-trip proof.
+// Usage: ./gradlew lambdaCodecDemo --args="samples/ride.fit"
+// Optional: -PffmForgeBaseUrl=https://ffmforge.com
+task lambdaCodecDemo(type: JavaExec, dependsOn: check) {
+  description = 'Narrated deployed Lambda FIT codec round-trip demonstration'
+  mainClass = 'ffmforge.examples.LambdaCodecDemo'
+  classpath sourceSets.main.runtimeClasspath
+  systemProperty 'ffmforge.baseUrl', findProperty('ffmForgeBaseUrl')?.toString() ?: 'https://ffmforge.com'
 }
 
 // Join two recordings into one, with a logged report + layout summary.
@@ -133,7 +148,7 @@ task codecDemo(type: JavaExec, dependsOn: check) {
 // Usage: ./gradlew mergeDemo --args="samples/ride.fit"   (omit args for a synthetic join)
 task mergeDemo(type: JavaExec, dependsOn: check) {
   description = 'Demonstrates joining two recordings with a merge report'
-  mainClass = 'fitforge.examples.FitMergeDemo'
+  mainClass = 'ffmforge.examples.FitMergeDemo'
   classpath sourceSets.main.runtimeClasspath
 }
 
@@ -145,12 +160,453 @@ task cleanAll(dependsOn: [clean, cleanFrontend]) {
   description = 'Clean Scala build output and Angular frontend dist'
 }
 
+def infraDir = file("$projectDir/infra")
+def localTfvars = file("$infraDir/local.auto.tfvars")
+def dockerImageName = 'ffm-forge:1.0'
+def frontendProjectDir = file("$projectDir/frontend")
+def angularFrontendDist = file("$projectDir/frontend/dist/ffm-forge-ui/browser")
+def backendDestroyTargets = [
+  'aws_apigatewayv2_stage.default',
+  'aws_apigatewayv2_route.proxy',
+  'aws_apigatewayv2_integration.lambda',
+  'aws_apigatewayv2_api.http',
+  'aws_lambda_permission.allow_apigw',
+  'aws_cloudwatch_event_target.cleanup',
+  'aws_cloudwatch_event_rule.cleanup',
+  'aws_lambda_permission.allow_cleanup',
+  'aws_lambda_function.api',
+  'aws_iam_role_policy_attachment.lambda_basic',
+  'aws_iam_role_policy_attachment.lambda_s3',
+  'aws_iam_policy.lambda_s3_access',
+  'aws_iam_role.lambda',
+]
+def frontendDestroyTargets = [
+  'aws_route53_record.app_a',
+  'aws_route53_record.app_aaaa',
+  'aws_s3_bucket_policy.frontend',
+  'aws_cloudfront_distribution.app',
+  'aws_cloudfront_response_headers_policy.api_cors',
+  'aws_cloudfront_origin_request_policy.api',
+  'aws_cloudfront_cache_policy.api_disabled',
+  'aws_cloudfront_origin_access_control.frontend',
+  'aws_acm_certificate_validation.frontend',
+  'aws_route53_record.cert_validation',
+  'aws_acm_certificate.frontend',
+]
+def deploymentDestroyTargets = (frontendDestroyTargets + backendDestroyTargets).unique()
+
+def awsProfile = {
+  findProperty('ffmForgeAwsProfile')?.toString() ?: System.getenv('AWS_PROFILE') ?: 'default'
+}
+
+def awsRegion = {
+  findProperty('ffmForgeAwsRegion')?.toString()
+    ?: System.getenv('AWS_REGION')
+    ?: System.getenv('AWS_DEFAULT_REGION')
+    ?: 'us-east-1'
+}
+
+def frontendSourceDir = {
+  file(findProperty('ffmForgeFrontendDir')?.toString() ?: angularFrontendDist.absolutePath)
+}
+
+def frontendNodeCommand = {
+  def configured = findProperty('ffmForgeFrontendNode')?.toString()
+  configured ? [configured] : ['npx', '--yes', '-p', 'node@24.15.0', 'node']
+}
+
+def frontendNgCommand = { List<String> args ->
+  frontendNodeCommand() + [file("$frontendProjectDir/node_modules/@angular/cli/bin/ng").absolutePath] + args
+}
+
+def requireFrontendNode = { List<String> nodeCommand ->
+  def output = new ByteArrayOutputStream()
+  def error = new ByteArrayOutputStream()
+  def process = new ProcessBuilder(nodeCommand + ['-p', 'process.versions.node'])
+    .directory(projectDir)
+    .start()
+  process.inputStream.transferTo(output)
+  process.errorStream.transferTo(error)
+  def exitValue = process.waitFor()
+  if (exitValue != 0) {
+    throw new GradleException("Unable to run node -p process.versions.node\n${error.toString('UTF-8').trim()}")
+  }
+
+  def version = output.toString('UTF-8').trim()
+  def parts = version.tokenize('.').collect { it as int }
+  def supported =
+    (parts[0] == 24 && parts[1] >= 15) ||
+    (parts[0] == 22 && (parts[1] > 22 || (parts[1] == 22 && parts[2] >= 3)))
+
+  if (!supported) {
+    throw new GradleException("Frontend tasks require Node 24.15.x or Node 22.22.3+. Detected Node ${version}. Node 26.3.1 currently triggers an Angular/esbuild deadlock in this project.")
+  }
+}
+
+def imageTag = {
+  findProperty('ffmForgeImageTag')?.toString() ?: System.currentTimeMillis().toString()
+}
+
+def runCommand = { List<String> command, File dir = projectDir, String stdin = null, boolean ignoreExit = false ->
+  ByteArrayOutputStream stdout = new ByteArrayOutputStream()
+  ByteArrayOutputStream stderr = new ByteArrayOutputStream()
+  def process = new ProcessBuilder(command.collect { it.toString() })
+    .directory(dir)
+    .start()
+
+  def stdoutThread = Thread.start {
+    process.inputStream.transferTo(stdout)
+  }
+  def stderrThread = Thread.start {
+    process.errorStream.transferTo(stderr)
+  }
+
+  if (stdin == null) {
+    process.outputStream.close()
+  } else {
+    process.outputStream.withWriter('UTF-8') { writer -> writer << stdin }
+  }
+
+  def exitValue = process.waitFor()
+  stdoutThread.join()
+  stderrThread.join()
+
+  if (exitValue != 0 && !ignoreExit) {
+    throw new GradleException(
+      "Command failed (${exitValue}) in ${dir}: ${command.join(' ')}\n${stderr.toString('UTF-8').trim()}"
+    )
+  }
+  [exitValue: exitValue, stdout: stdout.toString('UTF-8'), stderr: stderr.toString('UTF-8')]
+}
+
+def commandOutput = { List<String> command, File dir = projectDir ->
+  runCommand(command, dir).stdout.trim()
+}
+
+def tofuOutput = { String outputName ->
+  commandOutput(['tofu', 'output', '-raw', outputName], infraDir)
+}
+
+def readLocalTfvar = { String key ->
+  if (!localTfvars.exists()) {
+    return null
+  }
+
+  def matcher = localTfvars.getText('UTF-8') =~ /(?m)^\s*${Pattern.quote(key)}\s*=\s*"([^"]+)"\s*$/
+  matcher.find() ? matcher.group(1) : null
+}
+
+def upsertLocalTfvar = { String key, String value ->
+  localTfvars.parentFile.mkdirs()
+  def line = "${key} = \"${value}\""
+
+  if (!localTfvars.exists()) {
+    localTfvars.setText("${line}\n", 'UTF-8')
+    return
+  }
+
+  def text = localTfvars.getText('UTF-8')
+  def pattern = Pattern.compile("(?m)^\\s*${Pattern.quote(key)}\\s*=.*\$")
+  def matcher = pattern.matcher(text)
+  def updated = matcher.find()
+    ? matcher.replaceAll(Matcher.quoteReplacement(line))
+    : "${text.stripTrailing()}\n${line}\n"
+
+  localTfvars.setText(updated, 'UTF-8')
+}
+
+def awsCommand = { List<String> args ->
+  ['aws'] + args + ['--profile', awsProfile(), '--region', awsRegion()]
+}
+
+def ecrRepositoryUrl = {
+  try {
+    return tofuOutput('ecr_repository_url')
+  } catch (Exception ignored) {
+    def repositoryName = readLocalTfvar('ecr_repository_name')
+    if (!repositoryName) {
+      throw new GradleException(
+        'Unable to resolve ECR repository URL. Apply infra first or set ecr_repository_name in infra/local.auto.tfvars.'
+      )
+    }
+
+    return commandOutput(
+      awsCommand(
+        [ 'ecr'
+        , 'describe-repositories'
+        , '--repository-names', repositoryName
+        , '--query', 'repositories[0].repositoryUri'
+        , '--output', 'text'
+        ]
+      )
+    )
+  }
+}
+
+def requireUndeployConfirmation = {
+  if (findProperty('confirmUndeploy')?.toString() != 'true') {
+    throw new GradleException('Deployment teardown tasks require -PconfirmUndeploy=true')
+  }
+}
+
+def tofuDestroyCommand = { List<String> targets ->
+  ['tofu', 'destroy', '-auto-approve'] + targets.collect { "-target=${it}" }
+}
+
+tasks.register('frontendInstall') {
+  group = 'frontend'
+  description = 'Install Angular frontend dependencies'
+  inputs.file "$frontendProjectDir/package.json"
+  outputs.dir "$frontendProjectDir/node_modules"
+
+  doLast {
+    runCommand(file("$frontendProjectDir/package-lock.json").exists() ? ['npm', 'ci'] : ['npm', 'install'], frontendProjectDir)
+  }
+}
+
+tasks.register('frontendBuild') {
+  group = 'frontend'
+  description = 'Build the Angular frontend'
+  dependsOn 'frontendInstall'
+  inputs.dir "$frontendProjectDir/src"
+  inputs.dir "$frontendProjectDir/public"
+  inputs.file "$frontendProjectDir/angular.json"
+  inputs.file "$frontendProjectDir/tsconfig.json"
+  inputs.file "$frontendProjectDir/tsconfig.app.json"
+  outputs.dir angularFrontendDist
+
+  doLast {
+    requireFrontendNode(frontendNodeCommand())
+    runCommand(frontendNgCommand(['build', '--progress=false']), frontendProjectDir)
+  }
+}
+
+tasks.register('frontendServe') {
+  group = 'frontend'
+  description = 'Run the Angular development server'
+  dependsOn 'frontendInstall'
+
+  doLast {
+    requireFrontendNode(frontendNodeCommand())
+    runCommand(frontendNgCommand(['serve', '--host', '127.0.0.1', '--proxy-config', 'proxy.conf.json']), frontendProjectDir)
+  }
+}
+
+tasks.register('tofuInit', Exec) {
+  group = 'deployment'
+  description = 'Initialize OpenTofu providers in infra/'
+  workingDir infraDir
+  commandLine 'tofu', 'init'
+}
+
+tasks.register('tofuValidate', Exec) {
+  group = 'deployment'
+  description = 'Validate the OpenTofu configuration'
+  dependsOn 'tofuInit'
+  workingDir infraDir
+  commandLine 'tofu', 'validate'
+}
+
+tasks.register('tofuPlan', Exec) {
+  group = 'deployment'
+  description = 'Plan OpenTofu infrastructure changes'
+  dependsOn 'tofuValidate'
+  workingDir infraDir
+  commandLine 'tofu', 'plan'
+}
+
+tasks.register('tofuApply', Exec) {
+  group = 'deployment'
+  description = 'Apply OpenTofu infrastructure changes'
+  dependsOn 'tofuValidate'
+  workingDir infraDir
+  commandLine 'tofu', 'apply', '-auto-approve'
+}
+
+tasks.register('tofuDestroyBackend', Exec) {
+  group = 'deployment'
+  description = 'Destroy backend OpenTofu resources while preserving S3 buckets'
+  dependsOn 'tofuInit'
+  workingDir infraDir
+  commandLine tofuDestroyCommand(backendDestroyTargets)
+  doFirst {
+    requireUndeployConfirmation()
+  }
+}
+
+tasks.register('tofuDestroyFrontend', Exec) {
+  group = 'deployment'
+  description = 'Destroy frontend serving OpenTofu resources while preserving S3 buckets'
+  dependsOn 'tofuInit'
+  workingDir infraDir
+  commandLine tofuDestroyCommand(frontendDestroyTargets)
+  doFirst {
+    requireUndeployConfirmation()
+  }
+}
+
+tasks.register('tofuDestroyDeployment', Exec) {
+  group = 'deployment'
+  description = 'Destroy deployed frontend/backend resources while preserving S3 buckets'
+  dependsOn 'tofuInit'
+  workingDir infraDir
+  commandLine tofuDestroyCommand(deploymentDestroyTargets)
+  doFirst {
+    requireUndeployConfirmation()
+  }
+}
+
+tasks.register('deployInfra') {
+  group = 'deployment'
+  description = 'Apply the OpenTofu stack using the current local configuration'
+  dependsOn 'tofuApply'
+}
+
+tasks.register('pushBackendImage') {
+  group = 'deployment'
+  description = 'Build, tag, and push the Lambda container image to ECR'
+  dependsOn check, tasks.named('docker')
+
+  doLast {
+    def repositoryUrl = ecrRepositoryUrl()
+    def tag = imageTag()
+    def imageUri = "${repositoryUrl}:${tag}"
+    def registry = repositoryUrl.substring(0, repositoryUrl.indexOf('/'))
+    def password = commandOutput(awsCommand(['ecr', 'get-login-password']))
+
+    runCommand(['docker', 'login', '--username', 'AWS', '--password-stdin', registry], projectDir, "${password}\n")
+    runCommand(['docker', 'tag', dockerImageName, imageUri])
+    runCommand(['docker', 'push', imageUri])
+
+    upsertLocalTfvar('lambda_image_uri', imageUri)
+    println "Updated ${localTfvars} with lambda_image_uri for tag ${tag}"
+  }
+}
+
+tasks.register('refreshBackend') {
+  group = 'deployment'
+  description = 'Build and push a new Lambda image, then apply OpenTofu'
+  dependsOn 'pushBackendImage', 'tofuApply', 'enableBackend'
+}
+
+tasks.named('tofuApply') {
+  mustRunAfter 'pushBackendImage'
+}
+
+tasks.register('enableBackend') {
+  group = 'deployment'
+  description = 'Remove any Lambda reserved-concurrency disablement'
+  dependsOn 'tofuInit'
+
+  doLast {
+    def functionName = tofuOutput('lambda_function_name')
+    runCommand(awsCommand(['lambda', 'delete-function-concurrency', '--function-name', functionName]), projectDir, null, true)
+  }
+}
+
+tasks.named('enableBackend') {
+  mustRunAfter 'tofuApply'
+}
+
+tasks.register('deployBackend') {
+  group = 'deployment'
+  description = 'Deploy or update the backend Lambda/API resources'
+  dependsOn 'refreshBackend'
+}
+
+tasks.register('undeployBackend') {
+  group = 'deployment'
+  description = 'Destroy backend Lambda/API resources while preserving S3 buckets'
+  dependsOn 'tofuDestroyBackend'
+}
+
+tasks.register('refreshFrontend') {
+  group = 'deployment'
+  description = 'Sync frontend static files to S3 and invalidate CloudFront'
+  dependsOn 'tofuInit'
+  if (!findProperty('ffmForgeFrontendDir')) {
+    dependsOn 'frontendBuild'
+  }
+
+  inputs.dir(frontendSourceDir)
+
+  doLast {
+    def sourceDir = frontendSourceDir()
+    if (!sourceDir.exists()) {
+      throw new GradleException("Frontend source directory does not exist: ${sourceDir}")
+    }
+
+    def bucket = tofuOutput('frontend_bucket_name')
+    def distributionId = tofuOutput('cloudfront_distribution_id')
+
+    runCommand(awsCommand(['s3', 'sync', sourceDir.absolutePath, "s3://${bucket}", '--delete']))
+    runCommand(awsCommand(['cloudfront', 'create-invalidation', '--distribution-id', distributionId, '--paths', '/*']))
+  }
+}
+
+tasks.register('deployFrontend') {
+  group = 'deployment'
+  description = 'Deploy or update frontend static assets'
+  dependsOn 'refreshFrontend'
+}
+
+tasks.register('emptyFrontendBucket') {
+  group = 'deployment'
+  description = 'Remove all objects from the frontend S3 bucket'
+
+  doLast {
+    requireUndeployConfirmation()
+    def bucket = tofuOutput('frontend_bucket_name')
+    runCommand(awsCommand(['s3', 'rm', "s3://${bucket}", '--recursive']))
+  }
+}
+
+tasks.register('emptyDataBucket') {
+  group = 'deployment'
+  description = 'Remove all objects from the FIT data S3 bucket'
+
+  doLast {
+    requireUndeployConfirmation()
+    def bucket = tofuOutput('data_bucket_name')
+    runCommand(awsCommand(['s3', 'rm', "s3://${bucket}", '--recursive']))
+  }
+}
+
+tasks.register('undeployFrontend') {
+  group = 'deployment'
+  description = 'Empty frontend assets and destroy frontend serving resources; preserve S3 bucket'
+  dependsOn 'emptyFrontendBucket', 'tofuDestroyFrontend'
+}
+
+tasks.named('tofuDestroyFrontend') {
+  mustRunAfter 'emptyFrontendBucket'
+}
+
+tasks.register('deploy') {
+  group = 'deployment'
+  description = 'Deploy backend image/infrastructure, then refresh frontend assets'
+  dependsOn 'refreshBackend', 'refreshFrontend'
+}
+
+tasks.named('refreshFrontend') {
+  mustRunAfter 'refreshBackend', 'tofuApply'
+}
+
+tasks.register('undeploy') {
+  group = 'deployment'
+  description = 'Destroy deployed frontend/backend resources and empty S3 buckets; preserve bucket resources'
+  dependsOn 'emptyFrontendBucket', 'emptyDataBucket', 'tofuDestroyDeployment'
+}
+
+tasks.named('tofuDestroyDeployment') {
+  mustRunAfter 'emptyFrontendBucket', 'emptyDataBucket'
+}
+
 docker {
-  name "fit-forge:1.0"
+  name dockerImageName
   dockerfile file('Dockerfile')
-  files 'docker-run.sh'
   copySpec.from("$buildDir/libs") { into 'libs' }
-  copySpec.from("frontend/dist/fit-forge-frontend") { into 'static' }
+  // Frontend static files are added here once the Angular app exists (task #5).
   pull true
 }
 

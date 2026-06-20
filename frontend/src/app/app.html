@@ -1,0 +1,288 @@
+<main class="app-shell">
+  <header class="topbar">
+    <div class="brand" aria-label="FFMForge">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11.414 10 4.031 17.418a2.091 2.091 0 0 0 0 2.967 2.11 2.11 0 0 0 2.976 0L14.414 13" />
+          <path d="m18.121 15.293 2.586-2.586a1 1 0 0 0 0-1.414l-7.586-7.586a1 1 0 0 0-1.414 0L9.121 6.293a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0Z" />
+        </svg>
+      </span>
+      <span class="wordmark">FFM<span>Forge</span></span>
+      <span class="context">merge</span>
+    </div>
+
+    <nav class="nav" aria-label="Workspace views">
+      <button type="button" class="nav-item active">Merge</button>
+      <button type="button" class="nav-item" disabled>Summary</button>
+      <button type="button" class="nav-item" disabled>Editor</button>
+    </nav>
+
+    <button type="button" class="theme-toggle" (click)="toggleTheme()" [attr.aria-pressed]="theme() === 'dark'">
+      <span class="theme-dot" aria-hidden="true"></span>
+      {{ theme() === 'dark' ? 'Light mode' : 'Dark mode' }}
+    </button>
+  </header>
+
+  <section class="workspace" aria-label="FIT merge workspace">
+    <div class="workspace-header">
+      <div>
+        <p class="eyebrow">Garmin FIT merge workspace</p>
+        <h1>Forge split recordings into one ride.</h1>
+      </div>
+      <div class="session-state">
+        <span [class.ready]="readyIds().length > 0">{{ readyIds().length }} uploaded</span>
+        <span [class.ready]="dryRun()?.report">{{ dryRun()?.report ? 'preview ready' : 'preview pending' }}</span>
+      </div>
+    </div>
+
+    @if (error()) {
+      <div class="notice error" role="alert">{{ error() }}</div>
+    }
+
+    @if (busy()) {
+      <div class="notice busy" role="status">{{ busy() }}</div>
+    }
+
+    <div class="grid">
+      <div class="left-stack">
+        <section class="panel upload-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Input recordings</p>
+              <h2>Segments</h2>
+            </div>
+            <button type="button" class="ghost-button" (click)="clearWorkspace()" [disabled]="segments().length === 0">Clear</button>
+          </div>
+
+          <label class="drop-zone" (drop)="onDrop($event)" (dragover)="allowDrop($event)">
+            <input type="file" accept=".fit" multiple (change)="onFilesSelected($event)" />
+            <span class="drop-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 16V4" />
+                <path d="m7 9 5-5 5 5" />
+                <path d="M20 16.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2.5" />
+              </svg>
+            </span>
+            <span class="drop-title">Drop FIT recordings here</span>
+            <span class="drop-copy">or choose files from disk</span>
+          </label>
+
+          <div class="segment-list">
+            @if (segments().length === 0) {
+              <div class="empty-state">Add two or more ride segments to preview the merge.</div>
+            }
+
+            @for (segment of segments(); track segment.localId; let index = $index) {
+              <article class="segment-row" [class.failed]="segment.state === 'failed'">
+                <div class="segment-index">{{ index + 1 }}</div>
+                <div class="segment-main">
+                  <div class="segment-title">
+                    <span>{{ segment.file.name }}</span>
+                    <span class="badge" [class.valid]="segment.state === 'ready'" [class.bad]="segment.state === 'failed'">
+                      {{ segment.state }}
+                    </span>
+                  </div>
+                  <div class="segment-meta">
+                    {{ fileSize(segment.file.size) }}
+                    @if (descriptions()[index]; as described) {
+                      · {{ timeRange(described.summary.elapsedSeconds ? described.fileId.timeCreated : undefined, described.fileId.timeCreated) }}
+                      · {{ distance(described.summary.totalDistanceM) }}
+                      · {{ described.layout.totalMessages }} messages
+                    }
+                  </div>
+                  @if (segment.error) {
+                    <div class="segment-error">{{ segment.error }}</div>
+                  }
+                </div>
+                <button type="button" class="icon-button" (click)="removeSegment(segment.localId)" aria-label="Remove segment">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </svg>
+                </button>
+              </article>
+            }
+          </div>
+        </section>
+
+        <aside class="panel controls-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Merge options</p>
+              <h2>Rules</h2>
+            </div>
+          </div>
+
+          <div class="option-card selected">
+            <span class="radio-dot"></span>
+            <div>
+              <b>Preserve gaps as pauses</b>
+              <p>Elapsed time keeps the full journey; moving time excludes the recording break.</p>
+            </div>
+          </div>
+
+          <label class="select-label">
+            Lap strategy
+            <select [value]="lapStrategy()" (change)="setLapStrategy($event)">
+              <option value="OnePerSegment">One lap per recording</option>
+              <option value="KeepOriginal">Keep original laps</option>
+            </select>
+          </label>
+
+          <button type="button" class="secondary-button" (click)="dryRunMerge()" [disabled]="!canMerge()">Preview merge</button>
+          <button type="button" class="primary-button" (click)="mergeAndDownload()" [disabled]="!canMerge()">Merge & download .fit</button>
+        </aside>
+
+        <section class="panel report-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Verification</p>
+              <h2>Merge report</h2>
+            </div>
+            @if (report()) {
+              <span class="badge valid">lossless</span>
+            }
+          </div>
+
+          @if (report(); as report) {
+            <div class="report-grid">
+              <div><span>Segments</span><b>{{ report.segments.length }}</b></div>
+              <div><span>Gaps</span><b>{{ report.gaps.length }}</b></div>
+              <div><span>Records</span><b>{{ totalRecords() }}</b></div>
+              <div><span>Messages</span><b>{{ report.layout.totalMessages }}</b></div>
+            </div>
+            <div class="report-list">
+              @for (gap of report.gaps; track gap.afterSegment) {
+                <div class="report-row gap-row">
+                  <span>Gap after segment {{ gap.afterSegment + 1 }}</span>
+                  <b>{{ duration(gap.seconds) }}</b>
+                </div>
+              }
+              <div class="report-row">
+                <span>Lap strategy</span>
+                <b>{{ report.lapStrategy }}</b>
+              </div>
+            </div>
+          } @else {
+            <div class="empty-state">Run a preview to inspect gaps, record counts, and output layout before merging.</div>
+          }
+        </section>
+      </div>
+
+      <div class="right-stack">
+        <section class="panel route-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Route preview</p>
+            <h2>Pause-aware join</h2>
+          </div>
+          <div class="legend">
+            @if (routeTracks().length === 0) {
+              <span><i class="route"></i>route</span>
+            }
+            @for (route of routeTracks(); track route.id) {
+              <span><i [style.background]="route.color"></i>{{ route.name }}</span>
+            }
+            @if (gapSeconds() > 0) {
+              <span><i class="gap"></i>gap</span>
+            }
+          </div>
+        </div>
+
+        <div class="map-shell">
+          <div #mapHost class="map-host" aria-label="Route preview map"></div>
+          @if (routeTracks().length === 0) {
+            <div class="map-empty">Upload a FIT file to draw its route.</div>
+          }
+        </div>
+
+        <div class="timeline" aria-label="Recording timeline">
+          <span class="timeline-segment"></span>
+          <span class="timeline-gap" [style.flex-grow]="gapWeight()"></span>
+          <span class="timeline-segment"></span>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric">
+            <span>Distance</span>
+            <b>{{ distance(displayDistanceM()) }}</b>
+          </div>
+          <div class="metric">
+            <span>Moving / elapsed</span>
+            <b>{{ duration(displayMovingSeconds()) }}</b>
+            <small>{{ duration(displayElapsedSeconds()) }}</small>
+          </div>
+          <div class="metric">
+            <span>Records</span>
+            <b>{{ totalRecords() || '-' }}</b>
+          </div>
+        </div>
+        </section>
+
+        <section class="panel summary-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Activity summary</p>
+            <h2>Device and ride data</h2>
+          </div>
+        </div>
+
+        @if (primaryActivity(); as activity) {
+          <div class="metric-grid compact">
+            <div class="metric"><span>Activity</span><b>{{ activity.summary.sport?.toLowerCase() ?? '-' }}</b></div>
+            <div class="metric"><span>Avg speed</span><b>{{ speed(activity.summary.avgSpeedMps) }}</b></div>
+            <div class="metric"><span>Max speed</span><b>{{ speed(activity.summary.maxSpeedMps) }}</b></div>
+            <div class="metric"><span>Avg power</span><b>{{ power(activity.summary.avgPowerW) }}</b></div>
+            <div class="metric"><span>Max power</span><b>{{ power(activity.summary.maxPowerW) }}</b></div>
+            <div class="metric"><span>Temperature</span><b>{{ temp(activity.summary.avgTempC) }}</b></div>
+          </div>
+
+          <div class="device-list">
+            @if (displayDevices().length === 0) {
+              <div class="empty-state">No device metadata recorded.</div>
+            }
+            @for (device of displayDevices(); track device.key) {
+              <div class="device-row">
+                <span
+                  class="manufacturer-mark"
+                  [class.garmin-mark]="device.isGarmin"
+                  [class.polar-mark]="device.isPolar"
+                  [attr.aria-label]="device.manufacturer + ' device'"
+                >
+                  {{ device.markText }}
+                </span>
+                <div class="device-main">
+                  <div class="device-title-line">
+                    <b>{{ device.name }}</b>
+                    <span class="device-type">{{ device.typeLabel }}</span>
+                  </div>
+                  <span class="device-meta">
+                    @if (device.sourceLabel) {
+                      Connection: {{ device.sourceLabel }}
+                    } @else {
+                      Connection: unknown
+                    }
+                    @if (device.statusLabel) {
+                      · Status: {{ device.statusLabel }}
+                    }
+                    @if (device.recordingCount > 1) {
+                      · {{ device.recordingCount }} recordings
+                    }
+                  </span>
+                  <span class="device-id">{{ device.idLabel }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="empty-state">Upload a FIT file to see ride statistics and device metadata.</div>
+        }
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <footer class="app-footer">
+    FIT decoding and encoding uses the Garmin FIT SDK, distributed under the Garmin FIT Protocol License.
+  </footer>
+</main>

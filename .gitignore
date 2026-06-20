@@ -3,7 +3,6 @@
 *.log
 
 # Local FIT sample files (ride data — not committed)
-samples/
 *.fit
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
@@ -24,13 +23,23 @@ bin/
 
 # Angular
 frontend/dist/
+frontend/out-tsc/
 frontend/.angular/
 frontend/node_modules/
 
 # Deployment
 local.properties
+.env
+.env.*
+
+# OpenTofu working files. OpenTofu intentionally uses Terraform-compatible
+# local filenames/directories for state, plugins, and locks.
 .terraform/
 *.tfstate
 *.tfstate.backup
+*.tfvars
+*.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
 .terraform.lock.hcl
 infra/redirect_lambda.zip

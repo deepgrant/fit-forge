@@ -1,179 +1,302 @@
-# fit-forge
+# FFMForge
 
-**FIT (Flexible and Interoperable Data Transfer) file editor and joiner.**
+FFMForge is a Garmin FIT merge workspace for joining split ride recordings back
+into one valid `.fit` activity.
 
-The primary goal: when a single long ride is captured as **multiple FIT
-recordings** (a battery swap, a device restart, a long café stop that splits the
-file), join them back into **one continuous, valid `.fit`** — a complete record
-of the whole journey.
+The common case is a long ride captured as multiple recordings because of a
+device restart, battery swap, or recording break. FFMForge uploads those FIT
+files, previews the routes and ride/device metadata, preserves gaps as pauses,
+and produces one merged FIT file.
 
----
+Production URL: [https://ffmforge.com](https://ffmforge.com)
 
-## 🚧 Under construction
-
-This repository is in an **early foundation / feasibility phase**. The FIT
-codec and the merge engine work and are tested against real Garmin data, but the
-web application (HTTP API + Angular UI) is **not built yet**.
-
-### What works today
-- **Lossless FIT codec** — decode/encode real `.fit` files via the official
-  Garmin FIT Java SDK, wrapped behind a `FitCodec` facade. Every field and
-  message type round-trips, including manufacturer/developer fields fit-forge
-  doesn't interpret (verified on real activity files).
-- **Merge engine** — join multiple recordings of one ride into a single
-  activity. Gaps between recordings are **preserved as pauses** (so elapsed time
-  includes the gap but moving time does not), distances are rebased to one
-  cumulative total, and session/lap/activity aggregates are recomputed.
-- **Summaries** — extract the devices used (sensor kind, battery, manufacturer),
-  the file layout (message-type histogram), and ride stats (distance, elapsed /
-  moving time, avg/max speed and power, avg/max temperature, sport, primary
-  recording device).
-
-### Not built yet
-- Pekko HTTP service (upload / summary / merge / download endpoints).
-- Angular front-end (upload, map view, merge, download).
-- Editing beyond join (trim, delete bad GPS points, metadata, lap ops).
+![FFMForge merge workspace](docs/images/ffmforge-workspace.png)
 
 ---
 
-## Architecture (intended)
+## Current State
 
-This is a single-module Gradle build with a Scala 3 + Apache Pekko (Actor/Stream/HTTP) 
-backend and an Angular front-end served as static files. Today only the FIT-processing 
-core (the `fitforge.fit` package) exists.
+This branch contains a working first public version:
 
-- **Language/build:** Scala 3.8.4, Gradle (wrapper, 9.x), JDK 21 target.
-- **Java version — pinned to JDK 21 (LTS):** the build declares a Gradle
-  **Java toolchain** of 21 and compiles with `-release 21`, so the whole build
-  (compile, tests, demos) runs on JDK 21 regardless of the JDK that launches
-  Gradle. 21 is the current LTS; pinning it via the toolchain keeps builds
-  reproducible across machines with different JDKs installed and matches the
-  `eclipse-temurin:21` deployment image. Gradle auto-detects an installed JDK 21;
-  if yours is in a non-standard location (e.g. a keg-only Homebrew install), set
-  `org.gradle.java.installations.paths` in `~/.gradle/gradle.properties`.
-- **FIT library:** official `com.garmin:fit` SDK, isolated behind
-  `FitCodec` — only `GarminFitCodec` imports `com.garmin.fit`.
-- **Model:** a lossless generic message store (`FitMessage`) is the source of
-  truth; typed views (`Record`, `Session`, `Lap`, …) are derived from it.
+- Angular 22 frontend hosted from private S3 through CloudFront.
+- Lambda/API Gateway backend at `/ffmforge/v1/*`.
+- Private S3 data bucket for uploaded FIT files and generated merge results.
+- OpenTofu infrastructure for S3, CloudFront, ACM, Route53, API Gateway,
+  Lambda, IAM, lifecycle, and cleanup scheduling.
+- Scala 3 FIT codec/merge core using the official Garmin FIT Java SDK.
 
-Key source:
+FIT files are temporary working data. The app enforces a short application TTL,
+and S3 lifecycle is a one-day backstop.
 
-| File | Purpose |
-|------|---------|
-| `source/scala/fitforge/fit/FitCodec.scala` | Codec facade (decode/encode/stats) |
-| `source/scala/fitforge/fit/GarminFitCodec.scala` | Garmin SDK implementation |
-| `source/scala/fitforge/fit/FitModel.scala` | Domain model + typed views |
-| `source/scala/fitforge/fit/FitMerge.scala` | Join engine + merge report |
-| `source/scala/fitforge/fit/FitSummary.scala` | Devices + ride statistics |
-| `source/scala/fitforge/fit/FitLayout.scala` | File layout summary |
+---
+
+## What Works
+
+- Decode and encode real Garmin FIT files through `GarminFitCodec`.
+- Preserve unknown FIT messages and fields through the lossless `FitMessage`
+  store.
+- Upload one or more FIT files from the browser using presigned S3 URLs.
+- Describe uploaded FIT files: ride stats, devices, file layout, and tracks.
+- Render uploaded routes with MapLibre GL JS 5 and OpenFreeMap vector tiles.
+- Dry-run merge to inspect gaps, records, and output layout.
+- Merge and download a generated `.fit`.
+- Group duplicate device rows in the UI while keeping raw API data lossless.
+- Run local codec/merge demos against sample or real FIT files.
+- Run deployed Lambda codec smoke checks against the public API.
+
+---
+
+## Architecture
+
+The repo is a single Gradle project with three main parts:
+
+| Area | Path | Purpose |
+| --- | --- | --- |
+| FIT core | `source/scala/ffmforge/fit/` | Codec facade, model, summaries, merge engine |
+| Lambda/API | `source/scala/ffmforge/lambda/`, `source/scala/ffmforge/http/`, `source/scala/ffmforge/store/` | API routing, JSON DTOs, S3-backed storage |
+| Frontend | `frontend/` | Angular workspace UI |
+| Infrastructure | `infra/` | OpenTofu AWS stack |
+
+Runtime shape:
+
+```text
+Browser
+  -> CloudFront
+    -> S3 frontend origin
+    -> API Gateway /ffmforge/v1/*
+      -> Lambda container image
+        -> private S3 data bucket
+```
+
+The backend is packaged as a Lambda container image. ECR is treated as an
+existing repository and is looked up by OpenTofu; OpenTofu does not create or
+manage ECR.
 
 ---
 
 ## Requirements
 
-- JDK 21 available on the machine (the build uses a Gradle toolchain targeting
-  `-release 21`). Gradle can launch on JDK 17+ but will compile/test/run on 21.
-- No global Gradle needed — use the bundled `./gradlew` wrapper.
-- Internet access on first build (downloads Gradle, Pekko, and the Garmin SDK
-  from Maven Central).
+- JDK 21 available to Gradle. The build uses a Gradle Java toolchain targeting
+  `-release 21`.
+- Node 24.15.x for frontend work. Node 26.3.1 currently triggers an
+  Angular/esbuild deadlock during `ng build`, even though Angular's published
+  engine range allows Node 26.
+- Docker for backend image builds.
+- OpenTofu for infrastructure.
+- AWS CLI authenticated locally with the intended profile.
+- No global Gradle required; use `./gradlew`.
 
 ---
 
-## Setting up JDK 21 for Gradle
+## JDK 21 Setup
 
-The build uses a Gradle **Java toolchain** pinned to JDK 21, so a JDK 21 must be
-installed and discoverable by Gradle. (Gradle's auto-download / foojay resolver
-is intentionally not used — it currently fails against the foojay API.)
-
-**1. Install a JDK 21.** Any vendor works — for example:
-
-- macOS (Homebrew): `brew install openjdk@21`
-- SDKMAN (any OS): `sdk install java 21-tem`
-- Or download a build from [Adoptium](https://adoptium.net/temurin/releases/?version=21).
-
-**2. Make sure Gradle can find it.** Check what Gradle detects:
+Install a JDK 21, then confirm Gradle can see it:
 
 ```bash
 ./gradlew -q javaToolchains
 ```
 
-If `JDK 21` is listed, you're done. If it isn't (common with **keg-only
-Homebrew** installs, which aren't symlinked into a standard location), tell
-Gradle where it is by adding the path to **`~/.gradle/gradle.properties`**
-(user-level — not committed):
+If a Homebrew or SDKMAN JDK is not auto-detected, add the path to
+`~/.gradle/gradle.properties`:
 
 ```properties
 org.gradle.java.installations.paths=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 ```
 
-Adjust the path for your install (`sdk home java 21-tem`, or the Adoptium
-install dir). Multiple paths can be comma-separated. Alternatively, macOS users
-can symlink the JDK so it is auto-detected:
-
-```bash
-sudo ln -sfn /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk \
-  /Library/Java/JavaVirtualMachines/openjdk-21.jdk
-```
-
-Gradle itself may launch on any JDK 17+, but it will compile, test, and run the
-demos on JDK 21 via the toolchain.
+Gradle can launch on JDK 17+, but compile/test/run tasks use the JDK 21
+toolchain.
 
 ---
 
-## Build & test
+## Build And Test
 
 ```bash
-./gradlew check      # compile (-Werror) + scalafix + scalafmt + all unit tests
-./gradlew test       # unit tests only
+./gradlew check
 ```
 
-Quality gates are enforced on every build: Scala compiles with `-Werror`,
-Scalafix checks import ordering and bans `var`/`null`/`throw`/`asInstanceOf`
-(outside the SDK facade), and Scalafmt checks formatting. To auto-fix:
+`check` compiles Scala, runs Scalafix, checks formatting, and runs unit tests.
+To apply formatting/fixable Scalafix changes:
 
 ```bash
 ./gradlew scalafix spotlessApply
 ```
 
+Frontend checks:
+
+```bash
+cd frontend
+npx tsc -p tsconfig.app.json --noEmit
+./node_modules/.bin/ngc -p tsconfig.app.json
+```
+
+Angular production build with Node 24:
+
+```bash
+cd frontend
+npx -p node@24.15.0 node ./node_modules/@angular/cli/bin/ng build --progress=false
+```
+
+Gradle frontend tasks also exist, but they require `node` on `PATH` to be a
+supported Node 22/24 runtime:
+
+```bash
+./gradlew frontendInstall
+./gradlew frontendBuild
+./gradlew frontendServe
+```
+
 ---
 
-## Runnable demos
+## Local Frontend
 
-Two narrated demos exercise the codec and the merge on real or synthetic data.
-Both are **gated on `check`**, so they only run after lint + tests pass.
-
-### Codec round-trip + ride summary
+Start the Angular dev server:
 
 ```bash
-./gradlew codecDemo                                    # synthetic ride (no file needed)
-./gradlew codecDemo --args="samples/your_ride.fit"     # real file
+cd frontend
+npx -p node@24.15.0 node ./node_modules/@angular/cli/bin/ng serve \
+  --host 127.0.0.1 \
+  --proxy-config proxy.conf.json \
+  --port 4200
 ```
 
-With a real file it decodes the activity, prints the devices used and a ride
-summary (distance, times, speeds, power, temperature — in metric and imperial),
-then re-encodes and re-decodes to prove nothing was lost. The re-encoded file is
+Open [http://127.0.0.1:4200](http://127.0.0.1:4200).
+
+The proxy forwards `/ffmforge/v1/*` to the deployed API. Local browser uploads
+need the data bucket CORS configuration to include the local dev origins. Keep
+that in ignored local OpenTofu config, not in committed files.
+
+---
+
+## Deployment
+
+Sensitive deployment values live in ignored local OpenTofu files such as
+`infra/local.auto.tfvars`. Do not commit local DNS IDs, account values, image
+URIs, or other environment-specific settings.
+
+Initialize and inspect infrastructure:
+
+```bash
+./gradlew tofuInit
+./gradlew tofuValidate
+./gradlew tofuPlan
+```
+
+Apply infrastructure:
+
+```bash
+./gradlew deployInfra
+```
+
+Refresh backend image and Lambda/API infrastructure:
+
+```bash
+./gradlew refreshBackend
+```
+
+Publish the already-built Angular artifact:
+
+```bash
+./gradlew refreshFrontend \
+  -PffmForgeFrontendDir="$PWD/frontend/dist/ffm-forge-ui/browser" \
+  --console=plain
+```
+
+`refreshFrontend` syncs the static frontend artifact to S3 and invalidates
+CloudFront. If `-PffmForgeFrontendDir` is omitted, Gradle attempts to run
+`frontendBuild` first, which requires a supported Node runtime on `PATH`.
+
+Full deployment:
+
+```bash
+./gradlew deploy
+```
+
+Undeploy the serving/runtime stack while preserving S3 bucket resources:
+
+```bash
+./gradlew undeploy -PconfirmUndeploy=true
+```
+
+OpenTofu bucket resources are protected with `prevent_destroy`. The Gradle
+undeploy path may empty bucket contents when explicitly confirmed, but it does
+not destroy the S3 bucket resources.
+
+---
+
+## API Overview
+
+Public API prefix:
+
+```text
+/ffmforge/v1/
+```
+
+Implemented routes include:
+
+- `POST /uploads` - create presigned upload URLs.
+- `POST /fit/describe` - summarize uploaded FIT files.
+- `GET /fit/{id}/track` - return GeoJSON route data.
+- `POST /fit/merge` - dry-run or execute a FIT merge.
+- `GET /fit/{id}/download` - create a presigned download URL.
+- `POST /fit/codec-demo` - deployed Lambda codec round-trip demo.
+
+---
+
+## Runnable Demos
+
+Codec demo:
+
+```bash
+./gradlew codecDemo
+./gradlew codecDemo --args="samples/your_ride.fit"
+```
+
+With a real file, this decodes the activity, prints devices and ride summary,
+re-encodes, re-decodes, and verifies the round trip. The re-encoded file is
 written next to the input as `*.roundtrip.fit`.
 
-### Join two recordings
+Merge demo:
 
 ```bash
-./gradlew mergeDemo                                     # synthetic two-segment join
-./gradlew mergeDemo --args="samples/your_ride.fit"      # splits the ride in two, re-joins
+./gradlew mergeDemo
+./gradlew mergeDemo --args="samples/your_ride.fit"
 ```
 
-Given a real file it splits the ride into two recordings (dropping a middle
-slice to simulate a gap), then joins them and prints a full report: what was
-read per segment, the gap preserved as a pause, the recomputed totals, and the
-final file layout. The merged file is written as `*.merged.fit`.
+With a real file, this splits the ride into two recordings, drops a middle slice
+to simulate a recording gap, rejoins the pieces, and writes `*.merged.fit`.
 
-> **Sample files:** `.fit` files and the `samples/` directory are git-ignored —
-> drop your own activity files into `samples/` to try the demos. (macOS note:
-> files under `~/Downloads`, `~/Desktop`, `~/Documents` are protected by privacy
-> controls; copy them into the project to let the JVM read them.)
+Deployed Lambda codec demo:
+
+```bash
+./gradlew lambdaCodecDemo \
+  -PffmForgeBaseUrl=https://ffmforge.com \
+  --args="samples/your_ride.fit"
+```
+
+This requests a presigned upload URL from the public API, uploads the local FIT
+file to private S3, then asks Lambda to decode, encode, decode, summarize, and
+verify it.
+
+Sample FIT files can be placed under `samples/`. Keep private or personal ride
+files out of commits unless they are intentionally scrubbed/test-safe.
+
+---
+
+## Notes
+
+- Frontend map rendering uses MapLibre GL JS 5.24.0 loaded at runtime and the
+  OpenFreeMap Liberty style at `https://tiles.openfreemap.org/styles/liberty`.
+- Angular asset versioning is handled by hashed bundle filenames.
+- A future SPA version check can poll `version.json` and prompt users to refresh
+  when a new frontend is available.
+- FIT processing uses Garmin's official Java SDK behind the FFMForge codec
+  facade.
 
 ---
 
 ## License
 
-See [LICENSE](LICENSE). Note the bundled Garmin FIT SDK is distributed under the
-Garmin FIT Protocol License (proprietary, free to use).
+See [LICENSE](LICENSE).
+
+The Garmin FIT SDK is distributed under the Garmin FIT Protocol License
+(proprietary, free to use).
