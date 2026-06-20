@@ -8,6 +8,11 @@ syntax and local filenames (for example the `terraform {}` settings block and
 Values such as region, profile, hosted zone id/name, domain name, bucket names,
 and image URI are deployment inputs and must not be committed.
 
+The Lambda itself receives a single `FFMFORGE_CONFIG` HOCON environment value.
+OpenTofu constructs it from the data bucket and TTL variables; do not add
+separate Lambda environment variables for each setting unless there is a clear
+runtime reason.
+
 ## What it creates
 
 - Private frontend S3 bucket, served through CloudFront with Origin Access

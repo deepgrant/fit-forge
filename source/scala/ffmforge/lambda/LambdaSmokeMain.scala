@@ -1,9 +1,9 @@
 package ffmforge.lambda
 
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 
+import ffmforge.FFMForgeConfig
 import ffmforge.fit.FitCodec
 import ffmforge.fit.FitFile
 import ffmforge.fit.FitStats
@@ -19,7 +19,15 @@ object LambdaSmokeMain {
     val api = new FFMForgeLambdaApi(
       new UnusedStore(),
       new UnusedCodec(),
-      ffmforge.FFMForgeConfig(8080, 2.hours, 15.minutes, "", "unused"),
+      FFMForgeConfig.fromHocon("""
+        ffmforge {
+          port = 8080
+          static-dir = ""
+          session-ttl = 2 hours
+          presign-ttl = 15 minutes
+          s3.bucket = "unused"
+        }
+      """),
     )(using
       scala.concurrent.ExecutionContext.global
     )

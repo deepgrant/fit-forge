@@ -30,9 +30,23 @@ Consequences:
 - The frontend and data buckets are private; CloudFront and presigned URLs are
   the public access points.
 
-Deployment-specific values (region, profile, hosted zone id/name, domain, bucket
-names, image URI) are supplied through ignored tfvars or environment variables.
-They must not be committed.
+Deployment-specific OpenTofu values (region, profile, hosted zone id/name,
+domain, bucket names, image URI) are supplied through ignored tfvars or shell
+environment variables. They must not be committed.
+
+Lambda runtime configuration is passed as one HOCON environment value,
+`FFMFORGE_CONFIG`, instead of a bundle of separate variables. OpenTofu builds
+that block from infrastructure outputs and tunable variables:
+
+```hocon
+ffmforge {
+  port = 8080
+  static-dir = "/app/static"
+  session-ttl = 120 minutes
+  presign-ttl = 15 minutes
+  s3.bucket = "..."
+}
+```
 
 ## Session lifecycle & TTL
 

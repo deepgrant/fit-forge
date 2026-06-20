@@ -35,6 +35,7 @@ dependencies {
     , libs.scalaCollectionsCompat
     , libs.aws_s3
     , libs.aws_lambda_core
+    , libs.typesafe_config
     , libs.pekko_http
     , libs.slf4j
     , libs.logback_classic

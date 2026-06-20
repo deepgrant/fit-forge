@@ -8,9 +8,17 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      S3_BUCKET           = aws_s3_bucket.data.bucket
-      SESSION_TTL_MINUTES = tostring(var.session_ttl_minutes)
-      PRESIGN_TTL_MINUTES = tostring(var.presign_ttl_minutes)
+      FFMFORGE_CONFIG = <<-EOC
+        ffmforge {
+          port = 8080
+          static-dir = "/app/static"
+          session-ttl = ${var.session_ttl_minutes} minutes
+          presign-ttl = ${var.presign_ttl_minutes} minutes
+          s3 {
+            bucket = "${aws_s3_bucket.data.bucket}"
+          }
+        }
+      EOC
     }
   }
 
