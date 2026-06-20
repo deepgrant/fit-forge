@@ -210,14 +210,29 @@ def frontendSourceDir = {
   file(findProperty('ffmForgeFrontendDir')?.toString() ?: angularFrontendDist.absolutePath)
 }
 
-def requireFrontendNode = {
+def frontendNodeCommand = {
+  def configured = findProperty('ffmForgeFrontendNode')?.toString()
+  configured ? [configured] : ['npx', '--yes', '-p', 'node@24.15.0', 'node']
+}
+
+def frontendNgCommand = { List<String> args ->
+  frontendNodeCommand() + [file("$frontendProjectDir/node_modules/@angular/cli/bin/ng").absolutePath] + args
+}
+
+def requireFrontendNode = { List<String> nodeCommand ->
   def output = new ByteArrayOutputStream()
-  exec {
-    commandLine 'node', '-p', 'process.versions.node'
-    standardOutput = output
+  def error = new ByteArrayOutputStream()
+  def process = new ProcessBuilder(nodeCommand + ['-p', 'process.versions.node'])
+    .directory(projectDir)
+    .start()
+  process.inputStream.transferTo(output)
+  process.errorStream.transferTo(error)
+  def exitValue = process.waitFor()
+  if (exitValue != 0) {
+    throw new GradleException("Unable to run node -p process.versions.node\n${error.toString('UTF-8').trim()}")
   }
 
-  def version = output.toString().trim()
+  def version = output.toString('UTF-8').trim()
   def parts = version.tokenize('.').collect { it as int }
   def supported =
     (parts[0] == 24 && parts[1] >= 15) ||
@@ -345,7 +360,6 @@ tasks.register('frontendInstall') {
   outputs.dir "$frontendProjectDir/node_modules"
 
   doLast {
-    requireFrontendNode()
     runCommand(file("$frontendProjectDir/package-lock.json").exists() ? ['npm', 'ci'] : ['npm', 'install'], frontendProjectDir)
   }
 }
@@ -362,8 +376,8 @@ tasks.register('frontendBuild') {
   outputs.dir angularFrontendDist
 
   doLast {
-    requireFrontendNode()
-    runCommand(['npm', 'run', 'build'], frontendProjectDir)
+    requireFrontendNode(frontendNodeCommand())
+    runCommand(frontendNgCommand(['build', '--progress=false']), frontendProjectDir)
   }
 }
 
@@ -373,8 +387,8 @@ tasks.register('frontendServe') {
   dependsOn 'frontendInstall'
 
   doLast {
-    requireFrontendNode()
-    runCommand(['npm', 'run', 'start'], frontendProjectDir)
+    requireFrontendNode(frontendNodeCommand())
+    runCommand(frontendNgCommand(['serve', '--host', '127.0.0.1', '--proxy-config', 'proxy.conf.json']), frontendProjectDir)
   }
 }
 
