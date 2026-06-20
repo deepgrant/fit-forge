@@ -18,6 +18,7 @@ import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler
 import ffmforge.FFMForgeConfig
 import ffmforge.fit.FitCodec
+import ffmforge.fit.FitCodecReport
 import ffmforge.fit.FitFile
 import ffmforge.fit.FitLayout
 import ffmforge.fit.FitMerge
@@ -27,6 +28,7 @@ import ffmforge.fit.LapStrategy
 import ffmforge.fit.MergeOptions
 import ffmforge.fit.MergeOutcome
 import ffmforge.http.ApiError
+import ffmforge.http.CodecDemoRequest
 import ffmforge.http.DescribeRequest
 import ffmforge.http.DownloadUrlResponse
 import ffmforge.http.JsonProtocol
@@ -106,6 +108,10 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
         case Left((status, err)) => response(status, err.toJson)
       }
 
+    case ("POST", "/ffmforge/v1/fit/codec-demo") =>
+      val req = event.bodyJson.convertTo[CodecDemoRequest]
+      codecDemo(req.id)
+
     case ("POST", "/ffmforge/v1/fit/merge") =>
       responseMerge(event.bodyJson.convertTo[MergeRequest])
 
@@ -138,6 +144,16 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
     }
   }
 
+  private def codecDemo(id: String): String =
+    readBytes(id) match {
+      case Right(bytes) =>
+        Try(FitCodecReport.fromBytes(id, bytes, codec)) match {
+          case Success(report) => response(StatusCodes.OK, report.toJson)
+          case Failure(_) => response(StatusCodes.UnprocessableContent, ApiError("stored file is not valid FIT").toJson)
+        }
+      case Left((status, err)) => response(status, err.toJson)
+    }
+
   private def responseMerge(req: MergeRequest): String =
     if (req.gapHandling != "preserve")
       response(StatusCodes.UnprocessableContent, ApiError("gapHandling 'close' is not implemented yet").toJson)
@@ -166,12 +182,16 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
     }
 
   private def readFile(id: String): Either[(StatusCode, ApiError), FitFile] =
+    readBytes(id).flatMap { bytes =>
+      Try(codec.decode(bytes)) match {
+        case Success(file) => Right(file)
+        case Failure(_)    => Left(StatusCodes.UnprocessableContent -> ApiError("stored file is not valid FIT"))
+      }
+    }
+
+  private def readBytes(id: String): Either[(StatusCode, ApiError), Array[Byte]] =
     await(store.get(id)) match {
-      case Right(bytes) =>
-        Try(codec.decode(bytes)) match {
-          case Success(file) => Right(file)
-          case Failure(_)    => Left(StatusCodes.UnprocessableContent -> ApiError("stored file is not valid FIT"))
-        }
+      case Right(bytes)              => Right(bytes)
       case Left(StoreError.NotFound) => Left(StatusCodes.NotFound -> ApiError("file not found"))
       case Left(StoreError.Expired)  => Left(StatusCodes.Gone -> ApiError("session expired — re-upload"))
     }

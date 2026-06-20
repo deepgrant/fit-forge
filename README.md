@@ -236,6 +236,19 @@ summary (distance, times, speeds, power, temperature — in metric and imperial)
 then re-encodes and re-decodes to prove nothing was lost. The re-encoded file is
 written next to the input as `*.roundtrip.fit`.
 
+### Deployed Lambda codec round-trip
+
+```bash
+./gradlew lambdaCodecDemo --args="samples/your_ride.fit"
+./gradlew lambdaCodecDemo -PffmForgeBaseUrl=https://ffmforge.com --args="samples/your_ride.fit"
+```
+
+This is the deployed Lambda equivalent of `codecDemo`: it requests a presigned
+upload URL from the public API, uploads the local FIT file to private S3, then
+asks Lambda to decode, re-encode, re-decode, summarize, and verify the uploaded
+file. The backend must already include the `/ffmforge/v1/fit/codec-demo` route,
+so run `./gradlew refreshBackend` before using it against a deployed environment.
+
 ### Join two recordings
 
 ```bash

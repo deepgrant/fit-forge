@@ -12,8 +12,10 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
 import ffmforge.FFMForgeConfig
+import ffmforge.fit.CodecDemoReport
 import ffmforge.fit.GarminFitCodec
 import ffmforge.http.AwsS3Support
+import ffmforge.http.CodecDemoRequest
 import ffmforge.http.DescribeRequest
 import ffmforge.http.DownloadUrlResponse
 import ffmforge.http.JsonProtocol
@@ -94,6 +96,22 @@ final class FFMForgeLambdaSpec extends AnyFunSuite with Matchers {
     val download = responseBody(api.handle(event("GET", s"/ffmforge/v1/fit/${merged.id.get}/download")))
       .convertTo[DownloadUrlResponse]
     download.url should startWith("https://")
+  }
+
+  test("codec demo route round-trips an uploaded FIT file") {
+    val id = uploadViaPresignedUrl("codec-demo.fit", TestFixtures.sampleBytes)
+    val report = responseBody(
+      api.handle(event("POST", "/ffmforge/v1/fit/codec-demo", CodecDemoRequest(id).toJson.compactPrint))
+    ).convertTo[CodecDemoReport]
+
+    report.id shouldBe id
+    report.originalBytes shouldBe TestFixtures.sampleBytes.length
+    report.reencodedBytes should be > 0
+    report.original.records should be > 0
+    report.redecoded.records shouldBe report.original.records
+    report.summary.totalDistanceM should not be empty
+    report.checks should not be empty
+    report.passed shouldBe true
   }
 
   test("expired object returns Gone") {

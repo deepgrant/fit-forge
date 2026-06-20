@@ -132,6 +132,17 @@ task codecDemo(type: JavaExec, dependsOn: check) {
   classpath sourceSets.main.runtimeClasspath
 }
 
+// Deployed Lambda equivalent of codecDemo.
+// Uploads a local FIT file through the public API, then asks Lambda to run the round-trip proof.
+// Usage: ./gradlew lambdaCodecDemo --args="samples/ride.fit"
+// Optional: -PffmForgeBaseUrl=https://ffmforge.com
+task lambdaCodecDemo(type: JavaExec, dependsOn: check) {
+  description = 'Narrated deployed Lambda FIT codec round-trip demonstration'
+  mainClass = 'ffmforge.examples.LambdaCodecDemo'
+  classpath sourceSets.main.runtimeClasspath
+  systemProperty 'ffmforge.baseUrl', findProperty('ffmForgeBaseUrl')?.toString() ?: 'https://ffmforge.com'
+}
+
 // Join two recordings into one, with a logged report + layout summary.
 // Depends on `check` so scalafix, scalafmt and tests must pass before the demo runs.
 // Usage: ./gradlew mergeDemo --args="samples/ride.fit"   (omit args for a synthetic join)
@@ -201,14 +212,40 @@ def imageTag = {
   findProperty('ffmForgeImageTag')?.toString() ?: System.currentTimeMillis().toString()
 }
 
-def commandOutput = { List<String> command, File dir = projectDir ->
+def runCommand = { List<String> command, File dir = projectDir, String stdin = null, boolean ignoreExit = false ->
   ByteArrayOutputStream stdout = new ByteArrayOutputStream()
-  exec {
-    workingDir dir
-    commandLine command
-    standardOutput = stdout
+  ByteArrayOutputStream stderr = new ByteArrayOutputStream()
+  def process = new ProcessBuilder(command.collect { it.toString() })
+    .directory(dir)
+    .start()
+
+  def stdoutThread = Thread.start {
+    process.inputStream.transferTo(stdout)
   }
-  stdout.toString('UTF-8').trim()
+  def stderrThread = Thread.start {
+    process.errorStream.transferTo(stderr)
+  }
+
+  if (stdin == null) {
+    process.outputStream.close()
+  } else {
+    process.outputStream.withWriter('UTF-8') { writer -> writer << stdin }
+  }
+
+  def exitValue = process.waitFor()
+  stdoutThread.join()
+  stderrThread.join()
+
+  if (exitValue != 0 && !ignoreExit) {
+    throw new GradleException(
+      "Command failed (${exitValue}) in ${dir}: ${command.join(' ')}\n${stderr.toString('UTF-8').trim()}"
+    )
+  }
+  [exitValue: exitValue, stdout: stdout.toString('UTF-8'), stderr: stderr.toString('UTF-8')]
+}
+
+def commandOutput = { List<String> command, File dir = projectDir ->
+  runCommand(command, dir).stdout.trim()
 }
 
 def tofuOutput = { String outputName ->
@@ -363,16 +400,9 @@ tasks.register('pushBackendImage') {
     def registry = repositoryUrl.substring(0, repositoryUrl.indexOf('/'))
     def password = commandOutput(awsCommand(['ecr', 'get-login-password']))
 
-    exec {
-      commandLine 'docker', 'login', '--username', 'AWS', '--password-stdin', registry
-      standardInput = new ByteArrayInputStream("${password}\n".getBytes('UTF-8'))
-    }
-    exec {
-      commandLine 'docker', 'tag', dockerImageName, imageUri
-    }
-    exec {
-      commandLine 'docker', 'push', imageUri
-    }
+    runCommand(['docker', 'login', '--username', 'AWS', '--password-stdin', registry], projectDir, "${password}\n")
+    runCommand(['docker', 'tag', dockerImageName, imageUri])
+    runCommand(['docker', 'push', imageUri])
 
     upsertLocalTfvar('lambda_image_uri', imageUri)
     println "Updated ${localTfvars} with lambda_image_uri for tag ${tag}"
@@ -396,10 +426,7 @@ tasks.register('enableBackend') {
 
   doLast {
     def functionName = tofuOutput('lambda_function_name')
-    exec {
-      commandLine awsCommand(['lambda', 'delete-function-concurrency', '--function-name', functionName])
-      ignoreExitValue = true
-    }
+    runCommand(awsCommand(['lambda', 'delete-function-concurrency', '--function-name', functionName]), projectDir, null, true)
   }
 }
 
@@ -435,12 +462,8 @@ tasks.register('refreshFrontend') {
     def bucket = tofuOutput('frontend_bucket_name')
     def distributionId = tofuOutput('cloudfront_distribution_id')
 
-    exec {
-      commandLine awsCommand(['s3', 'sync', sourceDir.absolutePath, "s3://${bucket}", '--delete'])
-    }
-    exec {
-      commandLine awsCommand(['cloudfront', 'create-invalidation', '--distribution-id', distributionId, '--paths', '/*'])
-    }
+    runCommand(awsCommand(['s3', 'sync', sourceDir.absolutePath, "s3://${bucket}", '--delete']))
+    runCommand(awsCommand(['cloudfront', 'create-invalidation', '--distribution-id', distributionId, '--paths', '/*']))
   }
 }
 
@@ -457,9 +480,7 @@ tasks.register('emptyFrontendBucket') {
   doLast {
     requireUndeployConfirmation()
     def bucket = tofuOutput('frontend_bucket_name')
-    exec {
-      commandLine awsCommand(['s3', 'rm', "s3://${bucket}", '--recursive'])
-    }
+    runCommand(awsCommand(['s3', 'rm', "s3://${bucket}", '--recursive']))
   }
 }
 
@@ -470,9 +491,7 @@ tasks.register('emptyDataBucket') {
   doLast {
     requireUndeployConfirmation()
     def bucket = tofuOutput('data_bucket_name')
-    exec {
-      commandLine awsCommand(['s3', 'rm', "s3://${bucket}", '--recursive'])
-    }
+    runCommand(awsCommand(['s3', 'rm', "s3://${bucket}", '--recursive']))
   }
 }
 

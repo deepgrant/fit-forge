@@ -4,10 +4,14 @@ import java.time.Instant
 
 import scala.util.Try
 
+import ffmforge.fit.CodecCheck
+import ffmforge.fit.CodecDemoReport
 import ffmforge.fit.DeviceInfo
 import ffmforge.fit.FileId
 import ffmforge.fit.FitFile
+import ffmforge.fit.FitFileDescription
 import ffmforge.fit.FitLayout
+import ffmforge.fit.FitStats
 import ffmforge.fit.GapInfo
 import ffmforge.fit.LapStrategy
 import ffmforge.fit.MergeReport
@@ -44,11 +48,14 @@ object JsonProtocol extends DefaultJsonProtocol {
     }
   }
 
-  implicit val fileIdFormat: RootJsonFormat[FileId]           = jsonFormat4(FileId.apply)
-  implicit val rideSummaryFormat: RootJsonFormat[RideSummary] = jsonFormat10(RideSummary.apply)
-  implicit val deviceInfoFormat: RootJsonFormat[DeviceInfo]   = jsonFormat9(DeviceInfo.apply)
-  implicit val segmentInfoFormat: RootJsonFormat[SegmentInfo] = jsonFormat4(SegmentInfo.apply)
-  implicit val gapInfoFormat: RootJsonFormat[GapInfo]         = jsonFormat2(GapInfo.apply)
+  implicit val fileIdFormat: RootJsonFormat[FileId]                         = jsonFormat4(FileId.apply)
+  implicit val fitStatsFormat: RootJsonFormat[FitStats]                     = jsonFormat3(FitStats.apply)
+  implicit val rideSummaryFormat: RootJsonFormat[RideSummary]               = jsonFormat10(RideSummary.apply)
+  implicit val deviceInfoFormat: RootJsonFormat[DeviceInfo]                 = jsonFormat9(DeviceInfo.apply)
+  implicit val fitFileDescriptionFormat: RootJsonFormat[FitFileDescription] = jsonFormat7(FitFileDescription.apply)
+  implicit val codecCheckFormat: RootJsonFormat[CodecCheck]                 = jsonFormat3(CodecCheck.apply)
+  implicit val segmentInfoFormat: RootJsonFormat[SegmentInfo]               = jsonFormat4(SegmentInfo.apply)
+  implicit val gapInfoFormat: RootJsonFormat[GapInfo]                       = jsonFormat2(GapInfo.apply)
 
   implicit val fitLayoutFormat: RootJsonFormat[FitLayout] = new RootJsonFormat[FitLayout] {
     def write(l: FitLayout): JsValue = JsObject(
@@ -84,6 +91,7 @@ object JsonProtocol extends DefaultJsonProtocol {
   }
 
   implicit val summaryResponseFormat: RootJsonFormat[SummaryResponse]         = jsonFormat3(SummaryResponse.apply)
+  implicit val codecDemoReportFormat: RootJsonFormat[CodecDemoReport]         = jsonFormat13(CodecDemoReport.apply)
   implicit val mergeReportFormat: RootJsonFormat[MergeReport]                 = jsonFormat8(MergeReport.apply)
   implicit val uploadFileResultFormat: RootJsonFormat[UploadFileResult]       = jsonFormat5(UploadFileResult.apply)
   implicit val uploadResponseFormat: RootJsonFormat[UploadResponse]           = jsonFormat1(UploadResponse.apply)
@@ -92,6 +100,7 @@ object JsonProtocol extends DefaultJsonProtocol {
   implicit val uploadUrlsResponseFormat: RootJsonFormat[UploadUrlsResponse]   = jsonFormat1(UploadUrlsResponse.apply)
   implicit val describeRequestFormat: RootJsonFormat[DescribeRequest]         = jsonFormat1(DescribeRequest.apply)
   implicit val downloadUrlResponseFormat: RootJsonFormat[DownloadUrlResponse] = jsonFormat3(DownloadUrlResponse.apply)
+  implicit val codecDemoRequestFormat: RootJsonFormat[CodecDemoRequest]       = jsonFormat1(CodecDemoRequest.apply)
   implicit val mergeResponseFormat: RootJsonFormat[MergeResponse]             = jsonFormat2(MergeResponse.apply)
   implicit val apiErrorFormat: RootJsonFormat[ApiError]                       = jsonFormat1(ApiError.apply)
 

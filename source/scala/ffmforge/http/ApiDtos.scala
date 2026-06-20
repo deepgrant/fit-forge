@@ -25,6 +25,7 @@ final case class UploadUrlResult(id: String, name: String, url: String, expiresA
 final case class UploadUrlsResponse(files: Vector[UploadUrlResult])
 final case class DescribeRequest(ids: Vector[String])
 final case class DownloadUrlResponse(id: String, url: String, expiresAt: Instant)
+final case class CodecDemoRequest(id: String)
 
 /** Response from `GET /ffmforge/v1/fit/{id}/summary`. */
 final case class SummaryResponse(summary: RideSummary, devices: Vector[DeviceInfo], layout: FitLayout)
