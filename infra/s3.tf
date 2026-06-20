@@ -1,5 +1,9 @@
 resource "aws_s3_bucket" "frontend" {
   bucket = var.frontend_bucket_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "frontend" {
@@ -22,6 +26,10 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
 
 resource "aws_s3_bucket" "data" {
   bucket = var.data_bucket_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "data" {

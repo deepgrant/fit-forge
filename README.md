@@ -137,6 +137,88 @@ Scalafix checks import ordering and bans `var`/`null`/`throw`/`asInstanceOf`
 
 ---
 
+## AWS deployment tasks
+
+Gradle wraps the OpenTofu, Docker, AWS CLI, and frontend sync commands used for
+AWS deployment. These tasks read sensitive deployment values from ignored local
+OpenTofu config (`infra/local.auto.tfvars`) or OpenTofu outputs; do not commit
+those local files.
+
+```bash
+./gradlew tofuInit
+./gradlew tofuValidate
+./gradlew tofuPlan
+./gradlew deployInfra
+```
+
+Backend image flow:
+
+```bash
+./gradlew refreshBackend
+```
+
+`refreshBackend` runs the quality gates, builds the Lambda Docker image, pushes
+an immutable epoch-millis tag to the configured ECR repository, writes that image
+URI back into ignored local OpenTofu config, applies OpenTofu, and re-enables the
+Lambda if it had been disabled.
+
+Frontend flow:
+
+```bash
+./gradlew refreshFrontend
+```
+
+`refreshFrontend` syncs the static frontend artifact to the private frontend S3
+bucket and invalidates CloudFront. Until the Angular application exists, the
+default source is `frontend/placeholder`. Override it with:
+
+```bash
+./gradlew refreshFrontend -PffmForgeFrontendDir=/path/to/static/site
+```
+
+Full deployment:
+
+```bash
+./gradlew deploy
+```
+
+`deploy` refreshes the backend first, then syncs the frontend.
+
+Undeploy tears down the deployed serving/runtime stack while preserving buckets:
+
+```bash
+./gradlew undeploy -PconfirmUndeploy=true
+```
+
+This empties the frontend/data buckets and destroys the deployed frontend and
+backend resources: CloudFront, Route53 records, ACM certificate, API Gateway,
+Lambda, EventBridge, and IAM resources. It does **not** delete the S3 buckets.
+The bucket resources are protected with OpenTofu `prevent_destroy`, and the
+Gradle destroy wrappers deliberately target only non-bucket resources.
+
+Scoped teardown tasks are also available:
+
+```bash
+./gradlew undeployFrontend -PconfirmUndeploy=true
+./gradlew undeployBackend -PconfirmUndeploy=true
+```
+
+There is no broad Gradle task for unrestricted `tofu destroy`.
+
+Optional deployment properties:
+
+```bash
+-PffmForgeAwsProfile=default
+-PffmForgeAwsRegion=us-east-1
+-PffmForgeImageTag=1781977881000
+```
+
+If omitted, the AWS profile defaults to `AWS_PROFILE` or `default`, the region
+defaults to `AWS_REGION`, `AWS_DEFAULT_REGION`, or `us-east-1`, and image tags
+default to the current epoch millis.
+
+---
+
 ## Runnable demos
 
 Two narrated demos exercise the codec and the merge on real or synthetic data.

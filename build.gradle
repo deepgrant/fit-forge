@@ -1,3 +1,6 @@
+import java.util.regex.Matcher
+import java.util.regex.Pattern
+
 buildscript {
   repositories { mavenCentral() }
   dependencies {
@@ -146,8 +149,365 @@ task cleanAll(dependsOn: [clean, cleanFrontend]) {
   description = 'Clean Scala build output and Angular frontend dist'
 }
 
+def infraDir = file("$projectDir/infra")
+def localTfvars = file("$infraDir/local.auto.tfvars")
+def dockerImageName = 'ffm-forge:1.0'
+def backendDestroyTargets = [
+  'aws_apigatewayv2_stage.default',
+  'aws_apigatewayv2_route.proxy',
+  'aws_apigatewayv2_integration.lambda',
+  'aws_apigatewayv2_api.http',
+  'aws_lambda_permission.allow_apigw',
+  'aws_cloudwatch_event_target.cleanup',
+  'aws_cloudwatch_event_rule.cleanup',
+  'aws_lambda_permission.allow_cleanup',
+  'aws_lambda_function.api',
+  'aws_iam_role_policy_attachment.lambda_basic',
+  'aws_iam_role_policy_attachment.lambda_s3',
+  'aws_iam_policy.lambda_s3_access',
+  'aws_iam_role.lambda',
+]
+def frontendDestroyTargets = [
+  'aws_route53_record.app_a',
+  'aws_route53_record.app_aaaa',
+  'aws_s3_bucket_policy.frontend',
+  'aws_cloudfront_distribution.app',
+  'aws_cloudfront_response_headers_policy.api_cors',
+  'aws_cloudfront_origin_request_policy.api',
+  'aws_cloudfront_cache_policy.api_disabled',
+  'aws_cloudfront_origin_access_control.frontend',
+  'aws_acm_certificate_validation.frontend',
+  'aws_route53_record.cert_validation',
+  'aws_acm_certificate.frontend',
+]
+def deploymentDestroyTargets = (frontendDestroyTargets + backendDestroyTargets).unique()
+
+def awsProfile = {
+  findProperty('ffmForgeAwsProfile')?.toString() ?: System.getenv('AWS_PROFILE') ?: 'default'
+}
+
+def awsRegion = {
+  findProperty('ffmForgeAwsRegion')?.toString()
+    ?: System.getenv('AWS_REGION')
+    ?: System.getenv('AWS_DEFAULT_REGION')
+    ?: 'us-east-1'
+}
+
+def frontendSourceDir = {
+  file(findProperty('ffmForgeFrontendDir')?.toString() ?: "$projectDir/frontend/placeholder")
+}
+
+def imageTag = {
+  findProperty('ffmForgeImageTag')?.toString() ?: System.currentTimeMillis().toString()
+}
+
+def commandOutput = { List<String> command, File dir = projectDir ->
+  ByteArrayOutputStream stdout = new ByteArrayOutputStream()
+  exec {
+    workingDir dir
+    commandLine command
+    standardOutput = stdout
+  }
+  stdout.toString('UTF-8').trim()
+}
+
+def tofuOutput = { String outputName ->
+  commandOutput(['tofu', 'output', '-raw', outputName], infraDir)
+}
+
+def readLocalTfvar = { String key ->
+  if (!localTfvars.exists()) {
+    return null
+  }
+
+  def matcher = localTfvars.getText('UTF-8') =~ /(?m)^\s*${Pattern.quote(key)}\s*=\s*"([^"]+)"\s*$/
+  matcher.find() ? matcher.group(1) : null
+}
+
+def upsertLocalTfvar = { String key, String value ->
+  localTfvars.parentFile.mkdirs()
+  def line = "${key} = \"${value}\""
+
+  if (!localTfvars.exists()) {
+    localTfvars.setText("${line}\n", 'UTF-8')
+    return
+  }
+
+  def text = localTfvars.getText('UTF-8')
+  def pattern = Pattern.compile("(?m)^\\s*${Pattern.quote(key)}\\s*=.*\$")
+  def matcher = pattern.matcher(text)
+  def updated = matcher.find()
+    ? matcher.replaceAll(Matcher.quoteReplacement(line))
+    : "${text.stripTrailing()}\n${line}\n"
+
+  localTfvars.setText(updated, 'UTF-8')
+}
+
+def awsCommand = { List<String> args ->
+  ['aws'] + args + ['--profile', awsProfile(), '--region', awsRegion()]
+}
+
+def ecrRepositoryUrl = {
+  try {
+    return tofuOutput('ecr_repository_url')
+  } catch (Exception ignored) {
+    def repositoryName = readLocalTfvar('ecr_repository_name')
+    if (!repositoryName) {
+      throw new GradleException(
+        'Unable to resolve ECR repository URL. Apply infra first or set ecr_repository_name in infra/local.auto.tfvars.'
+      )
+    }
+
+    return commandOutput(
+      awsCommand(
+        [ 'ecr'
+        , 'describe-repositories'
+        , '--repository-names', repositoryName
+        , '--query', 'repositories[0].repositoryUri'
+        , '--output', 'text'
+        ]
+      )
+    )
+  }
+}
+
+def requireUndeployConfirmation = {
+  if (findProperty('confirmUndeploy')?.toString() != 'true') {
+    throw new GradleException('Deployment teardown tasks require -PconfirmUndeploy=true')
+  }
+}
+
+def tofuDestroyCommand = { List<String> targets ->
+  ['tofu', 'destroy', '-auto-approve'] + targets.collect { "-target=${it}" }
+}
+
+tasks.register('tofuInit', Exec) {
+  group = 'deployment'
+  description = 'Initialize OpenTofu providers in infra/'
+  workingDir infraDir
+  commandLine 'tofu', 'init'
+}
+
+tasks.register('tofuValidate', Exec) {
+  group = 'deployment'
+  description = 'Validate the OpenTofu configuration'
+  dependsOn 'tofuInit'
+  workingDir infraDir
+  commandLine 'tofu', 'validate'
+}
+
+tasks.register('tofuPlan', Exec) {
+  group = 'deployment'
+  description = 'Plan OpenTofu infrastructure changes'
+  dependsOn 'tofuValidate'
+  workingDir infraDir
+  commandLine 'tofu', 'plan'
+}
+
+tasks.register('tofuApply', Exec) {
+  group = 'deployment'
+  description = 'Apply OpenTofu infrastructure changes'
+  dependsOn 'tofuValidate'
+  workingDir infraDir
+  commandLine 'tofu', 'apply', '-auto-approve'
+}
+
+tasks.register('tofuDestroyBackend', Exec) {
+  group = 'deployment'
+  description = 'Destroy backend OpenTofu resources while preserving S3 buckets'
+  dependsOn 'tofuInit'
+  workingDir infraDir
+  commandLine tofuDestroyCommand(backendDestroyTargets)
+  doFirst {
+    requireUndeployConfirmation()
+  }
+}
+
+tasks.register('tofuDestroyFrontend', Exec) {
+  group = 'deployment'
+  description = 'Destroy frontend serving OpenTofu resources while preserving S3 buckets'
+  dependsOn 'tofuInit'
+  workingDir infraDir
+  commandLine tofuDestroyCommand(frontendDestroyTargets)
+  doFirst {
+    requireUndeployConfirmation()
+  }
+}
+
+tasks.register('tofuDestroyDeployment', Exec) {
+  group = 'deployment'
+  description = 'Destroy deployed frontend/backend resources while preserving S3 buckets'
+  dependsOn 'tofuInit'
+  workingDir infraDir
+  commandLine tofuDestroyCommand(deploymentDestroyTargets)
+  doFirst {
+    requireUndeployConfirmation()
+  }
+}
+
+tasks.register('deployInfra') {
+  group = 'deployment'
+  description = 'Apply the OpenTofu stack using the current local configuration'
+  dependsOn 'tofuApply'
+}
+
+tasks.register('pushBackendImage') {
+  group = 'deployment'
+  description = 'Build, tag, and push the Lambda container image to ECR'
+  dependsOn check, tasks.named('docker')
+
+  doLast {
+    def repositoryUrl = ecrRepositoryUrl()
+    def tag = imageTag()
+    def imageUri = "${repositoryUrl}:${tag}"
+    def registry = repositoryUrl.substring(0, repositoryUrl.indexOf('/'))
+    def password = commandOutput(awsCommand(['ecr', 'get-login-password']))
+
+    exec {
+      commandLine 'docker', 'login', '--username', 'AWS', '--password-stdin', registry
+      standardInput = new ByteArrayInputStream("${password}\n".getBytes('UTF-8'))
+    }
+    exec {
+      commandLine 'docker', 'tag', dockerImageName, imageUri
+    }
+    exec {
+      commandLine 'docker', 'push', imageUri
+    }
+
+    upsertLocalTfvar('lambda_image_uri', imageUri)
+    println "Updated ${localTfvars} with lambda_image_uri for tag ${tag}"
+  }
+}
+
+tasks.register('refreshBackend') {
+  group = 'deployment'
+  description = 'Build and push a new Lambda image, then apply OpenTofu'
+  dependsOn 'pushBackendImage', 'tofuApply', 'enableBackend'
+}
+
+tasks.named('tofuApply') {
+  mustRunAfter 'pushBackendImage'
+}
+
+tasks.register('enableBackend') {
+  group = 'deployment'
+  description = 'Remove any Lambda reserved-concurrency disablement'
+  dependsOn 'tofuInit'
+
+  doLast {
+    def functionName = tofuOutput('lambda_function_name')
+    exec {
+      commandLine awsCommand(['lambda', 'delete-function-concurrency', '--function-name', functionName])
+      ignoreExitValue = true
+    }
+  }
+}
+
+tasks.named('enableBackend') {
+  mustRunAfter 'tofuApply'
+}
+
+tasks.register('deployBackend') {
+  group = 'deployment'
+  description = 'Deploy or update the backend Lambda/API resources'
+  dependsOn 'refreshBackend'
+}
+
+tasks.register('undeployBackend') {
+  group = 'deployment'
+  description = 'Destroy backend Lambda/API resources while preserving S3 buckets'
+  dependsOn 'tofuDestroyBackend'
+}
+
+tasks.register('refreshFrontend') {
+  group = 'deployment'
+  description = 'Sync frontend static files to S3 and invalidate CloudFront'
+  dependsOn 'tofuInit'
+
+  inputs.dir(frontendSourceDir)
+
+  doLast {
+    def sourceDir = frontendSourceDir()
+    if (!sourceDir.exists()) {
+      throw new GradleException("Frontend source directory does not exist: ${sourceDir}")
+    }
+
+    def bucket = tofuOutput('frontend_bucket_name')
+    def distributionId = tofuOutput('cloudfront_distribution_id')
+
+    exec {
+      commandLine awsCommand(['s3', 'sync', sourceDir.absolutePath, "s3://${bucket}", '--delete'])
+    }
+    exec {
+      commandLine awsCommand(['cloudfront', 'create-invalidation', '--distribution-id', distributionId, '--paths', '/*'])
+    }
+  }
+}
+
+tasks.register('deployFrontend') {
+  group = 'deployment'
+  description = 'Deploy or update frontend static assets'
+  dependsOn 'refreshFrontend'
+}
+
+tasks.register('emptyFrontendBucket') {
+  group = 'deployment'
+  description = 'Remove all objects from the frontend S3 bucket'
+
+  doLast {
+    requireUndeployConfirmation()
+    def bucket = tofuOutput('frontend_bucket_name')
+    exec {
+      commandLine awsCommand(['s3', 'rm', "s3://${bucket}", '--recursive'])
+    }
+  }
+}
+
+tasks.register('emptyDataBucket') {
+  group = 'deployment'
+  description = 'Remove all objects from the FIT data S3 bucket'
+
+  doLast {
+    requireUndeployConfirmation()
+    def bucket = tofuOutput('data_bucket_name')
+    exec {
+      commandLine awsCommand(['s3', 'rm', "s3://${bucket}", '--recursive'])
+    }
+  }
+}
+
+tasks.register('undeployFrontend') {
+  group = 'deployment'
+  description = 'Empty frontend assets and destroy frontend serving resources; preserve S3 bucket'
+  dependsOn 'emptyFrontendBucket', 'tofuDestroyFrontend'
+}
+
+tasks.named('tofuDestroyFrontend') {
+  mustRunAfter 'emptyFrontendBucket'
+}
+
+tasks.register('deploy') {
+  group = 'deployment'
+  description = 'Deploy backend image/infrastructure, then refresh frontend assets'
+  dependsOn 'refreshBackend', 'refreshFrontend'
+}
+
+tasks.named('refreshFrontend') {
+  mustRunAfter 'refreshBackend', 'tofuApply'
+}
+
+tasks.register('undeploy') {
+  group = 'deployment'
+  description = 'Destroy deployed frontend/backend resources and empty S3 buckets; preserve bucket resources'
+  dependsOn 'emptyFrontendBucket', 'emptyDataBucket', 'tofuDestroyDeployment'
+}
+
+tasks.named('tofuDestroyDeployment') {
+  mustRunAfter 'emptyFrontendBucket', 'emptyDataBucket'
+}
+
 docker {
-  name "ffm-forge:1.0"
+  name dockerImageName
   dockerfile file('Dockerfile')
   copySpec.from("$buildDir/libs") { into 'libs' }
   // Frontend static files are added here once the Angular app exists (task #5).
