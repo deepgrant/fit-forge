@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type {
   DownloadUrlResponse,
   MergeResponse,
+  TrackGeoJson,
   UploadFileResult,
 } from './models';
 
@@ -101,6 +102,20 @@ const DownloadUrlResponseSchema = z.object({
   expiresAt: z.string(),
 });
 
+const TrackGeoJsonSchema = z.object({
+  type: z.literal('FeatureCollection'),
+  features: z.array(
+    z.object({
+      type: z.literal('Feature'),
+      properties: z.record(z.string(), z.unknown()).optional(),
+      geometry: z.object({
+        type: z.union([z.literal('LineString'), z.literal('Point')]),
+        coordinates: z.unknown(),
+      }),
+    }),
+  ),
+});
+
 @Injectable({ providedIn: 'root' })
 export class FfmForgeApi {
   private readonly http = inject(HttpClient);
@@ -157,6 +172,12 @@ export class FfmForgeApi {
   async download(id: string): Promise<DownloadUrlResponse> {
     return DownloadUrlResponseSchema.parse(
       await firstValueFrom(this.http.get(`${this.prefix}/fit/${encodeURIComponent(id)}/download`)),
+    );
+  }
+
+  async track(id: string): Promise<TrackGeoJson> {
+    return TrackGeoJsonSchema.parse(
+      await firstValueFrom(this.http.get(`${this.prefix}/fit/${encodeURIComponent(id)}/track`)),
     );
   }
 }

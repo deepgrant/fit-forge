@@ -73,8 +73,10 @@ Key source:
 
 - JDK 21 available on the machine (the build uses a Gradle toolchain targeting
   `-release 21`). Gradle can launch on JDK 17+ but will compile/test/run on 21.
-- Node compatible with Angular 22 for frontend work: `^22.22.3`, `^24.15.0`, or
-  `>=26.0.0`.
+- Node compatible with Angular 22 for frontend work: use Node `^24.15.0`
+  for now. Node 26.3.1 currently triggers an esbuild deadlock during
+  `ng build` in this project, even though Angular's published engine range
+  allows Node 26.
 - No global Gradle needed — use the bundled `./gradlew` wrapper.
 - Internet access on first build (downloads Gradle, Pekko, and the Garmin SDK
   from Maven Central; downloads Angular packages from npm for frontend work).
@@ -226,6 +228,9 @@ default to the current epoch millis.
 
 The Angular app lives under `frontend/`. It is Angular 22, standalone component
 based, and uses signals for workspace state plus Zod at the API boundary.
+
+Use Node 24.15.x for frontend build and serve tasks until the Node 26/esbuild
+deadlock is resolved.
 
 ```bash
 ./gradlew frontendInstall

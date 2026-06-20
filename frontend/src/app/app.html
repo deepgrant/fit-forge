@@ -111,22 +111,23 @@
             <h2>Pause-aware join</h2>
           </div>
           <div class="legend">
-            <span><i class="route"></i>recording</span>
-            <span><i class="gap"></i>gap</span>
+            @if (routeTracks().length === 0) {
+              <span><i class="route"></i>route</span>
+            }
+            @for (route of routeTracks(); track route.id) {
+              <span><i [style.background]="route.color"></i>{{ route.name }}</span>
+            }
+            @if (gapSeconds() > 0) {
+              <span><i class="gap"></i>gap</span>
+            }
           </div>
         </div>
 
-        <div class="route-canvas">
-          <svg viewBox="0 0 920 300" role="img" aria-label="Merged ride route preview">
-            <path class="route-shadow" d="M38 222 C138 122 228 105 309 142 S437 245 546 147" />
-            <path class="route-main" d="M38 222 C138 122 228 105 309 142 S437 245 546 147" />
-            <path class="route-gap" d="M546 147 C617 94 675 96 731 131" />
-            <path class="route-shadow" d="M731 131 C798 172 848 202 891 106" />
-            <path class="route-main" d="M731 131 C798 172 848 202 891 106" />
-            <circle class="start" cx="38" cy="222" r="12" />
-            <circle class="finish" cx="891" cy="106" r="12" />
-            <circle class="gap-ring" cx="642" cy="101" r="17" />
-          </svg>
+        <div class="map-shell">
+          <div #mapHost class="map-host" aria-label="Route preview map"></div>
+          @if (routeTracks().length === 0) {
+            <div class="map-empty">Upload a FIT file to draw its route.</div>
+          }
         </div>
 
         <div class="timeline" aria-label="Recording timeline">

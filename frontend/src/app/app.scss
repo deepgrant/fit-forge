@@ -220,6 +220,9 @@ h2 {
 .grid {
   display: grid;
   grid-template-columns: minmax(330px, 0.95fr) minmax(420px, 1.35fr) minmax(290px, 0.75fr);
+  grid-template-areas:
+    "upload route controls"
+    "report summary summary";
   gap: 14px;
   align-items: start;
 }
@@ -238,22 +241,26 @@ h2 {
   margin-bottom: 14px;
 }
 
-.upload-panel,
-.route-panel {
+.upload-panel {
+  grid-area: upload;
   min-height: 560px;
 }
 
 .route-panel {
-  grid-row: span 2;
+  grid-area: route;
+  min-height: 560px;
 }
 
-.report-panel,
-.summary-panel {
-  grid-column: span 1;
+.controls-panel {
+  grid-area: controls;
+}
+
+.report-panel {
+  grid-area: report;
 }
 
 .summary-panel {
-  grid-column: 2 / span 2;
+  grid-area: summary;
 }
 
 .drop-zone {
@@ -385,18 +392,26 @@ h2 {
 
 .legend {
   gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 58%;
   color: var(--ff-text-2);
   font-size: 12px;
   font-weight: 700;
 }
 
 .legend span {
+  max-width: 210px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .legend i {
+  flex: 0 0 auto;
   width: 20px;
   height: 4px;
   border-radius: 999px;
@@ -410,58 +425,40 @@ h2 {
   background: repeating-linear-gradient(90deg, var(--ff-gap) 0 5px, transparent 5px 10px);
 }
 
-.route-canvas {
+.map-shell {
+  position: relative;
   height: 310px;
   overflow: hidden;
   border: 1px solid var(--ff-border);
   border-radius: 12px;
-  background:
-    linear-gradient(var(--ff-border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ff-border) 1px, transparent 1px),
-    var(--ff-raised);
-  background-size: 36px 36px;
+  background: var(--ff-raised);
 }
 
-.route-canvas svg {
+.map-host {
   width: 100%;
   height: 100%;
 }
 
-.route-shadow,
-.route-main,
-.route-gap {
-  fill: none;
-  stroke-linecap: round;
+.map-empty {
+  position: absolute;
+  inset: auto 14px 14px;
+  border: 1px solid var(--ff-border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  color: var(--ff-text-2);
+  background: color-mix(in srgb, var(--ff-card), transparent 6%);
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 10px 28px rgb(21 24 30 / 10%);
+  pointer-events: none;
 }
 
-.route-shadow {
-  stroke: color-mix(in srgb, var(--ff-text), transparent 88%);
-  stroke-width: 14;
+.maplibregl-map {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
-.route-main {
-  stroke: var(--ff-orange);
-  stroke-width: 7;
-}
-
-.route-gap {
-  stroke: var(--ff-gap);
-  stroke-width: 7;
-  stroke-dasharray: 4 14;
-}
-
-.start {
-  fill: var(--ff-active);
-}
-
-.finish {
-  fill: var(--ff-finish);
-}
-
-.gap-ring {
-  fill: var(--ff-raised);
-  stroke: var(--ff-gap);
-  stroke-width: 5;
+.maplibregl-ctrl button {
+  cursor: pointer;
 }
 
 .timeline {
@@ -642,11 +639,12 @@ select {
 
   .grid {
     grid-template-columns: 1fr;
-  }
-
-  .route-panel,
-  .summary-panel {
-    grid-column: auto;
+    grid-template-areas:
+      "upload"
+      "route"
+      "controls"
+      "report"
+      "summary";
   }
 }
 
@@ -659,6 +657,11 @@ select {
   .panel-heading {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .legend {
+    justify-content: flex-start;
+    max-width: 100%;
   }
 
   .nav {

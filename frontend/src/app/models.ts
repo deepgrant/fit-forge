@@ -87,3 +87,28 @@ export interface DownloadUrlResponse {
   readonly url: string;
   readonly expiresAt: string;
 }
+
+export type TrackGeometryType = 'LineString' | 'Point';
+
+export interface TrackGeometry {
+  readonly type: TrackGeometryType;
+  readonly coordinates: unknown;
+}
+
+export interface TrackFeature {
+  readonly type: 'Feature';
+  readonly properties?: Readonly<Record<string, unknown>>;
+  readonly geometry: TrackGeometry;
+}
+
+export interface TrackGeoJson {
+  readonly type: 'FeatureCollection';
+  readonly features: readonly TrackFeature[];
+}
+
+export interface RouteTrack {
+  readonly id: string;
+  readonly name: string;
+  readonly color: string;
+  readonly geojson: TrackGeoJson;
+}
