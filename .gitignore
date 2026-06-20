@@ -23,6 +23,7 @@ bin/
 
 # Angular
 frontend/dist/
+frontend/out-tsc/
 frontend/.angular/
 frontend/node_modules/
 

@@ -163,6 +163,8 @@ task cleanAll(dependsOn: [clean, cleanFrontend]) {
 def infraDir = file("$projectDir/infra")
 def localTfvars = file("$infraDir/local.auto.tfvars")
 def dockerImageName = 'ffm-forge:1.0'
+def frontendProjectDir = file("$projectDir/frontend")
+def angularFrontendDist = file("$projectDir/frontend/dist/ffm-forge-ui/browser")
 def backendDestroyTargets = [
   'aws_apigatewayv2_stage.default',
   'aws_apigatewayv2_route.proxy',
@@ -205,7 +207,7 @@ def awsRegion = {
 }
 
 def frontendSourceDir = {
-  file(findProperty('ffmForgeFrontendDir')?.toString() ?: "$projectDir/frontend/placeholder")
+  file(findProperty('ffmForgeFrontendDir')?.toString() ?: angularFrontendDist.absolutePath)
 }
 
 def imageTag = {
@@ -316,6 +318,43 @@ def requireUndeployConfirmation = {
 
 def tofuDestroyCommand = { List<String> targets ->
   ['tofu', 'destroy', '-auto-approve'] + targets.collect { "-target=${it}" }
+}
+
+tasks.register('frontendInstall') {
+  group = 'frontend'
+  description = 'Install Angular frontend dependencies'
+  inputs.file "$frontendProjectDir/package.json"
+  outputs.dir "$frontendProjectDir/node_modules"
+
+  doLast {
+    runCommand(file("$frontendProjectDir/package-lock.json").exists() ? ['npm', 'ci'] : ['npm', 'install'], frontendProjectDir)
+  }
+}
+
+tasks.register('frontendBuild') {
+  group = 'frontend'
+  description = 'Build the Angular frontend'
+  dependsOn 'frontendInstall'
+  inputs.dir "$frontendProjectDir/src"
+  inputs.dir "$frontendProjectDir/public"
+  inputs.file "$frontendProjectDir/angular.json"
+  inputs.file "$frontendProjectDir/tsconfig.json"
+  inputs.file "$frontendProjectDir/tsconfig.app.json"
+  outputs.dir angularFrontendDist
+
+  doLast {
+    runCommand(['npm', 'run', 'build'], frontendProjectDir)
+  }
+}
+
+tasks.register('frontendServe') {
+  group = 'frontend'
+  description = 'Run the Angular development server'
+  dependsOn 'frontendInstall'
+
+  doLast {
+    runCommand(['npm', 'run', 'start'], frontendProjectDir)
+  }
 }
 
 tasks.register('tofuInit', Exec) {
@@ -450,6 +489,9 @@ tasks.register('refreshFrontend') {
   group = 'deployment'
   description = 'Sync frontend static files to S3 and invalidate CloudFront'
   dependsOn 'tofuInit'
+  if (!findProperty('ffmForgeFrontendDir')) {
+    dependsOn 'frontendBuild'
+  }
 
   inputs.dir(frontendSourceDir)
 

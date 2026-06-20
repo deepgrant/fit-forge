@@ -69,3 +69,9 @@ variable "presign_ttl_minutes" {
   type        = number
   default     = 15
 }
+
+variable "data_bucket_extra_cors_allowed_origins" {
+  description = "Additional browser origins allowed to use presigned S3 URLs, e.g. local Angular dev server origins"
+  type        = list(string)
+  default     = []
+}

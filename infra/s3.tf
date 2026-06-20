@@ -56,7 +56,7 @@ resource "aws_s3_bucket_cors_configuration" "data" {
   cors_rule {
     allowed_headers = ["*"]
     allowed_methods = ["GET", "HEAD", "PUT"]
-    allowed_origins = ["https://${var.domain_name}"]
+    allowed_origins = concat(["https://${var.domain_name}"], var.data_bucket_extra_cors_allowed_origins)
     expose_headers  = ["etag"]
     max_age_seconds = 300
   }

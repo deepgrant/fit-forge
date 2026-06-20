@@ -73,9 +73,11 @@ Key source:
 
 - JDK 21 available on the machine (the build uses a Gradle toolchain targeting
   `-release 21`). Gradle can launch on JDK 17+ but will compile/test/run on 21.
+- Node compatible with Angular 22 for frontend work: `^22.22.3`, `^24.15.0`, or
+  `>=26.0.0`.
 - No global Gradle needed — use the bundled `./gradlew` wrapper.
 - Internet access on first build (downloads Gradle, Pekko, and the Garmin SDK
-  from Maven Central).
+  from Maven Central; downloads Angular packages from npm for frontend work).
 
 ---
 
@@ -169,8 +171,9 @@ Frontend flow:
 ```
 
 `refreshFrontend` syncs the static frontend artifact to the private frontend S3
-bucket and invalidates CloudFront. Until the Angular application exists, the
-default source is `frontend/placeholder`. Override it with:
+bucket and invalidates CloudFront. By default it builds and syncs the Angular
+production output from `frontend/dist/ffm-forge-ui/browser`. Override it with a
+static directory when needed:
 
 ```bash
 ./gradlew refreshFrontend -PffmForgeFrontendDir=/path/to/static/site
@@ -216,6 +219,23 @@ Optional deployment properties:
 If omitted, the AWS profile defaults to `AWS_PROFILE` or `default`, the region
 defaults to `AWS_REGION`, `AWS_DEFAULT_REGION`, or `us-east-1`, and image tags
 default to the current epoch millis.
+
+---
+
+## Frontend
+
+The Angular app lives under `frontend/`. It is Angular 22, standalone component
+based, and uses signals for workspace state plus Zod at the API boundary.
+
+```bash
+./gradlew frontendInstall
+./gradlew frontendBuild
+./gradlew frontendServe
+```
+
+The first implemented screen is the merge workspace shell: upload FIT segments,
+describe them through `/ffmforge/v1/fit/describe`, preview the merge, then merge
+and download the resulting `.fit`.
 
 ---
 
