@@ -20,6 +20,42 @@
   line-height: 1.5;
 }
 
+.footer-license {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-brand-mark {
+  width: 70px;
+  height: 24px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--ff-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.footer-brand-mark img {
+  width: 62px;
+  height: 18px;
+  object-fit: contain;
+  transform: scale(1.35);
+  transform-origin: center;
+}
+
+.app-footer a {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--ff-active);
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  text-decoration: underline;
+}
+
 .topbar {
   min-height: 64px;
   display: grid;
@@ -651,31 +687,38 @@ select {
 }
 
 .manufacturer-mark {
-  width: 58px;
-  min-height: 28px;
+  width: 68px;
+  min-height: 32px;
   display: grid;
   flex: 0 0 auto;
   place-items: center;
   border: 1px solid var(--ff-border);
   border-radius: 8px;
   color: var(--ff-text);
-  background: var(--ff-raised);
+  background: #ffffff;
   font-family: "Space Grotesk", Inter, sans-serif;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0;
 }
 
-.garmin-mark {
-  border-color: color-mix(in srgb, var(--ff-text), transparent 70%);
-  color: #ffffff;
-  background: #111827;
+.manufacturer-mark img {
+  display: block;
+  max-width: 54px;
+  max-height: 20px;
+  object-fit: contain;
 }
 
-.polar-mark {
-  border-color: color-mix(in srgb, #d9182b, transparent 56%);
-  color: #ffffff;
-  background: #d9182b;
+.manufacturer-mark img.garmin-logo {
+  max-width: 64px;
+  max-height: 24px;
+  transform: scale(1.35);
+}
+
+.manufacturer-mark img.shimano-logo,
+.manufacturer-mark img.sram-logo {
+  max-width: 62px;
+  max-height: 22px;
 }
 
 .device-type {

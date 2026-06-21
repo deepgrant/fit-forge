@@ -160,8 +160,10 @@ object FitProfile {
         15  -> "Dynastream",
         23  -> "Suunto",
         32  -> "Wahoo Fitness",
+        41  -> "Shimano",
         123 -> "Polar",
         255 -> "Development",
+        268 -> "SRAM",
       )
     def nameOf(value: Int): String = names.getOrElse(value, s"manufacturer #$value")
   }
