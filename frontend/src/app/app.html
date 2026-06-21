@@ -154,7 +154,7 @@
             <div class="report-list">
               @for (gap of report.gaps; track gap.afterSegment) {
                 <div class="report-row gap-row">
-                  <span>Gap after segment {{ gap.afterSegment + 1 }}</span>
+                  <span>Gap after segment {{ gap.afterSegment }}</span>
                   <b>{{ duration(gap.seconds) }}</b>
                 </div>
               }
@@ -245,11 +245,13 @@
               <div class="device-row">
                 <span
                   class="manufacturer-mark"
-                  [class.garmin-mark]="device.isGarmin"
-                  [class.polar-mark]="device.isPolar"
                   [attr.aria-label]="device.manufacturer + ' device'"
                 >
-                  {{ device.markText }}
+                  @if (device.logoSrc) {
+                    <img [class]="device.logoClass" [src]="device.logoSrc" [alt]="device.logoAlt" />
+                  } @else {
+                    {{ device.markText }}
+                  }
                 </span>
                 <div class="device-main">
                   <div class="device-title-line">
@@ -283,6 +285,12 @@
   </section>
 
   <footer class="app-footer">
-    FIT decoding and encoding uses the Garmin FIT SDK, distributed under the Garmin FIT Protocol License.
+    <div class="footer-license">
+      <span class="footer-brand-mark"><img src="brands/garmin.svg" alt="Garmin" /></span>
+      <span>FIT decoding and encoding uses the Garmin FIT SDK, distributed under the Garmin FIT Protocol License.</span>
+    </div>
+    <a href="https://github.com/deepgrant/fit-forge" rel="noreferrer" target="_blank">
+      https://github.com/deepgrant/fit-forge
+    </a>
   </footer>
 </main>

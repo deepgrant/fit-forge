@@ -67,6 +67,24 @@ final class FitSummarySpec extends AnyFunSuite with Matchers {
     FitSummary.devices(file).find(_.index == 4).flatMap(_.kind) shouldBe Some("heart_rate")
   }
 
+  test("Shimano and SRAM manufacturer ids are decoded from device info") {
+    val shimano = FitMessage(FitProfile.Mesg.DeviceInfo)
+      .setNumeric(FitProfile.Dev.DeviceIndex, 7)
+      .setNumeric(FitProfile.Dev.Manufacturer, 41)
+      .setNumeric(FitProfile.Dev.Product, 12868)
+      .setNumeric(FitProfile.Dev.SourceType, 0)
+    val sram = FitMessage(FitProfile.Mesg.DeviceInfo)
+      .setNumeric(FitProfile.Dev.DeviceIndex, 8)
+      .setNumeric(FitProfile.Dev.Manufacturer, 268)
+      .setNumeric(FitProfile.Dev.SourceType, 1)
+    val devices = FitSummary.devices(FitFile(Vector(shimano, sram)))
+
+    devices should have size 2
+    devices.find(_.index == 7).map(_.manufacturer) shouldBe Some("Shimano")
+    devices.find(_.index == 7).flatMap(_.product) shouldBe Some(12868)
+    devices.find(_.index == 8).map(_.manufacturer) shouldBe Some("SRAM")
+  }
+
   test("Garmin product ids are resolved through the FIT SDK product table") {
     GarminProductResolver.nameOf("Garmin", Some(4440)) shouldBe Some("Edge 1050")
     GarminProductResolver.nameOf("Garmin", Some(3808)) shouldBe Some("Varia RCT715")

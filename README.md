@@ -10,7 +10,13 @@ and produces one merged FIT file.
 
 Production URL: [https://ffmforge.com](https://ffmforge.com)
 
-![FFMForge merge workspace](docs/images/ffmforge-workspace.png)
+<table>
+  <tr>
+    <td width="33%"><img src="docs/images/ffmforge-workspace-light.png" alt="FFMForge light mode merge workspace" /></td>
+    <td width="33%"><img src="docs/images/ffmforge-workspace-dark.png" alt="FFMForge dark mode merge workspace" /></td>
+    <td width="33%"><img src="docs/images/ffmforge-activity-summary.png" alt="FFMForge activity summary with device details" /></td>
+  </tr>
+</table>
 
 ---
 

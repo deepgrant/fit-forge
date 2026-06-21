@@ -44,8 +44,9 @@ interface MapLibreGlobal {
 interface DisplayDevice {
   readonly key: string;
   readonly manufacturer: string;
-  readonly isGarmin: boolean;
-  readonly isPolar: boolean;
+  readonly logoSrc?: string;
+  readonly logoAlt: string;
+  readonly logoClass?: string;
   readonly markText: string;
   readonly name: string;
   readonly typeLabel: string;
@@ -338,8 +339,9 @@ export class App implements AfterViewInit, OnDestroy {
       .map(([key, value]) => ({
         key,
         manufacturer: value.device.manufacturer,
-        isGarmin: this.isManufacturer(value.device, 'garmin'),
-        isPolar: this.isManufacturer(value.device, 'polar'),
+        logoSrc: this.deviceLogoSrc(value.device),
+        logoAlt: `${value.device.manufacturer} logo`,
+        logoClass: this.deviceLogoClass(value.device),
         markText: this.deviceMarkText(value.device.manufacturer),
         name: this.deviceName(value.device),
         typeLabel: this.deviceTypeLabel(value.device),
@@ -418,6 +420,9 @@ export class App implements AfterViewInit, OnDestroy {
     const normalized = this.normalizeManufacturer(manufacturer);
     if (normalized === 'garmin') return 'GARMIN';
     if (normalized === 'polar') return 'POLAR';
+    if (normalized === 'wahoo' || normalized === 'wahoo fitness') return 'WAHOO';
+    if (normalized === 'shimano') return 'SHIMANO';
+    if (normalized === 'sram') return 'SRAM';
     return manufacturer
       .split(/\s+/)
       .filter(Boolean)
@@ -425,6 +430,24 @@ export class App implements AfterViewInit, OnDestroy {
       .join('')
       .slice(0, 2)
       .toUpperCase();
+  }
+
+  private deviceLogoSrc(device: DeviceInfo): string | undefined {
+    const normalized = this.normalizeManufacturer(device.manufacturer);
+    if (normalized === 'garmin') return 'brands/garmin.svg';
+    if (normalized === 'polar') return 'brands/polar.svg';
+    if (normalized === 'wahoo' || normalized === 'wahoo fitness') return 'brands/wahoo.png';
+    if (normalized === 'shimano') return 'brands/shimano.svg';
+    if (normalized === 'sram') return 'brands/sram.svg';
+    return undefined;
+  }
+
+  private deviceLogoClass(device: DeviceInfo): string | undefined {
+    const normalized = this.normalizeManufacturer(device.manufacturer);
+    if (normalized === 'garmin') return 'garmin-logo';
+    if (normalized === 'shimano') return 'shimano-logo';
+    if (normalized === 'sram') return 'sram-logo';
+    return undefined;
   }
 
   private isManufacturer(device: DeviceInfo, manufacturer: string): boolean {
