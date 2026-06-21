@@ -154,7 +154,7 @@
             <div class="report-list">
               @for (gap of report.gaps; track gap.afterSegment) {
                 <div class="report-row gap-row">
-                  <span>Gap after segment {{ gap.afterSegment + 1 }}</span>
+                  <span>Gap after segment {{ gap.afterSegment }}</span>
                   <b>{{ duration(gap.seconds) }}</b>
                 </div>
               }
