@@ -207,19 +207,67 @@ object FitEditor {
       messageType = messageType,
       timestamp = message.instant(Rec.Timestamp).orElse(record.map(_.timestamp)),
       position = pos,
-      heartRate = message.numeric(Rec.HeartRate).map(_.toInt),
-      power = message.numeric(Rec.Power).map(_.toInt),
-      speedMps = message.numeric(Rec.EnhancedSpeed).orElse(message.numeric(Rec.Speed)),
-      cadence = message.numeric(Rec.Cadence).map(_.toInt),
-      altitudeM = message.numeric(Rec.EnhancedAltitude).orElse(message.numeric(Rec.Altitude)),
-      temperatureC = message.numeric(Rec.Temperature),
-      fields = message.fields.sortBy(_.num).map(fieldCell),
+      heartRate = record.flatMap(_.heartRate),
+      power = record.flatMap(_.power),
+      speedMps = record.flatMap(_.speedMps),
+      cadence = record.flatMap(_.cadence),
+      altitudeM = record.flatMap(_.altitudeM),
+      temperatureC = if (messageType == "record") message.numeric(Rec.Temperature) else None,
+      fields = message.fields.sortBy(_.num).filterNot(_.num == Rec.Timestamp).map(fieldCell(messageType, _)),
       issueIds = issueIds,
     )
   }
 
-  private def fieldCell(field: RawField): EditorCell =
-    EditorCell(s"field_${field.num}", field.values.map(formatValue).mkString(", "), field.firstNumeric)
+  private def fieldCell(messageType: String, field: RawField): EditorCell =
+    EditorCell(
+      fieldName(messageType, field.num),
+      field.values.map(value => formatFieldValue(messageType, field.num, value)).mkString(", "),
+      field.firstNumeric,
+    )
+
+  private def fieldName(messageType: String, num: Int): String =
+    messageType match {
+      case "battery" =>
+        num match {
+          case 0 => "Voltage"
+          case 2 => "Temperature"
+          case 3 => "Level"
+          case 4 => "Current"
+          case _ => s"field $num"
+        }
+      case "device_info" =>
+        num match {
+          case Dev.DeviceIndex     => "Device index"
+          case Dev.DeviceType      => "Device type"
+          case Dev.Manufacturer    => "Manufacturer"
+          case Dev.SerialNumber    => "Serial"
+          case Dev.Product         => "Product"
+          case Dev.SoftwareVersion => "Software"
+          case Dev.BatteryStatus   => "Battery status"
+          case Dev.SourceType      => "Source"
+          case Dev.ProductName     => "Product name"
+          case _                   => s"field $num"
+        }
+      case "file_id" =>
+        num match {
+          case Fid.Type         => "Type"
+          case Fid.Manufacturer => "Manufacturer"
+          case Fid.Product      => "Product"
+          case Fid.SerialNumber => "Serial"
+          case Fid.TimeCreated  => "Created"
+          case _                => s"field $num"
+        }
+      case _ => s"field $num"
+    }
+
+  private def formatFieldValue(messageType: String, num: Int, value: FitValue): String =
+    (messageType, num, value) match {
+      case ("battery", 0, FitValue.Num(v)) => f"${v / 1000.0}%.3f V"
+      case ("battery", 2, FitValue.Num(v)) => f"$v%.0f C"
+      case ("battery", 3, FitValue.Num(v)) => f"$v%.0f%%"
+      case ("battery", 4, FitValue.Num(v)) => f"${v / 1000.0}%.1f mA"
+      case _                               => formatValue(value)
+    }
 
   private def formatValue(value: FitValue): String = value match {
     case FitValue.Num(v)  => if (v.isWhole) v.toLong.toString else f"$v%.3f"

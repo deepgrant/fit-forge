@@ -29,6 +29,7 @@ object FitProfile {
     val Event: Int      = 21
     val DeviceInfo: Int = 23
     val Activity: Int   = 34
+    val Battery: Int    = 104
 
     private val names: Map[Int, String] = Map(
       0   -> "file_id",

@@ -76,6 +76,28 @@ final class FitEditorSpec extends AnyFunSuite with Matchers {
     powerDropouts.head.endIndex shouldBe 2
   }
 
+  test("non-record message rows use generic fields instead of record telemetry columns") {
+    val batteryMessage = FitMessage(FitProfile.Mesg.Battery)
+      .setInstant(FitProfile.Rec.Timestamp, t0)
+      .setNumeric(0, 3797)
+      .setNumeric(2, 45)
+      .setNumeric(3, 37)
+      .setNumeric(4, -111000)
+    val rows = FitEditor.rows(FitFile(Vector(batteryMessage)), "battery", 0, 10)
+
+    rows.rows should have size 1
+    val row = rows.rows.head
+    row.heartRate shouldBe None
+    row.power shouldBe None
+    row.position shouldBe None
+    row.fields.map(field => field.field -> field.value) should contain allOf (
+      "Voltage"     -> "3.797 V",
+      "Temperature" -> "45 C",
+      "Level"       -> "37%",
+      "Current"     -> "-111.0 mA",
+    )
+  }
+
   test("single missing GPS sample is grouped and can be interpolated") {
     val file = FitFile(
       Vector(FitViews.toMessage(FileId(timeCreated = Some(t0)))) ++

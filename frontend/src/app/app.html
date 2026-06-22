@@ -419,29 +419,48 @@
 
             @if (editorRows(); as rows) {
               <div class="editor-record-table" role="table" aria-label="Editor record rows" (scroll)="onEditorTableScroll($event)" (wheel)="onEditorTableWheel($event)">
-                <div class="editor-row editor-row-head" role="row">
-                  <span>#</span>
-                  <span>Timestamp</span>
-                  <span>Position</span>
-                  <span>HR</span>
-                  <span>Power</span>
-                  <span>Speed</span>
-                  <span>Cad</span>
-                  <span>Alt</span>
-                  <span>Temp</span>
-                </div>
-                @for (row of rows.rows; track row.index) {
-                  <div class="editor-row" [class.has-issue]="row.issueIds.length > 0" role="row">
-                    <span>{{ row.index }}</span>
-                    <span>{{ row.timestamp ?? '-' }}</span>
-                    <span>{{ row.position ?? '-' }}</span>
-                    <span>{{ cellValue(row.heartRate) }}</span>
-                    <span>{{ power(row.power) }}</span>
-                    <span>{{ speed(row.speedMps) }}</span>
-                    <span>{{ cellValue(row.cadence) }}</span>
-                    <span>{{ cellValue(row.altitudeM) }}</span>
-                    <span>{{ temp(row.temperatureC) }}</span>
+                @if (rows.messageType === 'record') {
+                  <div class="editor-row editor-row-head" role="row">
+                    <span>#</span>
+                    <span>Timestamp</span>
+                    <span>Position</span>
+                    <span>HR</span>
+                    <span>Power</span>
+                    <span>Speed</span>
+                    <span>Cad</span>
+                    <span>Alt</span>
+                    <span>Temp</span>
                   </div>
+                  @for (row of rows.rows; track row.index) {
+                    <div class="editor-row" [class.has-issue]="row.issueIds.length > 0" role="row">
+                      <span>{{ row.index }}</span>
+                      <span>{{ row.timestamp ?? '-' }}</span>
+                      <span>{{ row.position ?? '-' }}</span>
+                      <span>{{ cellValue(row.heartRate) }}</span>
+                      <span>{{ power(row.power) }}</span>
+                      <span>{{ speed(row.speedMps) }}</span>
+                      <span>{{ cellValue(row.cadence) }}</span>
+                      <span>{{ cellValue(row.altitudeM) }}</span>
+                      <span>{{ temp(row.temperatureC) }}</span>
+                    </div>
+                  }
+                } @else {
+                  <div class="editor-row generic-row editor-row-head" [style.grid-template-columns]="editorGenericGridColumns(rows)" role="row">
+                    <span>#</span>
+                    <span>Timestamp</span>
+                    @for (column of editorFieldColumns(rows); track column) {
+                      <span>{{ column }}</span>
+                    }
+                  </div>
+                  @for (row of rows.rows; track row.index) {
+                    <div class="editor-row generic-row" [style.grid-template-columns]="editorGenericGridColumns(rows)" [class.has-issue]="row.issueIds.length > 0" role="row">
+                      <span>{{ row.index }}</span>
+                      <span>{{ row.timestamp ?? '-' }}</span>
+                      @for (column of editorFieldColumns(rows); track column) {
+                        <span>{{ editorFieldValue(row, column) }}</span>
+                      }
+                    </div>
+                  }
                 }
               </div>
 

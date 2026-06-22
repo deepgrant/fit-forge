@@ -907,6 +907,17 @@ select {
   background: color-mix(in srgb, var(--ff-gap), transparent 88%);
 }
 
+.editor-row.generic-row {
+  min-width: 620px;
+}
+
+.editor-row.generic-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .issue-card {
   display: grid;
   gap: 5px;

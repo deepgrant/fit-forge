@@ -6,6 +6,7 @@ import type {
   DeviceInfo,
   DiagnosticIssue,
   EditorOpenResponse,
+  EditorRecordRow,
   EditorRowsResponse,
   ExportRepairResponse,
   MergeResponse,
@@ -639,6 +640,20 @@ export class App implements AfterViewInit, OnDestroy {
     if (value === undefined) return '-';
     if (typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(2);
     return value;
+  }
+
+  protected editorFieldColumns(rows: EditorRowsResponse): readonly string[] {
+    const columns = new Set<string>();
+    rows.rows.forEach((row) => row.fields.forEach((field) => columns.add(field.field)));
+    return Array.from(columns);
+  }
+
+  protected editorGenericGridColumns(rows: EditorRowsResponse): string {
+    return `54px 190px repeat(${Math.max(1, this.editorFieldColumns(rows).length)}, minmax(120px, 1fr))`;
+  }
+
+  protected editorFieldValue(row: EditorRecordRow, column: string): string {
+    return row.fields.find((field) => field.field === column)?.value ?? '-';
   }
 
   private deviceKey(device: DeviceInfo): string {
