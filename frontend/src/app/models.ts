@@ -112,3 +112,98 @@ export interface RouteTrack {
   readonly color: string;
   readonly geojson: TrackGeoJson;
 }
+
+export interface EditorMessageGroup {
+  readonly name: string;
+  readonly count: number;
+  readonly status: string;
+  readonly issues: number;
+}
+
+export interface EditorCell {
+  readonly field: string;
+  readonly value: string;
+  readonly numeric?: number;
+}
+
+export interface EditorRecordRow {
+  readonly index: number;
+  readonly messageIndex: number;
+  readonly messageType: string;
+  readonly timestamp?: string;
+  readonly position?: string;
+  readonly heartRate?: number;
+  readonly power?: number;
+  readonly speedMps?: number;
+  readonly cadence?: number;
+  readonly altitudeM?: number;
+  readonly temperatureC?: number;
+  readonly fields: readonly EditorCell[];
+  readonly issueIds: readonly string[];
+}
+
+export interface RepairOperation {
+  readonly kind: string;
+  readonly messageType: string;
+  readonly startIndex: number;
+  readonly endIndex: number;
+  readonly field?: string;
+  readonly value?: number;
+}
+
+export interface DiagnosticIssue {
+  readonly id: string;
+  readonly kind: string;
+  readonly severity: string;
+  readonly title: string;
+  readonly detail: string;
+  readonly messageType: string;
+  readonly startIndex: number;
+  readonly endIndex: number;
+  readonly field?: string;
+  readonly suggestedOperations: readonly RepairOperation[];
+}
+
+export interface EditorVerification {
+  readonly status: string;
+  readonly canExport: boolean;
+  readonly checks: readonly string[];
+}
+
+export interface RepairChange {
+  readonly rowIndex: number;
+  readonly field: string;
+  readonly before: string;
+  readonly after: string;
+  readonly method: string;
+}
+
+export interface RepairPreview {
+  readonly operations: readonly RepairOperation[];
+  readonly changes: readonly RepairChange[];
+  readonly verification: EditorVerification;
+}
+
+export interface EditorRowsResponse {
+  readonly messageType: string;
+  readonly offset: number;
+  readonly limit: number;
+  readonly total: number;
+  readonly rows: readonly EditorRecordRow[];
+}
+
+export interface EditorOpenResponse {
+  readonly id: string;
+  readonly summary: RideSummary;
+  readonly devices: readonly DeviceInfo[];
+  readonly layout: FitLayout;
+  readonly anatomy: readonly EditorMessageGroup[];
+  readonly diagnostics: readonly DiagnosticIssue[];
+  readonly rows: EditorRowsResponse;
+  readonly verification: EditorVerification;
+}
+
+export interface ExportRepairResponse {
+  readonly id: string;
+  readonly preview: RepairPreview;
+}

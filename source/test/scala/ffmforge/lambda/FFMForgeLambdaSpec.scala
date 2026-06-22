@@ -13,11 +13,19 @@ import scala.concurrent.duration.DurationInt
 
 import ffmforge.FFMForgeConfig
 import ffmforge.fit.CodecDemoReport
+import ffmforge.fit.EditorOpenResponse
+import ffmforge.fit.EditorRowsResponse
+import ffmforge.fit.ExportRepairResponse
 import ffmforge.fit.GarminFitCodec
+import ffmforge.fit.RepairOperation
+import ffmforge.fit.RepairPreview
 import ffmforge.http.AwsS3Support
 import ffmforge.http.CodecDemoRequest
 import ffmforge.http.DescribeRequest
 import ffmforge.http.DownloadUrlResponse
+import ffmforge.http.EditorFileRequest
+import ffmforge.http.EditorRepairRequest
+import ffmforge.http.EditorRowsRequest
 import ffmforge.http.JsonProtocol
 import ffmforge.http.MergeRequest
 import ffmforge.http.MergeResponse
@@ -112,6 +120,56 @@ final class FFMForgeLambdaSpec extends AnyFunSuite with Matchers {
     report.summary.totalDistanceM should not be empty
     report.checks should not be empty
     report.passed shouldBe true
+  }
+
+  test("editor open, rows, repair preview and export use real S3") {
+    val id = uploadViaPresignedUrl("editor.fit", TestFixtures.sampleBytes)
+
+    val open = responseBody(
+      api.handle(event("POST", "/ffmforge/v1/fit/editor/open", EditorFileRequest(id).toJson.compactPrint))
+    ).convertTo[EditorOpenResponse]
+    open.id shouldBe id
+    open.anatomy.exists(_.name == "record") shouldBe true
+    open.rows.rows should not be empty
+
+    val rows = responseBody(
+      api.handle(
+        event("POST", "/ffmforge/v1/fit/editor/rows", EditorRowsRequest(id, "record", 1, 3).toJson.compactPrint)
+      )
+    ).convertTo[EditorRowsResponse]
+    rows.offset shouldBe 1
+    rows.rows.map(_.index) shouldBe Vector(1, 2, 3)
+
+    val preview = responseBody(
+      api.handle(
+        event(
+          "POST",
+          "/ffmforge/v1/fit/editor/repair-preview",
+          EditorRepairRequest(
+            id,
+            Vector(RepairOperation("recalculateSummary", "record", 0, 0, None, None)),
+          ).toJson.compactPrint,
+        )
+      )
+    ).convertTo[RepairPreview]
+    preview.operations should have size 1
+
+    val exported = responseBody(
+      api.handle(
+        event(
+          "POST",
+          "/ffmforge/v1/fit/editor/export",
+          EditorRepairRequest(
+            id,
+            Vector(RepairOperation("recalculateSummary", "record", 0, 0, None, None)),
+          ).toJson.compactPrint,
+        )
+      )
+    ).convertTo[ExportRepairResponse]
+    exported.id should not be id
+    val download = responseBody(api.handle(event("GET", s"/ffmforge/v1/fit/${exported.id}/download")))
+      .convertTo[DownloadUrlResponse]
+    download.url should startWith("https://")
   }
 
   test("expired object returns Gone") {

@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 980" font-family="Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <defs>
+    <style>
+      .bg{fill:#fff}.bar{fill:#fff;stroke:#e3e5e9}.card{fill:#fff;stroke:#e3e5e9}.raised{fill:#f6f7f9;stroke:#e3e5e9}.text{fill:#15181e}.muted{fill:#5a6472}.soft{fill:#9aa3af}.accent{fill:#e1590f}.orange{fill:#ff6a1a}.green{fill:#1f9d6b}.gold{fill:#e0921a}.red{fill:#e0453c}.line{stroke:#e3e5e9}.label{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.h1{font-family:Space Grotesk,Inter,sans-serif;font-size:54px;font-weight:700}.h2{font-family:Space Grotesk,Inter,sans-serif;font-size:22px;font-weight:700}.h3{font-family:Space Grotesk,Inter,sans-serif;font-size:17px;font-weight:700}.value{font-family:Space Grotesk,Inter,sans-serif;font-weight:700}.mono{font-family:SFMono-Regular,Consolas,Liberation Mono,monospace}
+    </style>
+    <g id="hammer" fill="none" stroke="#1a1206" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11.414 10 4.031 17.418a2.091 2.091 0 0 0 0 2.967 2.11 2.11 0 0 0 2.976 0L14.414 13"/>
+      <path d="m18.121 15.293 2.586-2.586a1 1 0 0 0 0-1.414l-7.586-7.586a1 1 0 0 0-1.414 0L9.121 6.293a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0Z"/>
+    </g>
+  </defs>
+
+  <rect width="1440" height="980" class="bg"/>
+  <rect x="0.5" y="0.5" width="1439" height="979" class="bar"/>
+  <line x1="0" y1="72" x2="1440" y2="72" class="line"/>
+  <rect x="42" y="20" width="36" height="36" rx="8" class="orange"/>
+  <use href="#hammer" transform="translate(48 26) scale(.9)"/>
+  <text x="92" y="43" class="text" font-size="20" font-weight="800">FFM<tspan fill="#e1590f">Forge</tspan></text>
+  <text x="198" y="43" class="muted" font-size="13" font-weight="600">editor</text>
+  <rect x="612" y="18" width="216" height="38" rx="19" class="raised"/>
+  <text x="666" y="42" text-anchor="middle" class="muted" font-size="13" font-weight="700">Merge</text>
+  <rect x="724" y="23" width="96" height="28" rx="14" class="orange"/>
+  <text x="772" y="42" text-anchor="middle" class="text" font-size="13" font-weight="700">Editor</text>
+  <rect x="1262" y="18" width="118" height="38" rx="19" class="card"/>
+  <circle cx="1281" cy="37" r="6" class="orange"/>
+  <text x="1296" y="42" class="text" font-size="14" font-weight="700">Dark mode</text>
+
+  <text x="96" y="134" class="label accent">Repair review</text>
+  <text x="96" y="196" class="h1 text">Export a clean FIT file.</text>
+  <rect x="1032" y="116" width="110" height="30" rx="15" fill="#e8f7f0" stroke="#9ed9bf"/>
+  <text x="1087" y="136" text-anchor="middle" fill="#14835a" font-size="12" font-weight="800">upload-safe</text>
+  <rect x="1152" y="116" width="116" height="30" rx="15" fill="#fff5e6" stroke="#f0c777"/>
+  <text x="1210" y="136" text-anchor="middle" fill="#b16907" font-size="12" font-weight="800">3 edits staged</text>
+  <rect x="1278" y="116" width="102" height="30" rx="15" fill="#f6f7f9" stroke="#e3e5e9"/>
+  <text x="1329" y="136" text-anchor="middle" class="muted" font-size="12" font-weight="800">not saved</text>
+
+  <g transform="translate(96 238)">
+    <rect width="382" height="650" rx="14" class="card"/>
+    <text x="22" y="36" class="label accent">Repair batch</text>
+    <text x="22" y="66" class="h2 text">3 proposed changes</text>
+    <rect x="22" y="94" width="338" height="86" rx="10" fill="#fff9f1" stroke="#f0c777"/>
+    <circle cx="46" cy="122" r="7" class="gold"/>
+    <text x="64" y="122" class="text" font-size="15" font-weight="800">Interpolate missing heart rate</text>
+    <text x="64" y="146" class="muted" font-size="13">rows 4218-4219 · 0h 00m 02s</text>
+    <text x="64" y="166" class="mono soft" font-size="12">-- bpm -> 147-148 bpm</text>
+    <rect x="22" y="194" width="338" height="86" rx="10" fill="#fff1e8" stroke="#ffb083"/>
+    <circle cx="46" cy="222" r="7" class="orange"/>
+    <text x="64" y="222" class="text" font-size="15" font-weight="800">Replace one power spike</text>
+    <text x="64" y="246" class="muted" font-size="13">row 4709 · 10:22:34</text>
+    <text x="64" y="266" class="mono soft" font-size="12">1134 W -> 202 W</text>
+    <rect x="22" y="294" width="338" height="86" rx="10" class="raised"/>
+    <circle cx="46" cy="322" r="7" class="green"/>
+    <text x="64" y="322" class="text" font-size="15" font-weight="800">Recalculate summary totals</text>
+    <text x="64" y="346" class="muted" font-size="13">session avg/max fields updated</text>
+    <text x="64" y="366" class="mono soft" font-size="12">max power 1134 W -> 588 W</text>
+    <line x1="22" y1="414" x2="360" y2="414" class="line"/>
+    <text x="22" y="450" class="label accent">Export</text>
+    <text x="22" y="482" class="h3 text">Metric_100.repaired.fit</text>
+    <text x="22" y="510" class="muted" font-size="14">Original file is preserved. Export writes a new FIT file with a fresh CRC.</text>
+    <rect x="22" y="558" width="338" height="48" rx="10" class="orange"/>
+    <text x="191" y="588" text-anchor="middle" class="text" font-size="16" font-weight="800">Save repaired .fit</text>
+  </g>
+
+  <g transform="translate(502 238)">
+    <rect width="554" height="650" rx="14" class="card"/>
+    <text x="22" y="36" class="label accent">Before / after</text>
+    <text x="22" y="66" class="h2 text">Record edits</text>
+    <rect x="22" y="92" width="510" height="442" rx="10" class="raised"/>
+    <g class="mono" font-size="12">
+      <rect x="22" y="92" width="510" height="34" rx="10" fill="#fff"/>
+      <text x="40" y="114" class="muted">row</text><text x="100" y="114" class="muted">field</text><text x="226" y="114" class="muted">before</text><text x="348" y="114" class="muted">after</text><text x="456" y="114" class="muted">method</text>
+      <rect x="34" y="148" width="486" height="54" rx="8" fill="#fff9f1" stroke="#f0c777"/>
+      <text x="48" y="180" class="text">4218</text><text x="100" y="180" class="text">heart_rate</text><text x="226" y="180" class="red">null</text><text x="348" y="180" class="green">147</text><text x="456" y="180" class="muted">interp</text>
+      <rect x="34" y="214" width="486" height="54" rx="8" fill="#fff9f1" stroke="#f0c777"/>
+      <text x="48" y="246" class="text">4219</text><text x="100" y="246" class="text">heart_rate</text><text x="226" y="246" class="red">null</text><text x="348" y="246" class="green">148</text><text x="456" y="246" class="muted">interp</text>
+      <rect x="34" y="280" width="486" height="54" rx="8" fill="#fff1e8" stroke="#ffb083"/>
+      <text x="48" y="312" class="text">4709</text><text x="100" y="312" class="text">power</text><text x="226" y="312" class="red">1134</text><text x="348" y="312" class="green">202</text><text x="456" y="312" class="muted">replace</text>
+      <rect x="34" y="368" width="486" height="54" rx="8" class="card"/>
+      <text x="48" y="400" class="text">session</text><text x="100" y="400" class="text">max_power</text><text x="226" y="400" class="red">1134</text><text x="348" y="400" class="green">588</text><text x="456" y="400" class="muted">recalc</text>
+      <rect x="34" y="434" width="486" height="54" rx="8" class="card"/>
+      <text x="48" y="466" class="text">activity</text><text x="100" y="466" class="text">crc</text><text x="226" y="466" class="soft">old</text><text x="348" y="466" class="green">new</text><text x="456" y="466" class="muted">encode</text>
+    </g>
+
+    <rect x="22" y="558" width="156" height="64" rx="10" class="raised"/>
+    <text x="42" y="586" class="muted" font-size="13">Records changed</text>
+    <text x="42" y="610" class="value text" font-size="24">3</text>
+    <rect x="198" y="558" width="156" height="64" rx="10" class="raised"/>
+    <text x="218" y="586" class="muted" font-size="13">Messages kept</text>
+    <text x="218" y="610" class="value text" font-size="24">11537</text>
+    <rect x="376" y="558" width="156" height="64" rx="10" class="raised"/>
+    <text x="396" y="586" class="muted" font-size="13">CRC</text>
+    <text x="396" y="610" class="value text" font-size="24">fresh</text>
+  </g>
+
+  <g transform="translate(1080 238)">
+    <rect width="264" height="650" rx="14" class="card"/>
+    <text x="22" y="36" class="label accent">Verification</text>
+    <text x="22" y="66" class="h2 text">Upload readiness</text>
+    <rect x="22" y="96" width="220" height="64" rx="10" fill="#e8f7f0" stroke="#9ed9bf"/>
+    <circle cx="48" cy="128" r="8" class="green"/>
+    <text x="68" y="124" class="text" font-size="15" font-weight="800">FIT layout valid</text>
+    <text x="68" y="144" class="muted" font-size="12">header, data, CRC pass</text>
+    <rect x="22" y="174" width="220" height="64" rx="10" fill="#e8f7f0" stroke="#9ed9bf"/>
+    <circle cx="48" cy="206" r="8" class="green"/>
+    <text x="68" y="202" class="text" font-size="15" font-weight="800">Garmin ready</text>
+    <text x="68" y="222" class="muted" font-size="12">no damaged records remain</text>
+    <rect x="22" y="252" width="220" height="64" rx="10" fill="#e8f7f0" stroke="#9ed9bf"/>
+    <circle cx="48" cy="284" r="8" class="green"/>
+    <text x="68" y="280" class="text" font-size="15" font-weight="800">Strava ready</text>
+    <text x="68" y="300" class="muted" font-size="12">timestamps remain monotonic</text>
+
+    <line x1="22" y1="354" x2="242" y2="354" class="line"/>
+    <text x="22" y="390" class="label accent">Repair policy</text>
+    <text x="22" y="420" class="muted" font-size="14">Only short isolated glitches are changed automatically. Larger corruption stays manual.</text>
+    <rect x="22" y="474" width="220" height="40" rx="8" class="card"/>
+    <text x="132" y="499" text-anchor="middle" class="text" font-size="14" font-weight="800">Download report</text>
+    <rect x="22" y="528" width="220" height="40" rx="8" class="card"/>
+    <text x="132" y="553" text-anchor="middle" class="text" font-size="14" font-weight="800">Back to diagnostics</text>
+  </g>
+</svg>
