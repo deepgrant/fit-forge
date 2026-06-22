@@ -1,12 +1,15 @@
 # FFMForge
 
-FFMForge is a Garmin FIT merge workspace for joining split ride recordings back
-into one valid `.fit` activity.
+FFMForge is a Garmin FIT merge and repair workspace. It can join split ride
+recordings back into one valid `.fit` activity, inspect a single FIT file, flag
+likely telemetry/GPS issues, and export repaired files.
 
-The common case is a long ride captured as multiple recordings because of a
-device restart, battery swap, or recording break. FFMForge uploads those FIT
+The common merge case is a long ride captured as multiple recordings because of
+a device restart, battery swap, or recording break. FFMForge uploads those FIT
 files, previews the routes and ride/device metadata, preserves gaps as pauses,
-and produces one merged FIT file.
+and produces one merged FIT file. The editor tab handles the single-file case:
+understand the FIT anatomy, page through messages, diagnose suspect records, and
+stage conservative repairs.
 
 Production URL: [https://ffmforge.com](https://ffmforge.com)
 
@@ -30,6 +33,9 @@ This branch contains a working first public version:
 - OpenTofu infrastructure for S3, CloudFront, ACM, Route53, API Gateway,
   Lambda, IAM, lifecycle, and cleanup scheduling.
 - Scala 3 FIT codec/merge core using the official Garmin FIT Java SDK.
+- Merge workspace for multi-file ride joins.
+- Editor workspace for decodable FIT file inspection, diagnostics, repair
+  preview, and repaired FIT export.
 
 FIT files are temporary working data. The app enforces a short application TTL,
 and S3 lifecycle is a one-day backstop.
@@ -47,6 +53,18 @@ and S3 lifecycle is a one-day backstop.
 - Dry-run merge to inspect gaps, records, and output layout.
 - Merge and download a generated `.fit`.
 - Group duplicate device rows in the UI while keeping raw API data lossless.
+- Resolve Garmin product names where possible, including newer devices that are
+  not yet in the bundled SDK table, and display Garmin, Polar, Shimano, SRAM,
+  and Wahoo brand marks for known manufacturers.
+- Open a single FIT file in the editor, browse FIT message groups, and page
+  through message rows.
+- Render record rows with telemetry columns and non-record messages with
+  message-specific field labels for common messages such as `session`, `lap`,
+  `event`, `activity`, `file_creator`, `battery`, and `sensor`.
+- Diagnose conservative heart-rate, power, speed/GPS, timestamp, and malformed
+  record issues.
+- Stage supported repair operations, preview before/after changes, and export a
+  repaired FIT file.
 - Run local codec/merge demos against sample or real FIT files.
 - Run deployed Lambda codec smoke checks against the public API.
 
@@ -133,6 +151,7 @@ Frontend checks:
 cd frontend
 npx tsc -p tsconfig.app.json --noEmit
 ./node_modules/.bin/ngc -p tsconfig.app.json
+npm test -- --watch=false
 ```
 
 Angular production build with Node 24:
@@ -245,6 +264,17 @@ Implemented routes include:
 - `POST /fit/merge` - dry-run or execute a FIT merge.
 - `GET /fit/{id}/download` - create a presigned download URL.
 - `POST /fit/codec-demo` - deployed Lambda codec round-trip demo.
+- `POST /fit/editor/open` - decode an uploaded FIT file for editor use,
+  returning summary, devices, anatomy, diagnostics, first row page, and export
+  readiness.
+- `POST /fit/editor/rows` - page rows for a selected message type.
+- `POST /fit/editor/repair-preview` - preview staged editor repairs without
+  writing a new object.
+- `POST /fit/editor/export` - apply staged editor repairs, encode the result,
+  store it in S3, and return a generated download id.
+
+Editor V1 works on FIT files that the Garmin SDK can decode. Lower-level binary
+salvage for severely corrupted/unloadable files is intentionally deferred.
 
 ---
 
@@ -292,11 +322,15 @@ files out of commits unless they are intentionally scrubbed/test-safe.
 
 - Frontend map rendering uses MapLibre GL JS 5.24.0 loaded at runtime and the
   OpenFreeMap Liberty style at `https://tiles.openfreemap.org/styles/liberty`.
+- Frontend public assets include `robots.txt`, `sitemap.xml`, `version.json`,
+  favicon, and brand marks used in the activity/editor device lists.
 - Angular asset versioning is handled by hashed bundle filenames.
 - A future SPA version check can poll `version.json` and prompt users to refresh
   when a new frontend is available.
 - FIT processing uses Garmin's official Java SDK behind the FFMForge codec
   facade.
+- The editor keeps repair suggestions advisory until the user explicitly stages,
+  previews, and exports them.
 
 ---
 
