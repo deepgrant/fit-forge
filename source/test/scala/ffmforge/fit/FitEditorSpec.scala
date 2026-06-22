@@ -98,6 +98,43 @@ final class FitEditorSpec extends AnyFunSuite with Matchers {
     )
   }
 
+  test("common non-record message rows use readable field labels") {
+    readableFields("session", FitProfile.Mesg.Session)(
+      FitProfile.Ses.StartTime     -> "Start time",
+      FitProfile.Ses.TotalElapsed  -> "Elapsed",
+      FitProfile.Ses.TotalDistance -> "Distance",
+      FitProfile.Ses.AvgPower      -> "Avg power",
+    )
+    readableFields("lap", FitProfile.Mesg.Lap)(
+      FitProfile.Lp.StartTime  -> "Start time",
+      FitProfile.Lp.TotalTimer -> "Timer",
+      13                       -> "Avg speed",
+      15                       -> "Avg heart rate",
+    )
+    readableFields("event", FitProfile.Mesg.Event)(
+      FitProfile.Ev.Event     -> "Event",
+      FitProfile.Ev.EventType -> "Event type",
+      13                      -> "Device index",
+      15                      -> "Start timestamp",
+    )
+    readableFields("activity", FitProfile.Mesg.Activity)(
+      FitProfile.Act.TotalTimer  -> "Total timer",
+      FitProfile.Act.NumSessions -> "Sessions",
+      FitProfile.Act.EventType   -> "Event type",
+    )
+    readableFields("file_creator", FitProfile.Mesg.FileCreator)(
+      0 -> "Software",
+      1 -> "Hardware",
+    )
+    readableFields("sensor", FitProfile.Mesg.Sensor)(
+      0   -> "Serial",
+      2   -> "Name",
+      32  -> "Product",
+      34  -> "Software",
+      254 -> "Index",
+    )
+  }
+
   test("single missing GPS sample is grouped and can be interpolated") {
     val file = FitFile(
       Vector(FitViews.toMessage(FileId(timeCreated = Some(t0)))) ++
@@ -171,6 +208,18 @@ final class FitEditorSpec extends AnyFunSuite with Matchers {
       .setNumeric(FitProfile.Dev.Manufacturer, 1)
       .setNumeric(FitProfile.Dev.SourceType, 1)
       .setNumeric(FitProfile.Dev.DeviceType, 11)
+
+  private def readableFields(messageType: String, globalNum: Int)(fields: (Int, String)*): Unit = {
+    val message = fields.foldLeft(FitMessage(globalNum).setInstant(FitProfile.Rec.Timestamp, t0)) {
+      case (m, (fieldNum, _)) =>
+        if (fieldNum == 2 && messageType == "sensor") m.setText(fieldNum, "sensor name")
+        else m.setNumeric(fieldNum, 1)
+    }
+    val labels = FitEditor.rows(FitFile(Vector(message)), messageType, 0, 10).rows.head.fields.map(_.field).toSet
+    fields.foreach { case (_, label) =>
+      labels should contain(label)
+    }
+  }
 
   private def record(
       timestamp: Instant,

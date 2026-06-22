@@ -227,6 +227,67 @@ object FitEditor {
 
   private def fieldName(messageType: String, num: Int): String =
     messageType match {
+      case "session" => sessionFieldName(num)
+      case "lap"     => lapFieldName(num)
+      case "event"   => eventFieldName(num)
+      case "activity" =>
+        num match {
+          case Act.TotalTimer  => "Total timer"
+          case Act.NumSessions => "Sessions"
+          case Act.Type        => "Type"
+          case Act.Event       => "Event"
+          case Act.EventType   => "Event type"
+          case 5               => "Local timestamp"
+          case 6               => "Event group"
+          case _               => s"field $num"
+        }
+      case "file_creator" =>
+        num match {
+          case 0 => "Software"
+          case 1 => "Hardware"
+          case _ => s"field $num"
+        }
+      case "sensor" =>
+        num match {
+          case 0   => "Serial"
+          case 1   => "State"
+          case 2   => "Name"
+          case 3   => "Enabled"
+          case 10  => "Wheel size"
+          case 14  => "Subtype"
+          case 17  => "Gear count"
+          case 18  => "Gear teeth"
+          case 19  => "Rear gears"
+          case 20  => "Rear gear teeth"
+          case 21  => "Wheel size"
+          case 28  => "Front gear table"
+          case 29  => "Rear gear table"
+          case 30  => "Gear table"
+          case 32  => "Product"
+          case 33  => "Manufacturer"
+          case 34  => "Software"
+          case 36  => "Mount side"
+          case 37  => "Sensor position"
+          case 38  => "Sensor direction"
+          case 39  => "Sensor status"
+          case 40  => "Light mode"
+          case 47  => "Paired"
+          case 50  => "ANT id"
+          case 51  => "Network"
+          case 52  => "Device type"
+          case 53  => "Transmission type"
+          case 54  => "Protocol"
+          case 60  => "Shift mode"
+          case 61  => "Shift count"
+          case 62  => "HRM mode"
+          case 73  => "Source"
+          case 82  => "Radar mode"
+          case 83  => "Light network"
+          case 84  => "Light beam"
+          case 87  => "Radar"
+          case 254 => "Index"
+          case _   => s"field $num"
+        }
       case "battery" =>
         num match {
           case 0 => "Voltage"
@@ -262,12 +323,249 @@ object FitEditor {
 
   private def formatFieldValue(messageType: String, num: Int, value: FitValue): String =
     (messageType, num, value) match {
-      case ("battery", 0, FitValue.Num(v)) => f"${v / 1000.0}%.3f V"
-      case ("battery", 2, FitValue.Num(v)) => f"$v%.0f C"
-      case ("battery", 3, FitValue.Num(v)) => f"$v%.0f%%"
-      case ("battery", 4, FitValue.Num(v)) => f"${v / 1000.0}%.1f mA"
-      case _                               => formatValue(value)
+      case (_, _, FitValue.Num(v)) if isDateTimeField(messageType, num)       => formatInstant(v)
+      case (_, _, FitValue.Num(v)) if isLatitudeField(messageType, num)       => formatLatLon(v)
+      case (_, _, FitValue.Num(v)) if isLongitudeField(messageType, num)      => formatLatLon(v)
+      case (_, _, FitValue.Num(v)) if isElapsedSecondsField(messageType, num) => formatSeconds(v)
+      case (_, _, FitValue.Num(v)) if isDistanceField(messageType, num)       => f"$v%.2f m"
+      case (_, _, FitValue.Num(v)) if isSpeedField(messageType, num)          => f"$v%.2f m/s"
+      case (_, _, FitValue.Num(v)) if isHeartRateField(messageType, num)      => f"$v%.0f bpm"
+      case (_, _, FitValue.Num(v)) if isCadenceField(messageType, num)        => f"$v%.0f rpm"
+      case (_, _, FitValue.Num(v)) if isPowerField(messageType, num)          => f"$v%.0f W"
+      case (_, _, FitValue.Num(v)) if isAltitudeField(messageType, num)       => f"$v%.1f m"
+      case (_, _, FitValue.Num(v)) if isTemperatureField(messageType, num)    => f"$v%.0f C"
+      case ("battery", 0, FitValue.Num(v))                                    => f"${v / 1000.0}%.3f V"
+      case ("battery", 2, FitValue.Num(v))                                    => f"$v%.0f C"
+      case ("battery", 3, FitValue.Num(v))                                    => f"$v%.0f%%"
+      case ("battery", 4, FitValue.Num(v))                                    => f"${v / 1000.0}%.1f mA"
+      case ("device_info", Dev.BatteryStatus, FitValue.Num(v)) =>
+        BatteryStatusEnum.nameOf(v.toInt).getOrElse(formatValue(value))
+      case ("device_info", Dev.SourceType, FitValue.Num(v)) =>
+        SourceTypeEnum.nameOf(v.toInt).getOrElse(formatValue(value))
+      case ("device_info", Dev.Manufacturer, FitValue.Num(v)) => ManufacturerEnum.nameOf(v.toInt)
+      case ("file_id", Fid.TimeCreated, FitValue.Num(v))      => formatInstant(v)
+      case ("sensor", 34, FitValue.Num(v))                    => f"${v / 100.0}%.2f"
+      case _                                                  => formatValue(value)
     }
+
+  private def sessionFieldName(num: Int): String =
+    num match {
+      case 254                  => "Index"
+      case Ses.Event            => "Event"
+      case Ses.EventType        => "Event type"
+      case Ses.StartTime        => "Start time"
+      case 3                    => "Start latitude"
+      case 4                    => "Start longitude"
+      case Ses.Sport            => "Sport"
+      case Ses.SubSport         => "Sub sport"
+      case Ses.TotalElapsed     => "Elapsed"
+      case Ses.TotalTimer       => "Timer"
+      case Ses.TotalDistance    => "Distance"
+      case 10                   => "Cycles"
+      case 11                   => "Calories"
+      case 13                   => "Fat calories"
+      case Ses.AvgSpeed         => "Avg speed"
+      case Ses.MaxSpeed         => "Max speed"
+      case 16                   => "Avg heart rate"
+      case 17                   => "Max heart rate"
+      case 18                   => "Avg cadence"
+      case 19                   => "Max cadence"
+      case Ses.AvgPower         => "Avg power"
+      case Ses.MaxPower         => "Max power"
+      case 22                   => "Ascent"
+      case 23                   => "Descent"
+      case 24                   => "Training effect"
+      case 25                   => "First lap"
+      case 26                   => "Laps"
+      case 27                   => "Event group"
+      case 28                   => "Trigger"
+      case 29                   => "NE latitude"
+      case 30                   => "NE longitude"
+      case 31                   => "SW latitude"
+      case 32                   => "SW longitude"
+      case 34                   => "Normalized power"
+      case 35                   => "TSS"
+      case 36                   => "Intensity factor"
+      case 37                   => "Left/right balance"
+      case 38                   => "End latitude"
+      case 39                   => "End longitude"
+      case 45                   => "Threshold power"
+      case 49                   => "Avg altitude"
+      case 50                   => "Max altitude"
+      case 51                   => "GPS accuracy"
+      case 57                   => "Avg temperature"
+      case 58                   => "Max temperature"
+      case 59                   => "Moving time"
+      case 64                   => "Min heart rate"
+      case Ses.EnhancedAvgSpeed => "Enhanced avg speed"
+      case Ses.EnhancedMaxSpeed => "Enhanced max speed"
+      case 126                  => "Enhanced avg altitude"
+      case 127                  => "Enhanced min altitude"
+      case 128                  => "Enhanced max altitude"
+      case _                    => s"field $num"
+    }
+
+  private def lapFieldName(num: Int): String =
+    num match {
+      case 254              => "Index"
+      case Lp.Event         => "Event"
+      case Lp.EventType     => "Event type"
+      case Lp.StartTime     => "Start time"
+      case 3                => "Start latitude"
+      case 4                => "Start longitude"
+      case 5                => "End latitude"
+      case 6                => "End longitude"
+      case Lp.TotalElapsed  => "Elapsed"
+      case Lp.TotalTimer    => "Timer"
+      case Lp.TotalDistance => "Distance"
+      case 10               => "Cycles"
+      case 11               => "Calories"
+      case 12               => "Fat calories"
+      case 13               => "Avg speed"
+      case 14               => "Max speed"
+      case 15               => "Avg heart rate"
+      case 16               => "Max heart rate"
+      case 17               => "Avg cadence"
+      case 18               => "Max cadence"
+      case 19               => "Avg power"
+      case 20               => "Max power"
+      case 21               => "Ascent"
+      case 22               => "Descent"
+      case 23               => "Intensity"
+      case 24               => "Trigger"
+      case 25               => "Sport"
+      case 26               => "Event group"
+      case 33               => "Normalized power"
+      case 34               => "Left/right balance"
+      case 42               => "Avg altitude"
+      case 43               => "Max altitude"
+      case 44               => "GPS accuracy"
+      case 50               => "Avg temperature"
+      case 51               => "Max temperature"
+      case 52               => "Moving time"
+      case 57               => "Time in HR zone"
+      case 58               => "Time in speed zone"
+      case 59               => "Time in cadence zone"
+      case 60               => "Time in power zone"
+      case 62               => "Min altitude"
+      case 63               => "Min heart rate"
+      case 70               => "Active time"
+      case 110              => "Enhanced avg speed"
+      case 111              => "Enhanced max speed"
+      case 112              => "Enhanced avg altitude"
+      case 113              => "Enhanced min altitude"
+      case 114              => "Enhanced max altitude"
+      case _                => s"field $num"
+    }
+
+  private def eventFieldName(num: Int): String =
+    num match {
+      case Ev.Event     => "Event"
+      case Ev.EventType => "Event type"
+      case 2            => "Data 16"
+      case 3            => "Data"
+      case 4            => "Event group"
+      case 7            => "Score"
+      case 8            => "Opponent score"
+      case 9            => "Front gear num"
+      case 10           => "Front gear"
+      case 11           => "Rear gear num"
+      case 12           => "Rear gear"
+      case 13           => "Device index"
+      case 14           => "Activity type"
+      case 15           => "Start timestamp"
+      case 21           => "Max radar threat"
+      case 22           => "Radar threat count"
+      case 23           => "Avg radar approach"
+      case 24           => "Max radar approach"
+      case _            => s"field $num"
+    }
+
+  private def isDateTimeField(messageType: String, num: Int): Boolean =
+    (messageType, num) match {
+      case ("session" | "lap", 2) => true
+      case ("event", 15)          => true
+      case _                      => false
+    }
+
+  private def isLatitudeField(messageType: String, num: Int): Boolean =
+    (messageType, num) match {
+      case ("session", 3 | 29 | 31 | 38) => true
+      case ("lap", 3 | 5)                => true
+      case _                             => false
+    }
+
+  private def isLongitudeField(messageType: String, num: Int): Boolean =
+    (messageType, num) match {
+      case ("session", 4 | 30 | 32 | 39) => true
+      case ("lap", 4 | 6)                => true
+      case _                             => false
+    }
+
+  private def isElapsedSecondsField(messageType: String, num: Int): Boolean =
+    (messageType, num) match {
+      case ("session", 7 | 8 | 59)  => true
+      case ("lap", 7 | 8 | 52 | 70) => true
+      case ("activity", 0)          => true
+      case _                        => false
+    }
+
+  private def isDistanceField(messageType: String, num: Int): Boolean =
+    (messageType, num) match {
+      case ("session", 9) | ("lap", 9) => true
+      case _                           => false
+    }
+
+  private def isSpeedField(messageType: String, num: Int): Boolean =
+    (messageType, num) match {
+      case ("session", 14 | 15 | 124 | 125) => true
+      case ("lap", 13 | 14 | 110 | 111)     => true
+      case _                                => false
+    }
+
+  private def isHeartRateField(messageType: String, num: Int): Boolean =
+    (messageType, num) match {
+      case ("session", 16 | 17 | 64) => true
+      case ("lap", 15 | 16 | 63)     => true
+      case _                         => false
+    }
+
+  private def isCadenceField(messageType: String, num: Int): Boolean =
+    (messageType, num) match {
+      case ("session", 18 | 19) => true
+      case ("lap", 17 | 18)     => true
+      case _                    => false
+    }
+
+  private def isPowerField(messageType: String, num: Int): Boolean =
+    (messageType, num) match {
+      case ("session", 20 | 21 | 34 | 45) => true
+      case ("lap", 19 | 20 | 33)          => true
+      case _                              => false
+    }
+
+  private def isAltitudeField(messageType: String, num: Int): Boolean =
+    (messageType, num) match {
+      case ("session", 22 | 23 | 49 | 50 | 126 | 127 | 128)  => true
+      case ("lap", 21 | 22 | 42 | 43 | 62 | 112 | 113 | 114) => true
+      case _                                                 => false
+    }
+
+  private def isTemperatureField(messageType: String, num: Int): Boolean =
+    (messageType, num) match {
+      case ("session", 57 | 58)   => true
+      case ("lap", 50 | 51 | 124) => true
+      case _                      => false
+    }
+
+  private def formatInstant(value: Double): String =
+    fitSecondsToInstant(value.toLong).toString
+
+  private def formatLatLon(value: Double): String =
+    f"${semicirclesToDeg(value.toLong)}%.6f"
+
+  private def formatSeconds(value: Double): String =
+    if (value.isWhole) s"${value.toLong} s" else f"$value%.2f s"
 
   private def formatValue(value: FitValue): String = value match {
     case FitValue.Num(v)  => if (v.isWhole) v.toLong.toString else f"$v%.3f"

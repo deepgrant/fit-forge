@@ -22,14 +22,16 @@ object FitProfile {
 
   /** Global message numbers. */
   object Mesg {
-    val FileId: Int     = 0
-    val Session: Int    = 18
-    val Lap: Int        = 19
-    val Record: Int     = 20
-    val Event: Int      = 21
-    val DeviceInfo: Int = 23
-    val Activity: Int   = 34
-    val Battery: Int    = 104
+    val FileId: Int      = 0
+    val Session: Int     = 18
+    val Lap: Int         = 19
+    val Record: Int      = 20
+    val Event: Int       = 21
+    val DeviceInfo: Int  = 23
+    val Activity: Int    = 34
+    val FileCreator: Int = 49
+    val Battery: Int     = 104
+    val Sensor: Int      = 147
 
     private val names: Map[Int, String] = Map(
       0   -> "file_id",
