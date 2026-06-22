@@ -7,6 +7,14 @@ import scala.util.Try
 import ffmforge.fit.CodecCheck
 import ffmforge.fit.CodecDemoReport
 import ffmforge.fit.DeviceInfo
+import ffmforge.fit.DiagnosticIssue
+import ffmforge.fit.EditorCell
+import ffmforge.fit.EditorMessageGroup
+import ffmforge.fit.EditorOpenResponse
+import ffmforge.fit.EditorRecordRow
+import ffmforge.fit.EditorRowsResponse
+import ffmforge.fit.EditorVerification
+import ffmforge.fit.ExportRepairResponse
 import ffmforge.fit.FileId
 import ffmforge.fit.FitFile
 import ffmforge.fit.FitFileDescription
@@ -15,6 +23,9 @@ import ffmforge.fit.FitStats
 import ffmforge.fit.GapInfo
 import ffmforge.fit.LapStrategy
 import ffmforge.fit.MergeReport
+import ffmforge.fit.RepairChange
+import ffmforge.fit.RepairOperation
+import ffmforge.fit.RepairPreview
 import ffmforge.fit.RideSummary
 import ffmforge.fit.SegmentInfo
 import spray.json.DefaultJsonProtocol
@@ -56,6 +67,18 @@ object JsonProtocol extends DefaultJsonProtocol {
   implicit val codecCheckFormat: RootJsonFormat[CodecCheck]                 = jsonFormat3(CodecCheck.apply)
   implicit val segmentInfoFormat: RootJsonFormat[SegmentInfo]               = jsonFormat4(SegmentInfo.apply)
   implicit val gapInfoFormat: RootJsonFormat[GapInfo]                       = jsonFormat2(GapInfo.apply)
+  implicit val editorCellFormat: RootJsonFormat[EditorCell]                 = jsonFormat3(EditorCell.apply)
+  implicit val repairOperationFormat: RootJsonFormat[RepairOperation]       = jsonFormat6(RepairOperation.apply)
+  implicit val diagnosticIssueFormat: RootJsonFormat[DiagnosticIssue]       = jsonFormat10(DiagnosticIssue.apply)
+  implicit val editorMessageGroupFormat: RootJsonFormat[EditorMessageGroup] = jsonFormat4(EditorMessageGroup.apply)
+  implicit val editorRecordRowFormat: RootJsonFormat[EditorRecordRow]       = jsonFormat13(EditorRecordRow.apply)
+  implicit val editorVerificationFormat: RootJsonFormat[EditorVerification] = jsonFormat3(EditorVerification.apply)
+  implicit val repairChangeFormat: RootJsonFormat[RepairChange]             = jsonFormat5(RepairChange.apply)
+  implicit val repairPreviewFormat: RootJsonFormat[RepairPreview]           = jsonFormat3(RepairPreview.apply)
+  implicit val editorRowsResponseFormat: RootJsonFormat[EditorRowsResponse] = jsonFormat5(EditorRowsResponse.apply)
+  implicit val exportRepairResponseFormat: RootJsonFormat[ExportRepairResponse] = jsonFormat2(
+    ExportRepairResponse.apply
+  )
 
   implicit val fitLayoutFormat: RootJsonFormat[FitLayout] = new RootJsonFormat[FitLayout] {
     def write(l: FitLayout): JsValue = JsObject(
@@ -90,6 +113,8 @@ object JsonProtocol extends DefaultJsonProtocol {
     }
   }
 
+  implicit val editorOpenResponseFormat: RootJsonFormat[EditorOpenResponse] = jsonFormat8(EditorOpenResponse.apply)
+
   implicit val summaryResponseFormat: RootJsonFormat[SummaryResponse]         = jsonFormat3(SummaryResponse.apply)
   implicit val codecDemoReportFormat: RootJsonFormat[CodecDemoReport]         = jsonFormat13(CodecDemoReport.apply)
   implicit val mergeReportFormat: RootJsonFormat[MergeReport]                 = jsonFormat8(MergeReport.apply)
@@ -99,6 +124,9 @@ object JsonProtocol extends DefaultJsonProtocol {
   implicit val uploadUrlResultFormat: RootJsonFormat[UploadUrlResult]         = jsonFormat4(UploadUrlResult.apply)
   implicit val uploadUrlsResponseFormat: RootJsonFormat[UploadUrlsResponse]   = jsonFormat1(UploadUrlsResponse.apply)
   implicit val describeRequestFormat: RootJsonFormat[DescribeRequest]         = jsonFormat1(DescribeRequest.apply)
+  implicit val editorFileRequestFormat: RootJsonFormat[EditorFileRequest]     = jsonFormat1(EditorFileRequest.apply)
+  implicit val editorRowsRequestFormat: RootJsonFormat[EditorRowsRequest]     = jsonFormat4(EditorRowsRequest.apply)
+  implicit val editorRepairRequestFormat: RootJsonFormat[EditorRepairRequest] = jsonFormat2(EditorRepairRequest.apply)
   implicit val downloadUrlResponseFormat: RootJsonFormat[DownloadUrlResponse] = jsonFormat3(DownloadUrlResponse.apply)
   implicit val codecDemoRequestFormat: RootJsonFormat[CodecDemoRequest]       = jsonFormat1(CodecDemoRequest.apply)
   implicit val mergeResponseFormat: RootJsonFormat[MergeResponse]             = jsonFormat2(MergeResponse.apply)

@@ -68,7 +68,9 @@ gold = gap/pause, green = active/valid/lossless, red = finish.
 
 ## Component inventory
 
-- **Top bar** — logo lockup (+ context label e.g. `· merge`), nav, theme toggle.
+- **Top bar** — logo lockup (+ context label e.g. `· merge` / `· editor`),
+  two-tab nav (`Merge`, `Editor`), theme toggle. `Summary` is intentionally
+  removed; summary data lives inside the active workspace.
 - **Drop zone** — dashed inset panel with upload glyph; accepts multiple `.fit`.
 - **Segment row** — file/gps icon, filename, time-range · distance · point count,
   validity badge, remove/drag affordances.
@@ -85,6 +87,14 @@ gold = gap/pause, green = active/valid/lossless, red = finish.
 - **Metric card** — `--ff-raised` surface, 12px label, 20px/500 value, 12px
   sub-unit. Used in 2–3 col grids.
 - **Device row** — bullet, device name, sensor kind/connection, battery status.
+- **FIT anatomy tree** — message groups with counts and status markers; selected
+  message controls the table view.
+- **Record table** — dense but readable telemetry table with timestamp, position,
+  heart rate, power, speed, cadence, altitude, and temperature columns.
+- **Diagnostic issue card** — grouped warning cards for sensor dropouts, GPS
+  anomalies, invalid timestamps, and damaged records.
+- **Repair review row** — before/after value display with repair method and final
+  export readiness status.
 
 ---
 
@@ -126,6 +136,29 @@ the devices used (sensor kind, connection, battery), and an elevation profile.
 card grid (distance, moving/elapsed, avg/max speed, avg/max temp; power when a
 meter is present) · devices list · elevation chart.
 
+### 4 · FIT editor
+
+| Overview | Signal diagnostics | Repair review |
+|---|---|---|
+| ![Editor overview](mockups/editor-overview.svg) | ![Editor signal diagnostics](mockups/editor-diagnostics.svg) | ![Editor repair review](mockups/editor-repair-review.svg) |
+
+Single-file inspection and repair workspace. The editor is a FIT repair bench,
+not a copy of the dense desktop FIT viewers: the user can understand file
+anatomy, diagnose telemetry glitches, stage repairs, and export a clean `.fit`
+without losing the FFMForge visual language.
+
+**Overview elements:** loaded file card · FIT anatomy tree · selected message
+metadata · route preview strip · telemetry record table · issue summary · repair
+actions.
+
+**Diagnostics elements:** issue groups for heart rate, power, speed/GPS,
+timestamps, and damaged records · synchronized field charts · highlighted
+timeline ranges · selected record overlay.
+
+**Repair review elements:** proposed repair batch · before/after record values ·
+summary recalculation · fresh CRC verification · Garmin/Strava readiness ·
+primary `Save repaired .fit` action.
+
 ---
 
 ## Implementation notes (for the Angular build)
@@ -139,6 +172,9 @@ meter is present) · devices list · elevation chart.
   `MergeReport`/`MergeOutcome` (merge workspace), `FitSummary` /`RideSummary` +
   `DeviceInfo` (activity summary), `FitLayout` (file layout). Units formatted
   client-side from SI values.
-- **Not yet specified here:** activities library, the editor (trim / delete bad
-  GPS / metadata), empty & error states, and mobile/responsive layouts — to be
-  added before those screens are built.
+- **Editor contract, intended:** editor data should expose file anatomy
+  (`FitLayout` plus message counts), selected message rows, diagnostic issue
+  groups, staged repair operations, and an export verification result.
+- **Not yet specified here:** activities library, empty/error states for the
+  editor, and mobile/responsive editor layouts — to be added before those
+  screens are built.

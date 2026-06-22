@@ -8,13 +8,11 @@
         </svg>
       </span>
       <span class="wordmark">FFM<span>Forge</span></span>
-      <span class="context">merge</span>
     </div>
 
     <nav class="nav" aria-label="Workspace views">
-      <button type="button" class="nav-item active">Merge</button>
-      <button type="button" class="nav-item" disabled>Summary</button>
-      <button type="button" class="nav-item" disabled>Editor</button>
+      <button type="button" class="nav-item" [class.active]="activeView() === 'merge'" (click)="setActiveView('merge')">Merge</button>
+      <button type="button" class="nav-item" [class.active]="activeView() === 'editor'" (click)="setActiveView('editor')">Editor</button>
     </nav>
 
     <button type="button" class="theme-toggle" (click)="toggleTheme()" [attr.aria-pressed]="theme() === 'dark'">
@@ -23,7 +21,7 @@
     </button>
   </header>
 
-  <section class="workspace" aria-label="FIT merge workspace">
+  <section class="workspace" aria-label="FIT merge workspace" [hidden]="activeView() !== 'merge'">
     <div class="workspace-header">
       <div>
         <p class="eyebrow">Garmin FIT merge workspace</p>
@@ -279,6 +277,286 @@
         } @else {
           <div class="empty-state">Upload a FIT file to see ride statistics and device metadata.</div>
         }
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="workspace editor-workspace" aria-label="FIT editor workspace" [hidden]="activeView() !== 'editor'">
+    <div class="workspace-header">
+      <div>
+        <p class="eyebrow">Garmin FIT editor workspace</p>
+        <h1>Inspect and repair a FIT file.</h1>
+      </div>
+      <div class="session-state">
+        <span [class.ready]="editorOpen()">{{ editorOpen() ? 'file loaded' : 'no file' }}</span>
+        <span [class.ready]="editorIssues().length === 0">{{ editorIssues().length }} issues</span>
+        <span [class.ready]="editorExport()">{{ editorExport() ? 'export ready' : 'export pending' }}</span>
+      </div>
+    </div>
+
+    <div class="editor-grid">
+      <div class="editor-left">
+        <section class="panel editor-file-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Current file</p>
+              <h2>FIT source</h2>
+            </div>
+          </div>
+
+          <label class="drop-zone editor-drop-zone" (drop)="onEditorDrop($event)" (dragover)="allowDrop($event)">
+            <input type="file" accept=".fit" (change)="onEditorFileSelected($event)" />
+            <span class="drop-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 16V4" />
+                <path d="m7 9 5-5 5 5" />
+                <path d="M20 16.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2.5" />
+              </svg>
+            </span>
+            <span class="drop-title">Drop one FIT file here</span>
+            <span class="drop-copy">or choose a file from disk</span>
+          </label>
+
+          @if (editorFile(); as file) {
+            <article class="segment-row editor-file-row" [class.failed]="file.state === 'failed'">
+              <div class="segment-index">E</div>
+              <div class="segment-main">
+                <div class="segment-title">
+                  <span>{{ file.file.name }}</span>
+                  <span class="badge" [class.valid]="file.state === 'ready'" [class.bad]="file.state === 'failed'">{{ file.state }}</span>
+                </div>
+                <div class="segment-meta">{{ fileSize(file.file.size) }}</div>
+                @if (file.error) {
+                  <div class="segment-error">{{ file.error }}</div>
+                }
+              </div>
+            </article>
+          }
+        </section>
+
+        <section class="panel anatomy-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">FIT anatomy</p>
+              <h2>Messages</h2>
+            </div>
+          </div>
+
+          @if (editorOpen(); as opened) {
+            <div class="anatomy-list">
+              @for (group of opened.anatomy; track group.name) {
+                <button type="button" class="anatomy-row" [class.active]="editorMessageType() === group.name" (click)="selectEditorMessageType(group.name)">
+                  <span>{{ group.name }}</span>
+                  <span>
+                    {{ group.count }}
+                    @if (group.issues > 0) {
+                      · {{ group.issues }} issue{{ group.issues === 1 ? '' : 's' }}
+                    }
+                  </span>
+                </button>
+              }
+            </div>
+          } @else {
+            <div class="empty-state">Upload a decodable FIT file to inspect its message anatomy.</div>
+          }
+        </section>
+      </div>
+
+      <div class="editor-center">
+        <section class="panel editor-devices-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Devices</p>
+              <h2>Recorded by</h2>
+            </div>
+          </div>
+
+          @if (editorDevices().length > 0) {
+            <div class="device-list editor-device-list">
+              @for (device of editorDevices(); track device.key) {
+                <div class="device-row">
+                  <span class="manufacturer-mark" [attr.aria-label]="device.manufacturer + ' device'">
+                    @if (device.logoSrc) {
+                      <img [class]="device.logoClass" [src]="device.logoSrc" [alt]="device.logoAlt" />
+                    } @else {
+                      {{ device.markText }}
+                    }
+                  </span>
+                  <div class="device-main">
+                    <div class="device-title-line">
+                      <b>{{ device.name }}</b>
+                      <span class="device-type">{{ device.typeLabel }}</span>
+                    </div>
+                    <span class="device-meta">Connection: {{ device.sourceLabel ?? 'unknown' }} @if (device.statusLabel) { · Status: {{ device.statusLabel }} }</span>
+                    <span class="device-id">{{ device.idLabel }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="empty-state">Device metadata appears after upload.</div>
+          }
+        </section>
+
+        <section class="panel editor-table-panel" [class.loading]="editorRowsBusy() !== null">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Record table</p>
+              <h2>{{ editorRows()?.messageType ?? 'Telemetry rows' }}</h2>
+            </div>
+            @if (editorRows(); as rows) {
+              <span class="badge">{{ rows.offset + 1 }}-{{ rows.offset + rows.rows.length }} / {{ rows.total }}</span>
+            }
+          </div>
+
+          @if (editorOpen(); as opened) {
+            <div class="editor-summary-grid">
+              <div class="metric"><span>Activity</span><b>{{ opened.summary.sport?.toLowerCase() ?? '-' }}</b></div>
+              <div class="metric"><span>Distance</span><b>{{ distance(opened.summary.totalDistanceM) }}</b></div>
+              <div class="metric"><span>Verification</span><b>{{ opened.verification.status }}</b></div>
+            </div>
+
+            @if (editorRows(); as rows) {
+              <div class="editor-record-table" role="table" aria-label="Editor record rows" (scroll)="onEditorTableScroll($event)" (wheel)="onEditorTableWheel($event)">
+                @if (rows.messageType === 'record') {
+                  <div class="editor-row editor-row-head" role="row">
+                    <span>#</span>
+                    <span>Timestamp</span>
+                    <span>Position</span>
+                    <span>HR</span>
+                    <span>Power</span>
+                    <span>Speed</span>
+                    <span>Cad</span>
+                    <span>Alt</span>
+                    <span>Temp</span>
+                  </div>
+                  @for (row of rows.rows; track row.index) {
+                    <div class="editor-row" [class.has-issue]="row.issueIds.length > 0" role="row">
+                      <span>{{ row.index }}</span>
+                      <span>{{ row.timestamp ?? '-' }}</span>
+                      <span>{{ row.position ?? '-' }}</span>
+                      <span>{{ cellValue(row.heartRate) }}</span>
+                      <span>{{ power(row.power) }}</span>
+                      <span>{{ speed(row.speedMps) }}</span>
+                      <span>{{ cellValue(row.cadence) }}</span>
+                      <span>{{ cellValue(row.altitudeM) }}</span>
+                      <span>{{ temp(row.temperatureC) }}</span>
+                    </div>
+                  }
+                } @else {
+                  <div class="editor-row generic-row editor-row-head" [style.grid-template-columns]="editorGenericGridColumns(rows)" role="row">
+                    <span>#</span>
+                    <span>Timestamp</span>
+                    @for (column of editorFieldColumns(rows); track column) {
+                      <span>{{ column }}</span>
+                    }
+                  </div>
+                  @for (row of rows.rows; track row.index) {
+                    <div class="editor-row generic-row" [style.grid-template-columns]="editorGenericGridColumns(rows)" [class.has-issue]="row.issueIds.length > 0" role="row">
+                      <span>{{ row.index }}</span>
+                      <span>{{ row.timestamp ?? '-' }}</span>
+                      @for (column of editorFieldColumns(rows); track column) {
+                        <span>{{ editorFieldValue(row, column) }}</span>
+                      }
+                    </div>
+                  }
+                }
+              </div>
+
+            }
+          } @else {
+            <div class="empty-state">The editor opens after a file is uploaded and decoded.</div>
+          }
+
+          @if (editorRowsBusy(); as direction) {
+            <div class="table-busy-overlay" role="status" aria-live="polite">
+              <span class="table-busy-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11.414 10 4.031 17.418a2.091 2.091 0 0 0 0 2.967 2.11 2.11 0 0 0 2.976 0L14.414 13" />
+                  <path d="m18.121 15.293 2.586-2.586a1 1 0 0 0 0-1.414l-7.586-7.586a1 1 0 0 0-1.414 0L9.121 6.293a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0Z" />
+                </svg>
+              </span>
+              <span>{{ direction === 'next' ? 'Loading more rows' : 'Loading earlier rows' }}</span>
+            </div>
+          }
+        </section>
+      </div>
+
+      <div class="editor-right">
+        <section class="panel diagnostics-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Diagnostics</p>
+              <h2>Issues found</h2>
+            </div>
+          </div>
+
+          @if (editorIssues().length > 0) {
+            <div class="issue-list">
+              @for (issue of editorIssues(); track issue.id) {
+                <button type="button" class="issue-card" [class.active]="editorSelectedIssue()?.id === issue.id" [class.error]="issue.severity === 'error'" (click)="selectEditorIssue(issue)">
+                  <span class="issue-title">{{ issue.title }}</span>
+                  <span>{{ issueSeverityLabel(issue) }} · rows {{ issue.startIndex }}-{{ issue.endIndex }}</span>
+                </button>
+              }
+            </div>
+          } @else if (editorOpen()) {
+            <div class="empty-state">No suspicious telemetry issues were found.</div>
+          } @else {
+            <div class="empty-state">Diagnostics appear after the file is decoded.</div>
+          }
+        </section>
+
+        <section class="panel repair-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Repair review</p>
+              <h2>Staged changes</h2>
+            </div>
+          </div>
+
+          @if (editorSelectedIssue(); as issue) {
+            <div class="selected-issue">
+              <b>{{ issue.title }}</b>
+              <p>{{ issue.detail }}</p>
+              <button type="button" class="secondary-button" (click)="stageSuggestedRepair(issue)" [disabled]="issue.suggestedOperations.length === 0">
+                Stage suggested repair
+              </button>
+            </div>
+          }
+
+          @if (editorOperations().length > 0) {
+            <div class="operation-list">
+              @for (operation of editorOperations(); track $index) {
+                <div class="report-row"><span>{{ operationLabel(operation) }}</span></div>
+              }
+            </div>
+            <button type="button" class="secondary-button" (click)="previewEditorRepairs()" [disabled]="!canPreviewRepair()">Preview repairs</button>
+            <button type="button" class="ghost-button" (click)="clearEditorRepairs()">Clear staged</button>
+          } @else {
+            <div class="empty-state">Select a diagnostic issue and stage a repair to see before/after changes.</div>
+          }
+
+          @if (editorPreview(); as preview) {
+            <div class="repair-changes">
+              @for (change of preview.changes; track $index) {
+                <div class="repair-change">
+                  <span>row {{ change.rowIndex }} · {{ change.field }}</span>
+                  <b>{{ change.before }} → {{ change.after }}</b>
+                  <small>{{ change.method }}</small>
+                </div>
+              }
+            </div>
+            <div class="verification-card" [class.valid]="preview.verification.canExport">
+              <b>{{ preview.verification.status }}</b>
+              @for (check of preview.verification.checks; track check) {
+                <span>{{ check }}</span>
+              }
+            </div>
+          }
+
+          <button type="button" class="primary-button" (click)="exportEditorRepairs()" [disabled]="!canExportRepair()">Save repaired .fit</button>
         </section>
       </div>
     </div>

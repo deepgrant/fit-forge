@@ -17,8 +17,10 @@ import scala.util.Try
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler
 import ffmforge.FFMForgeConfig
+import ffmforge.fit.ExportRepairResponse
 import ffmforge.fit.FitCodec
 import ffmforge.fit.FitCodecReport
+import ffmforge.fit.FitEditor
 import ffmforge.fit.FitFile
 import ffmforge.fit.FitLayout
 import ffmforge.fit.FitMerge
@@ -31,6 +33,9 @@ import ffmforge.http.ApiError
 import ffmforge.http.CodecDemoRequest
 import ffmforge.http.DescribeRequest
 import ffmforge.http.DownloadUrlResponse
+import ffmforge.http.EditorFileRequest
+import ffmforge.http.EditorRepairRequest
+import ffmforge.http.EditorRowsRequest
 import ffmforge.http.JsonProtocol
 import ffmforge.http.MergeRequest
 import ffmforge.http.MergeResponse
@@ -111,6 +116,28 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
     case ("POST", "/ffmforge/v1/fit/codec-demo") =>
       val req = event.bodyJson.convertTo[CodecDemoRequest]
       codecDemo(req.id)
+
+    case ("POST", "/ffmforge/v1/fit/editor/open") =>
+      val req = event.bodyJson.convertTo[EditorFileRequest]
+      responseWithFile(req.id)(file => FitEditor.open(req.id, file).toJson)
+
+    case ("POST", "/ffmforge/v1/fit/editor/rows") =>
+      val req = event.bodyJson.convertTo[EditorRowsRequest]
+      responseWithFile(req.id)(file =>
+        FitEditor.rows(file, req.messageType, req.offset, req.limit, FitEditor.diagnose(file)).toJson
+      )
+
+    case ("POST", "/ffmforge/v1/fit/editor/repair-preview") =>
+      val req = event.bodyJson.convertTo[EditorRepairRequest]
+      responseWithFile(req.id)(file => FitEditor.preview(file, req.operations).toJson)
+
+    case ("POST", "/ffmforge/v1/fit/editor/export") =>
+      val req = event.bodyJson.convertTo[EditorRepairRequest]
+      responseWithFile(req.id) { file =>
+        val (repaired, preview) = FitEditor.repair(file, req.operations)
+        val id                  = await(store.put(codec.encode(repaired), config.sessionTtl))
+        ExportRepairResponse(id, preview).toJson
+      }
 
     case ("POST", "/ffmforge/v1/fit/merge") =>
       responseMerge(event.bodyJson.convertTo[MergeRequest])

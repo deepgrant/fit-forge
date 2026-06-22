@@ -2,15 +2,33 @@ import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, computed, e
 
 import { FfmForgeApi, messageOf } from './api-client';
 import { distance, duration, fileSize, power, speed, temp, timeRange } from './format';
-import type { DeviceInfo, MergeResponse, RouteTrack, SegmentFile, TrackFeature, TrackGeoJson, UploadFileResult } from './models';
+import type {
+  DeviceInfo,
+  DiagnosticIssue,
+  EditorOpenResponse,
+  EditorRecordRow,
+  EditorRowsResponse,
+  ExportRepairResponse,
+  MergeResponse,
+  RepairOperation,
+  RepairPreview,
+  RouteTrack,
+  SegmentFile,
+  TrackFeature,
+  TrackGeoJson,
+  UploadFileResult,
+} from './models';
 
 type Theme = 'light' | 'dark';
 type LapStrategy = 'OnePerSegment' | 'KeepOriginal';
+type WorkspaceView = 'merge' | 'editor';
+type EditorRowsDirection = 'previous' | 'next';
 
 const RouteColors = ['#ff6a1a', '#1f9d6b', '#2f80ed', '#e0453c', '#8b5cf6', '#e0921a', '#008ea8', '#c026d3'];
 const OpenFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
 const MapLibreCssUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css';
 const MapLibreScriptUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js';
+const EditorRowsEdgePx = 36;
 
 interface GeoJsonSource {
   setData(data: unknown): void;
@@ -78,10 +96,12 @@ export class App implements AfterViewInit, OnDestroy {
   private map?: MapLibreMap;
   private mapLoaded = false;
   private renderedRouteIds = new Set<string>();
+  private editorRowsLoadInFlight = false;
 
   @ViewChild('mapHost') private mapHost?: ElementRef<HTMLDivElement>;
 
   protected readonly theme = signal<Theme>('light');
+  protected readonly activeView = signal<WorkspaceView>('merge');
   protected readonly segments = signal<readonly SegmentFile[]>([]);
   protected readonly descriptions = signal<readonly UploadFileResult[]>([]);
   protected readonly routeTracks = signal<readonly RouteTrack[]>([]);
@@ -90,6 +110,15 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly lapStrategy = signal<LapStrategy>('OnePerSegment');
   protected readonly busy = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
+  protected readonly editorFile = signal<SegmentFile | null>(null);
+  protected readonly editorOpen = signal<EditorOpenResponse | null>(null);
+  protected readonly editorRows = signal<EditorRowsResponse | null>(null);
+  protected readonly editorRowsBusy = signal<EditorRowsDirection | null>(null);
+  protected readonly editorMessageType = signal('record');
+  protected readonly editorSelectedIssueId = signal<string | null>(null);
+  protected readonly editorOperations = signal<readonly RepairOperation[]>([]);
+  protected readonly editorPreview = signal<RepairPreview | null>(null);
+  protected readonly editorExport = signal<ExportRepairResponse | null>(null);
 
   protected readonly readyIds = computed(() =>
     this.segments()
@@ -109,6 +138,15 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly displayDistanceM = computed(() => this.report()?.totalDistanceM ?? this.primaryActivity()?.summary.totalDistanceM);
   protected readonly displayMovingSeconds = computed(() => this.report()?.movingSeconds ?? this.primaryActivity()?.summary.movingSeconds);
   protected readonly displayElapsedSeconds = computed(() => this.report()?.elapsedSeconds ?? this.primaryActivity()?.summary.elapsedSeconds);
+  protected readonly editorIssues = computed(() => this.editorOpen()?.diagnostics ?? []);
+  protected readonly editorSelectedIssue = computed(() => {
+    const issues = this.editorIssues();
+    const selected = this.editorSelectedIssueId();
+    return issues.find((issue) => issue.id === selected) ?? issues.at(0);
+  });
+  protected readonly editorDevices = computed(() => this.editorOpen()?.devices.map((device) => this.displayDeviceOf(device, this.editorOpen()?.id ?? 'editor')) ?? []);
+  protected readonly canPreviewRepair = computed(() => this.editorOpen() !== null && this.editorOperations().length > 0 && this.busy() === null);
+  protected readonly canExportRepair = computed(() => this.canPreviewRepair() && (this.editorPreview()?.verification.canExport ?? this.editorOpen()?.verification.canExport ?? false));
 
   protected readonly distance = distance;
   protected readonly duration = duration;
@@ -185,6 +223,11 @@ export class App implements AfterViewInit, OnDestroy {
     this.setTheme(this.theme() === 'dark' ? 'light' : 'dark');
   }
 
+  protected setActiveView(view: WorkspaceView): void {
+    this.activeView.set(view);
+    queueMicrotask(() => this.map?.resize());
+  }
+
   protected removeSegment(localId: string): void {
     const removed = this.segments().find((segment) => segment.localId === localId);
     this.segments.update((segments) => segments.filter((segment) => segment.localId !== localId));
@@ -238,6 +281,178 @@ export class App implements AfterViewInit, OnDestroy {
     }
   }
 
+  protected async onEditorFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    await this.addEditorFile(Array.from(input.files ?? []).at(0));
+    input.value = '';
+  }
+
+  protected async onEditorDrop(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    await this.addEditorFile(Array.from(event.dataTransfer?.files ?? []).at(0));
+  }
+
+  protected async selectEditorMessageType(messageType: string): Promise<void> {
+    const open = this.editorOpen();
+    if (!open || messageType === this.editorMessageType()) return;
+
+    this.busy.set(`Loading ${messageType} rows`);
+    this.error.set(null);
+    try {
+      this.editorMessageType.set(messageType);
+      this.editorRows.set(await this.api.editorRows(open.id, messageType, 0, 80));
+    } catch (err) {
+      this.error.set(messageOf(err));
+    } finally {
+      this.busy.set(null);
+    }
+  }
+
+  protected onEditorTableScroll(event: Event): void {
+    const table = event.currentTarget as HTMLElement;
+    this.loadRowsAtTableEdge(table);
+  }
+
+  protected onEditorTableWheel(event: WheelEvent): void {
+    const table = event.currentTarget as HTMLElement;
+    if (event.deltaY > 0 && this.isTableAtBottom(table)) {
+      void this.loadEditorRows('next', table);
+    } else if (event.deltaY < 0 && this.isTableAtTop(table)) {
+      void this.loadEditorRows('previous', table);
+    }
+  }
+
+  private loadRowsAtTableEdge(table: HTMLElement): void {
+    if (this.isTableAtBottom(table)) {
+      void this.loadEditorRows('next', table);
+    } else if (this.isTableAtTop(table)) {
+      void this.loadEditorRows('previous', table);
+    }
+  }
+
+  private async loadEditorRows(direction: EditorRowsDirection, table?: HTMLElement): Promise<void> {
+    const open = this.editorOpen();
+    const rows = this.editorRows();
+    if (!open || !rows) return;
+
+    const request =
+      direction === 'next'
+        ? this.nextEditorRowsRequest(rows)
+        : this.previousEditorRowsRequest(rows);
+    if (!request || this.editorRowsLoadInFlight) return;
+
+    const beforeScrollHeight = table?.scrollHeight ?? 0;
+    this.editorRowsLoadInFlight = true;
+    this.editorRowsBusy.set(direction);
+    this.error.set(null);
+    try {
+      const page = await this.api.editorRows(open.id, rows.messageType, request.offset, request.limit);
+      this.editorRows.update((current) => (current ? this.mergeEditorRows(current, page, direction) : page));
+      if (direction === 'previous' && table) {
+        requestAnimationFrame(() => {
+          table.scrollTop += table.scrollHeight - beforeScrollHeight;
+        });
+      }
+    } catch (err) {
+      this.error.set(messageOf(err));
+    } finally {
+      this.editorRowsBusy.set(null);
+      this.editorRowsLoadInFlight = false;
+    }
+  }
+
+  private nextEditorRowsRequest(rows: EditorRowsResponse): { offset: number; limit: number } | undefined {
+    const offset = rows.offset + rows.rows.length;
+    if (offset >= rows.total) return undefined;
+    return { offset, limit: rows.limit };
+  }
+
+  private previousEditorRowsRequest(rows: EditorRowsResponse): { offset: number; limit: number } | undefined {
+    if (rows.offset === 0) return undefined;
+    const offset = Math.max(0, rows.offset - rows.limit);
+    return { offset, limit: rows.offset - offset };
+  }
+
+  private mergeEditorRows(
+    current: EditorRowsResponse,
+    page: EditorRowsResponse,
+    direction: EditorRowsDirection,
+  ): EditorRowsResponse {
+    if (current.messageType !== page.messageType) return page;
+    const currentIndexes = new Set(current.rows.map((row) => row.index));
+    const pageIndexes = new Set(page.rows.map((row) => row.index));
+    const mergedRows =
+      direction === 'next'
+        ? [...current.rows, ...page.rows.filter((row) => !currentIndexes.has(row.index))]
+        : [...page.rows, ...current.rows.filter((row) => !pageIndexes.has(row.index))];
+    return {
+      ...current,
+      offset: Math.min(current.offset, page.offset),
+      limit: page.limit,
+      total: page.total,
+      rows: mergedRows,
+    };
+  }
+
+  private isTableAtTop(table: HTMLElement): boolean {
+    return table.scrollTop <= EditorRowsEdgePx;
+  }
+
+  private isTableAtBottom(table: HTMLElement): boolean {
+    return table.scrollTop + table.clientHeight >= table.scrollHeight - EditorRowsEdgePx;
+  }
+
+  protected selectEditorIssue(issue: DiagnosticIssue): void {
+    this.editorSelectedIssueId.set(issue.id);
+  }
+
+  protected stageSuggestedRepair(issue: DiagnosticIssue | undefined): void {
+    const operation = issue?.suggestedOperations.at(0);
+    if (!operation) return;
+    this.editorOperations.update((operations) => [...operations, operation]);
+    this.editorPreview.set(null);
+    this.editorExport.set(null);
+  }
+
+  protected clearEditorRepairs(): void {
+    this.editorOperations.set([]);
+    this.editorPreview.set(null);
+    this.editorExport.set(null);
+  }
+
+  protected async previewEditorRepairs(): Promise<void> {
+    const open = this.editorOpen();
+    if (!open || this.editorOperations().length === 0) return;
+    this.busy.set('Previewing repairs');
+    this.error.set(null);
+    try {
+      this.editorPreview.set(await this.api.editorRepairPreview(open.id, this.editorOperations()));
+      this.editorExport.set(null);
+    } catch (err) {
+      this.error.set(messageOf(err));
+    } finally {
+      this.busy.set(null);
+    }
+  }
+
+  protected async exportEditorRepairs(): Promise<void> {
+    const open = this.editorOpen();
+    if (!open || this.editorOperations().length === 0) return;
+    this.busy.set('Saving repaired FIT file');
+    this.error.set(null);
+    try {
+      const exported = await this.api.editorExport(open.id, this.editorOperations());
+      this.editorExport.set(exported);
+      this.editorPreview.set(exported.preview);
+      const download = await this.api.download(exported.id);
+      window.location.assign(download.url);
+    } catch (err) {
+      this.error.set(messageOf(err));
+    } finally {
+      this.busy.set(null);
+    }
+  }
+
   private async addFiles(files: readonly File[]): Promise<void> {
     const fitFiles = files.filter((file) => file.name.toLowerCase().endsWith('.fit'));
     if (fitFiles.length === 0) {
@@ -271,6 +486,45 @@ export class App implements AfterViewInit, OnDestroy {
           additions.some((addition) => addition.localId === segment.localId) ? { ...segment, state: 'failed', error: message } : segment,
         ),
       );
+      this.error.set(message);
+    } finally {
+      this.busy.set(null);
+    }
+  }
+
+  private async addEditorFile(file: File | undefined): Promise<void> {
+    if (!file || !file.name.toLowerCase().endsWith('.fit')) {
+      this.error.set('Choose one .fit file for the editor.');
+      return;
+    }
+
+    const local: SegmentFile = {
+      localId: crypto.randomUUID(),
+      file,
+      state: 'uploading',
+    };
+    this.editorFile.set(local);
+    this.editorOpen.set(null);
+    this.editorRows.set(null);
+    this.editorMessageType.set('record');
+    this.editorSelectedIssueId.set(null);
+    this.editorOperations.set([]);
+    this.editorPreview.set(null);
+    this.editorExport.set(null);
+    this.busy.set('Uploading FIT file for editor');
+    this.error.set(null);
+
+    try {
+      const uploaded = (await this.api.uploadFiles([file])).at(0);
+      if (!uploaded) throw new Error('Upload did not return a file id.');
+      this.editorFile.set({ ...local, state: 'ready', remoteId: uploaded.id });
+      const opened = await this.api.editorOpen(uploaded.id);
+      this.editorOpen.set(opened);
+      this.editorRows.set(opened.rows);
+      this.editorSelectedIssueId.set(opened.diagnostics.at(0)?.id ?? null);
+    } catch (err) {
+      const message = messageOf(err);
+      this.editorFile.set({ ...local, state: 'failed', error: message });
       this.error.set(message);
     } finally {
       this.busy.set(null);
@@ -352,6 +606,54 @@ export class App implements AfterViewInit, OnDestroy {
         occurrenceCount: value.occurrenceCount,
       }))
       .sort((a, b) => `${a.typeLabel}:${a.name}:${a.sourceLabel ?? ''}`.localeCompare(`${b.typeLabel}:${b.name}:${b.sourceLabel ?? ''}`));
+  }
+
+  private displayDeviceOf(device: DeviceInfo, recordingId: string): DisplayDevice {
+    return {
+      key: `${recordingId}:${this.deviceKey(device)}`,
+      manufacturer: device.manufacturer,
+      logoSrc: this.deviceLogoSrc(device),
+      logoAlt: `${device.manufacturer} logo`,
+      logoClass: this.deviceLogoClass(device),
+      markText: this.deviceMarkText(device.manufacturer),
+      name: this.deviceName(device),
+      typeLabel: this.deviceTypeLabel(device),
+      sourceLabel: this.deviceSourceLabel(device.sourceType),
+      statusLabel: this.titleize(device.batteryStatus),
+      idLabel: this.deviceIdLabel(device),
+      recordingCount: 1,
+      occurrenceCount: 1,
+    };
+  }
+
+  protected issueSeverityLabel(issue: DiagnosticIssue): string {
+    return issue.severity === 'error' ? 'repair needed' : 'warning';
+  }
+
+  protected operationLabel(operation: RepairOperation): string {
+    const field = operation.field ? ` ${this.titleize(operation.field) ?? operation.field}` : '';
+    const range = operation.startIndex === operation.endIndex ? `row ${operation.startIndex}` : `rows ${operation.startIndex}-${operation.endIndex}`;
+    return `${this.titleize(operation.kind) ?? operation.kind}${field} · ${range}`;
+  }
+
+  protected cellValue(value: string | number | undefined): string {
+    if (value === undefined) return '-';
+    if (typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(2);
+    return value;
+  }
+
+  protected editorFieldColumns(rows: EditorRowsResponse): readonly string[] {
+    const columns = new Set<string>();
+    rows.rows.forEach((row) => row.fields.forEach((field) => columns.add(field.field)));
+    return Array.from(columns);
+  }
+
+  protected editorGenericGridColumns(rows: EditorRowsResponse): string {
+    return `54px 190px repeat(${Math.max(1, this.editorFieldColumns(rows).length)}, minmax(120px, 1fr))`;
+  }
+
+  protected editorFieldValue(row: EditorRecordRow, column: string): string {
+    return row.fields.find((field) => field.field === column)?.value ?? '-';
   }
 
   private deviceKey(device: DeviceInfo): string {
