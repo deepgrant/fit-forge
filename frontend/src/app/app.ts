@@ -21,11 +21,13 @@ import type {
 type Theme = 'light' | 'dark';
 type LapStrategy = 'OnePerSegment' | 'KeepOriginal';
 type WorkspaceView = 'merge' | 'editor';
+type EditorRowsDirection = 'previous' | 'next';
 
 const RouteColors = ['#ff6a1a', '#1f9d6b', '#2f80ed', '#e0453c', '#8b5cf6', '#e0921a', '#008ea8', '#c026d3'];
 const OpenFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
 const MapLibreCssUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css';
 const MapLibreScriptUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js';
+const EditorRowsEdgePx = 36;
 
 interface GeoJsonSource {
   setData(data: unknown): void;
@@ -93,6 +95,7 @@ export class App implements AfterViewInit, OnDestroy {
   private map?: MapLibreMap;
   private mapLoaded = false;
   private renderedRouteIds = new Set<string>();
+  private editorRowsLoadInFlight = false;
 
   @ViewChild('mapHost') private mapHost?: ElementRef<HTMLDivElement>;
 
@@ -109,6 +112,7 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly editorFile = signal<SegmentFile | null>(null);
   protected readonly editorOpen = signal<EditorOpenResponse | null>(null);
   protected readonly editorRows = signal<EditorRowsResponse | null>(null);
+  protected readonly editorRowsBusy = signal<EditorRowsDirection | null>(null);
   protected readonly editorMessageType = signal('record');
   protected readonly editorSelectedIssueId = signal<string | null>(null);
   protected readonly editorOperations = signal<readonly RepairOperation[]>([]);
@@ -303,20 +307,98 @@ export class App implements AfterViewInit, OnDestroy {
     }
   }
 
-  protected async editorPage(delta: number): Promise<void> {
+  protected onEditorTableScroll(event: Event): void {
+    const table = event.currentTarget as HTMLElement;
+    this.loadRowsAtTableEdge(table);
+  }
+
+  protected onEditorTableWheel(event: WheelEvent): void {
+    const table = event.currentTarget as HTMLElement;
+    if (event.deltaY > 0 && this.isTableAtBottom(table)) {
+      void this.loadEditorRows('next', table);
+    } else if (event.deltaY < 0 && this.isTableAtTop(table)) {
+      void this.loadEditorRows('previous', table);
+    }
+  }
+
+  private loadRowsAtTableEdge(table: HTMLElement): void {
+    if (this.isTableAtBottom(table)) {
+      void this.loadEditorRows('next', table);
+    } else if (this.isTableAtTop(table)) {
+      void this.loadEditorRows('previous', table);
+    }
+  }
+
+  private async loadEditorRows(direction: EditorRowsDirection, table?: HTMLElement): Promise<void> {
     const open = this.editorOpen();
     const rows = this.editorRows();
     if (!open || !rows) return;
-    const offset = Math.max(0, Math.min(rows.total - rows.limit, rows.offset + delta * rows.limit));
-    this.busy.set(`Loading ${rows.messageType} rows`);
+
+    const request =
+      direction === 'next'
+        ? this.nextEditorRowsRequest(rows)
+        : this.previousEditorRowsRequest(rows);
+    if (!request || this.editorRowsLoadInFlight) return;
+
+    const beforeScrollHeight = table?.scrollHeight ?? 0;
+    this.editorRowsLoadInFlight = true;
+    this.editorRowsBusy.set(direction);
     this.error.set(null);
     try {
-      this.editorRows.set(await this.api.editorRows(open.id, rows.messageType, offset, rows.limit));
+      const page = await this.api.editorRows(open.id, rows.messageType, request.offset, request.limit);
+      this.editorRows.update((current) => (current ? this.mergeEditorRows(current, page, direction) : page));
+      if (direction === 'previous' && table) {
+        requestAnimationFrame(() => {
+          table.scrollTop += table.scrollHeight - beforeScrollHeight;
+        });
+      }
     } catch (err) {
       this.error.set(messageOf(err));
     } finally {
-      this.busy.set(null);
+      this.editorRowsBusy.set(null);
+      this.editorRowsLoadInFlight = false;
     }
+  }
+
+  private nextEditorRowsRequest(rows: EditorRowsResponse): { offset: number; limit: number } | undefined {
+    const offset = rows.offset + rows.rows.length;
+    if (offset >= rows.total) return undefined;
+    return { offset, limit: rows.limit };
+  }
+
+  private previousEditorRowsRequest(rows: EditorRowsResponse): { offset: number; limit: number } | undefined {
+    if (rows.offset === 0) return undefined;
+    const offset = Math.max(0, rows.offset - rows.limit);
+    return { offset, limit: rows.offset - offset };
+  }
+
+  private mergeEditorRows(
+    current: EditorRowsResponse,
+    page: EditorRowsResponse,
+    direction: EditorRowsDirection,
+  ): EditorRowsResponse {
+    if (current.messageType !== page.messageType) return page;
+    const currentIndexes = new Set(current.rows.map((row) => row.index));
+    const pageIndexes = new Set(page.rows.map((row) => row.index));
+    const mergedRows =
+      direction === 'next'
+        ? [...current.rows, ...page.rows.filter((row) => !currentIndexes.has(row.index))]
+        : [...page.rows, ...current.rows.filter((row) => !pageIndexes.has(row.index))];
+    return {
+      ...current,
+      offset: Math.min(current.offset, page.offset),
+      limit: page.limit,
+      total: page.total,
+      rows: mergedRows,
+    };
+  }
+
+  private isTableAtTop(table: HTMLElement): boolean {
+    return table.scrollTop <= EditorRowsEdgePx;
+  }
+
+  private isTableAtBottom(table: HTMLElement): boolean {
+    return table.scrollTop + table.clientHeight >= table.scrollHeight - EditorRowsEdgePx;
   }
 
   protected selectEditorIssue(issue: DiagnosticIssue): void {

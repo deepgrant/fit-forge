@@ -822,6 +822,60 @@ select {
   background: var(--ff-raised);
 }
 
+.editor-table-panel {
+  position: relative;
+}
+
+.editor-table-panel.loading .editor-summary-grid,
+.editor-table-panel.loading .editor-record-table {
+  opacity: 0.36;
+  pointer-events: none;
+}
+
+.table-busy-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  border-radius: inherit;
+  color: var(--ff-text);
+  background: color-mix(in srgb, var(--ff-card), transparent 24%);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.table-busy-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  border-radius: 10px;
+  color: #1a1206;
+  background: var(--ff-orange);
+  animation: table-busy-spin 0.45s linear infinite;
+}
+
+.table-busy-mark svg {
+  width: 23px;
+  height: 23px;
+}
+
+@keyframes table-busy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table-busy-mark {
+    animation: none;
+  }
+}
+
 .editor-row {
   min-width: 980px;
   display: grid;
@@ -851,13 +905,6 @@ select {
 
 .editor-row.has-issue {
   background: color-mix(in srgb, var(--ff-gap), transparent 88%);
-}
-
-.table-pager {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 12px;
 }
 
 .issue-card {

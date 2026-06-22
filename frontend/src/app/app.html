@@ -399,7 +399,7 @@
           }
         </section>
 
-        <section class="panel editor-table-panel">
+        <section class="panel editor-table-panel" [class.loading]="editorRowsBusy() !== null">
           <div class="panel-heading">
             <div>
               <p class="panel-kicker">Record table</p>
@@ -418,7 +418,7 @@
             </div>
 
             @if (editorRows(); as rows) {
-              <div class="editor-record-table" role="table" aria-label="Editor record rows">
+              <div class="editor-record-table" role="table" aria-label="Editor record rows" (scroll)="onEditorTableScroll($event)" (wheel)="onEditorTableWheel($event)">
                 <div class="editor-row editor-row-head" role="row">
                   <span>#</span>
                   <span>Timestamp</span>
@@ -445,13 +445,21 @@
                 }
               </div>
 
-              <div class="table-pager">
-                <button type="button" class="secondary-button" (click)="editorPage(-1)" [disabled]="rows.offset === 0">Previous rows</button>
-                <button type="button" class="secondary-button" (click)="editorPage(1)" [disabled]="rows.offset + rows.limit >= rows.total">Next rows</button>
-              </div>
             }
           } @else {
             <div class="empty-state">The editor opens after a file is uploaded and decoded.</div>
+          }
+
+          @if (editorRowsBusy(); as direction) {
+            <div class="table-busy-overlay" role="status" aria-live="polite">
+              <span class="table-busy-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11.414 10 4.031 17.418a2.091 2.091 0 0 0 0 2.967 2.11 2.11 0 0 0 2.976 0L14.414 13" />
+                  <path d="m18.121 15.293 2.586-2.586a1 1 0 0 0 0-1.414l-7.586-7.586a1 1 0 0 0-1.414 0L9.121 6.293a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0Z" />
+                </svg>
+              </span>
+              <span>{{ direction === 'next' ? 'Loading more rows' : 'Loading earlier rows' }}</span>
+            </div>
           }
         </section>
       </div>
