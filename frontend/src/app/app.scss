@@ -812,6 +812,10 @@ select {
   margin-bottom: 14px;
 }
 
+.editor-map-shell {
+  height: 260px;
+}
+
 .editor-record-table {
   width: 100%;
   max-width: 100%;
@@ -878,19 +882,31 @@ select {
 
 .editor-row {
   min-width: 980px;
+  width: 100%;
   display: grid;
   grid-template-columns: 54px 190px 170px repeat(6, minmax(78px, 1fr));
   gap: 8px;
   align-items: center;
+  border: 0;
   border-top: 1px solid var(--ff-border);
   padding: 9px 10px;
   color: var(--ff-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
+  text-align: left;
+  background: transparent;
 }
 
 .editor-row:first-child {
   border-top: 0;
+}
+
+button.editor-row {
+  cursor: pointer;
+}
+
+button.editor-row:hover {
+  background: color-mix(in srgb, var(--ff-orange), transparent 94%);
 }
 
 .editor-row-head {
@@ -905,6 +921,12 @@ select {
 
 .editor-row.has-issue {
   background: color-mix(in srgb, var(--ff-gap), transparent 88%);
+}
+
+.editor-row.selected {
+  outline: 2px solid color-mix(in srgb, var(--ff-orange), transparent 25%);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--ff-orange), transparent 88%);
 }
 
 .editor-row.generic-row {

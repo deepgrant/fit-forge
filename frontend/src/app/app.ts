@@ -23,6 +23,7 @@ type Theme = 'light' | 'dark';
 type LapStrategy = 'OnePerSegment' | 'KeepOriginal';
 type WorkspaceView = 'merge' | 'editor';
 type EditorRowsDirection = 'previous' | 'next';
+type EditorRowsBusy = EditorRowsDirection | 'message';
 
 const RouteColors = ['#ff6a1a', '#1f9d6b', '#2f80ed', '#e0453c', '#8b5cf6', '#e0921a', '#008ea8', '#c026d3'];
 const OpenFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
@@ -94,11 +95,15 @@ export class App implements AfterViewInit, OnDestroy {
 
   private readonly api = inject(FfmForgeApi);
   private map?: MapLibreMap;
+  private editorMap?: MapLibreMap;
   private mapLoaded = false;
+  private editorMapLoaded = false;
   private renderedRouteIds = new Set<string>();
+  private editorRouteRendered = false;
   private editorRowsLoadInFlight = false;
 
   @ViewChild('mapHost') private mapHost?: ElementRef<HTMLDivElement>;
+  @ViewChild('editorMapHost') private editorMapHost?: ElementRef<HTMLDivElement>;
 
   protected readonly theme = signal<Theme>('light');
   protected readonly activeView = signal<WorkspaceView>('merge');
@@ -113,12 +118,14 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly editorFile = signal<SegmentFile | null>(null);
   protected readonly editorOpen = signal<EditorOpenResponse | null>(null);
   protected readonly editorRows = signal<EditorRowsResponse | null>(null);
-  protected readonly editorRowsBusy = signal<EditorRowsDirection | null>(null);
+  protected readonly editorRowsBusy = signal<EditorRowsBusy | null>(null);
   protected readonly editorMessageType = signal('record');
   protected readonly editorSelectedIssueId = signal<string | null>(null);
   protected readonly editorOperations = signal<readonly RepairOperation[]>([]);
   protected readonly editorPreview = signal<RepairPreview | null>(null);
   protected readonly editorExport = signal<ExportRepairResponse | null>(null);
+  protected readonly editorRouteTrack = signal<RouteTrack | null>(null);
+  protected readonly editorSelectedRow = signal<EditorRecordRow | null>(null);
 
   protected readonly readyIds = computed(() =>
     this.segments()
@@ -157,11 +164,19 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly timeRange = timeRange;
 
   constructor() {
-    const stored = window.localStorage.getItem('ffmforge-theme');
+    const stored = this.localStorage()?.getItem('ffmforge-theme');
     this.setTheme(stored === 'dark' ? 'dark' : 'light');
     effect(() => {
       const tracks = this.routeTracks();
       queueMicrotask(() => this.renderRouteTracks(tracks));
+    });
+    effect(() => {
+      const track = this.editorRouteTrack();
+      queueMicrotask(() => this.renderEditorRouteTrack(track));
+    });
+    effect(() => {
+      const row = this.editorSelectedRow();
+      queueMicrotask(() => this.renderEditorSelectedRow(row));
     });
   }
 
@@ -171,11 +186,10 @@ export class App implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.map?.remove();
+    this.editorMap?.remove();
   }
 
   private async initializeMap(): Promise<void> {
-    if (!this.mapHost) return;
-
     try {
       await this.loadMapLibre();
     } catch (err) {
@@ -183,18 +197,36 @@ export class App implements AfterViewInit, OnDestroy {
       return;
     }
 
-    this.map = new maplibregl.Map({
-      container: this.mapHost.nativeElement,
-      style: OpenFreeMapStyleUrl,
-      center: [-98.5795, 39.8283],
-      zoom: 3,
-      attributionControl: { compact: true },
-    });
-    this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-    this.map.on('load', () => {
-      this.mapLoaded = true;
-      this.renderRouteTracks(this.routeTracks());
-    });
+    if (this.mapHost) {
+      this.map = new maplibregl.Map({
+        container: this.mapHost.nativeElement,
+        style: OpenFreeMapStyleUrl,
+        center: [-98.5795, 39.8283],
+        zoom: 3,
+        attributionControl: { compact: true },
+      });
+      this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      this.map.on('load', () => {
+        this.mapLoaded = true;
+        this.renderRouteTracks(this.routeTracks());
+      });
+    }
+
+    if (this.editorMapHost) {
+      this.editorMap = new maplibregl.Map({
+        container: this.editorMapHost.nativeElement,
+        style: OpenFreeMapStyleUrl,
+        center: [-98.5795, 39.8283],
+        zoom: 3,
+        attributionControl: { compact: true },
+      });
+      this.editorMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      this.editorMap.on('load', () => {
+        this.editorMapLoaded = true;
+        this.renderEditorRouteTrack(this.editorRouteTrack());
+        this.renderEditorSelectedRow(this.editorSelectedRow());
+      });
+    }
   }
 
   protected async onFilesSelected(event: Event): Promise<void> {
@@ -225,7 +257,10 @@ export class App implements AfterViewInit, OnDestroy {
 
   protected setActiveView(view: WorkspaceView): void {
     this.activeView.set(view);
-    queueMicrotask(() => this.map?.resize());
+    queueMicrotask(() => {
+      this.map?.resize();
+      this.editorMap?.resize();
+    });
   }
 
   protected removeSegment(localId: string): void {
@@ -297,14 +332,17 @@ export class App implements AfterViewInit, OnDestroy {
     if (!open || messageType === this.editorMessageType()) return;
 
     this.busy.set(`Loading ${messageType} rows`);
+    this.editorRowsBusy.set('message');
     this.error.set(null);
     try {
       this.editorMessageType.set(messageType);
       this.editorRows.set(await this.api.editorRows(open.id, messageType, 0, 80));
+      this.editorSelectedRow.set(null);
     } catch (err) {
       this.error.set(messageOf(err));
     } finally {
       this.busy.set(null);
+      this.editorRowsBusy.set(null);
     }
   }
 
@@ -404,6 +442,10 @@ export class App implements AfterViewInit, OnDestroy {
 
   protected selectEditorIssue(issue: DiagnosticIssue): void {
     this.editorSelectedIssueId.set(issue.id);
+  }
+
+  protected selectEditorRow(row: EditorRecordRow): void {
+    this.editorSelectedRow.set(row);
   }
 
   protected stageSuggestedRepair(issue: DiagnosticIssue | undefined): void {
@@ -511,6 +553,8 @@ export class App implements AfterViewInit, OnDestroy {
     this.editorOperations.set([]);
     this.editorPreview.set(null);
     this.editorExport.set(null);
+    this.editorRouteTrack.set(null);
+    this.editorSelectedRow.set(null);
     this.busy.set('Uploading FIT file for editor');
     this.error.set(null);
 
@@ -522,6 +566,7 @@ export class App implements AfterViewInit, OnDestroy {
       this.editorOpen.set(opened);
       this.editorRows.set(opened.rows);
       this.editorSelectedIssueId.set(opened.diagnostics.at(0)?.id ?? null);
+      this.editorRouteTrack.set(await this.loadEditorRouteTrack(uploaded.id, file.name));
     } catch (err) {
       const message = messageOf(err);
       this.editorFile.set({ ...local, state: 'failed', error: message });
@@ -555,10 +600,27 @@ export class App implements AfterViewInit, OnDestroy {
     );
   }
 
+  private async loadEditorRouteTrack(id: string, name: string): Promise<RouteTrack> {
+    return {
+      id,
+      name,
+      color: RouteColors[0],
+      geojson: await this.api.track(id),
+    };
+  }
+
   private setTheme(theme: Theme): void {
     this.theme.set(theme);
     document.documentElement.dataset['theme'] = theme;
-    window.localStorage.setItem('ffmforge-theme', theme);
+    this.localStorage()?.setItem('ffmforge-theme', theme);
+  }
+
+  private localStorage(): Storage | undefined {
+    try {
+      return window.localStorage;
+    } catch {
+      return undefined;
+    }
   }
 
   private groupDevices(files: readonly UploadFileResult[]): readonly DisplayDevice[] {
@@ -654,6 +716,16 @@ export class App implements AfterViewInit, OnDestroy {
 
   protected editorFieldValue(row: EditorRecordRow, column: string): string {
     return row.fields.find((field) => field.field === column)?.value ?? '-';
+  }
+
+  protected editorRowIsSelected(row: EditorRecordRow): boolean {
+    const selected = this.editorSelectedRow();
+    return selected?.messageType === row.messageType && selected.index === row.index;
+  }
+
+  protected editorMapCanSelectRows(): boolean {
+    const type = this.editorRows()?.messageType;
+    return type === 'record' || type === 'lap';
   }
 
   private deviceKey(device: DeviceInfo): string {
@@ -819,6 +891,184 @@ export class App implements AfterViewInit, OnDestroy {
     map.resize();
   }
 
+  private renderEditorRouteTrack(track: RouteTrack | null): void {
+    const map = this.editorMap;
+    if (!map || !this.editorMapLoaded) return;
+
+    if (!track) {
+      if (this.editorRouteRendered) this.removeEditorRouteLayers();
+      this.editorRouteRendered = false;
+      return;
+    }
+
+    const source = map.getSource('editor-route');
+    if (source) {
+      source.setData(track.geojson);
+    } else {
+      map.addSource('editor-route', {
+        type: 'geojson',
+        data: track.geojson,
+      });
+    }
+
+    if (!map.getLayer('editor-route-line')) {
+      map.addLayer({
+        id: 'editor-route-line',
+        type: 'line',
+        source: 'editor-route',
+        filter: ['==', ['get', 'type'], 'track'],
+        paint: {
+          'line-color': track.color,
+          'line-opacity': 0.88,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 7, 3, 12, 6, 16, 9],
+        },
+      });
+    }
+
+    if (!map.getLayer('editor-route-points')) {
+      map.addLayer({
+        id: 'editor-route-points',
+        type: 'circle',
+        source: 'editor-route',
+        filter: ['!=', ['get', 'type'], 'track'],
+        paint: {
+          'circle-color': ['match', ['get', 'type'], 'start', '#1f9d6b', 'finish', '#e0453c', '#e0921a'],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 4, 13, 7],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
+        },
+      });
+    }
+
+    this.editorRouteRendered = true;
+    this.removeEditorSelectionLayers();
+    this.renderEditorSelectedRow(this.editorSelectedRow());
+    this.fitBoundsOnMap(map, [track.geojson], 38);
+    map.resize();
+  }
+
+  private renderEditorSelectedRow(row: EditorRecordRow | null): void {
+    const map = this.editorMap;
+    if (!map || !this.editorMapLoaded) return;
+
+    const data = this.editorSelectionGeoJson(row);
+    const source = map.getSource('editor-selected-row');
+    if (source) {
+      source.setData(data);
+    } else {
+      map.addSource('editor-selected-row', {
+        type: 'geojson',
+        data,
+      });
+    }
+
+    if (!map.getLayer('editor-selected-row-line')) {
+      map.addLayer({
+        id: 'editor-selected-row-line',
+        type: 'line',
+        source: 'editor-selected-row',
+        filter: ['==', ['geometry-type'], 'LineString'],
+        paint: {
+          'line-color': '#15181e',
+          'line-dasharray': [1.5, 1],
+          'line-opacity': 0.82,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 7, 2, 13, 4],
+        },
+      });
+    }
+
+    if (!map.getLayer('editor-selected-row-point')) {
+      map.addLayer({
+        id: 'editor-selected-row-point',
+        type: 'circle',
+        source: 'editor-selected-row',
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: {
+          'circle-color': '#15181e',
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 7, 13, 10],
+          'circle-stroke-color': '#ff6a1a',
+          'circle-stroke-width': 4,
+        },
+      });
+    }
+  }
+
+  private removeEditorRouteLayers(): void {
+    const map = this.editorMap;
+    if (!map) return;
+    this.removeEditorSelectionLayers();
+    for (const layer of ['editor-route-points', 'editor-route-line']) {
+      if (map.getLayer(layer)) map.removeLayer(layer);
+    }
+    if (map.getSource('editor-route')) map.removeSource('editor-route');
+  }
+
+  private removeEditorSelectionLayers(): void {
+    const map = this.editorMap;
+    if (!map) return;
+    for (const layer of ['editor-selected-row-point', 'editor-selected-row-line']) {
+      if (map.getLayer(layer)) map.removeLayer(layer);
+    }
+    for (const source of ['editor-selected-row']) {
+      if (map.getSource(source)) map.removeSource(source);
+    }
+  }
+
+  private editorSelectionGeoJson(row: EditorRecordRow | null): TrackGeoJson {
+    const positions = row && (row.messageType === 'record' || row.messageType === 'lap') ? this.editorRowPositions(row) : [];
+    const features: TrackFeature[] = positions.map((position, index) => ({
+      type: 'Feature',
+      properties: { type: index === 0 ? 'selected-start' : 'selected-end' },
+      geometry: { type: 'Point', coordinates: position },
+    }));
+
+    if (positions.length > 1) {
+      features.unshift({
+        type: 'Feature',
+        properties: { type: 'selected-range' },
+        geometry: { type: 'LineString', coordinates: positions },
+      });
+    }
+
+    return { type: 'FeatureCollection', features };
+  }
+
+  private editorRowPositions(row: EditorRecordRow): [number, number][] {
+    if (row.messageType === 'record') {
+      const position = this.positionFromLatLonText(row.position);
+      return position ? [position] : [];
+    }
+
+    if (row.messageType === 'lap') {
+      const start = this.positionFromNamedFields(row, 'Start latitude', 'Start longitude');
+      const end = this.positionFromNamedFields(row, 'End latitude', 'End longitude');
+      return [start, end].filter((position): position is [number, number] => position !== undefined);
+    }
+
+    return [];
+  }
+
+  private positionFromNamedFields(row: EditorRecordRow, latField: string, lonField: string): [number, number] | undefined {
+    const lat = this.numberFromField(row, latField);
+    const lon = this.numberFromField(row, lonField);
+    return lat !== undefined && lon !== undefined ? [lon, lat] : undefined;
+  }
+
+  private numberFromField(row: EditorRecordRow, fieldName: string): number | undefined {
+    const field = row.fields.find((cell) => cell.field === fieldName);
+    if (!field) return undefined;
+    const value = Number.parseFloat(field.value);
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  private positionFromLatLonText(value: string | undefined): [number, number] | undefined {
+    if (!value) return undefined;
+    const [latText, lonText] = value.split(',');
+    const lat = Number.parseFloat(latText);
+    const lon = Number.parseFloat(lonText);
+    return Number.isFinite(lat) && Number.isFinite(lon) ? [lon, lat] : undefined;
+  }
+
   private upsertRouteTrack(track: RouteTrack): void {
     const map = this.map;
     if (!map) return;
@@ -883,7 +1133,10 @@ export class App implements AfterViewInit, OnDestroy {
   private fitRouteBounds(files: readonly TrackGeoJson[]): void {
     const map = this.map;
     if (!map) return;
+    this.fitBoundsOnMap(map, files, 42);
+  }
 
+  private fitBoundsOnMap(map: MapLibreMap, files: readonly TrackGeoJson[], padding: number): void {
     const bounds = new maplibregl.LngLatBounds();
     for (const file of files) {
       for (const feature of file.features) {
@@ -891,7 +1144,7 @@ export class App implements AfterViewInit, OnDestroy {
       }
     }
     if (!bounds.isEmpty()) {
-      map.fitBounds(bounds, { padding: 42, maxZoom: 14, duration: 500 });
+      map.fitBounds(bounds, { padding, maxZoom: 14, duration: 500 });
     }
   }
 
