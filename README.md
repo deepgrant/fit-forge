@@ -292,9 +292,10 @@ files out of commits unless they are intentionally scrubbed/test-safe.
 
 - Frontend map rendering uses MapLibre GL JS 5.24.0 loaded at runtime and the
   OpenFreeMap Liberty style at `https://tiles.openfreemap.org/styles/liberty`.
-- Angular asset versioning is handled by hashed bundle filenames.
-- A future SPA version check can poll `version.json` and prompt users to refresh
-  when a new frontend is available.
+- Angular asset versioning is handled by hashed bundle filenames. Gradle also
+  stamps `version.json` in the deployable frontend artifact with an epoch-millis
+  version so the running SPA can detect a newly published frontend and prompt
+  for reload.
 - FIT processing uses Garmin's official Java SDK behind the FFMForge codec
   facade.
 
