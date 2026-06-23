@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, computed, effect, inject, signal } from '@angular/core';
 
-import { FfmForgeApi, messageOf } from './api-client';
+import { FfmForgeApi, isSessionExpired, messageOf } from './api-client';
 import { distance, duration, fileSize, power, speed, temp, timeRange } from './format';
 import type {
   DeviceInfo,
@@ -24,12 +24,14 @@ type LapStrategy = 'OnePerSegment' | 'KeepOriginal';
 type WorkspaceView = 'merge' | 'editor';
 type EditorRowsDirection = 'previous' | 'next';
 type EditorRowsBusy = EditorRowsDirection | 'message';
+type ReloadDialogKind = 'version' | 'session';
 
 const RouteColors = ['#ff6a1a', '#1f9d6b', '#2f80ed', '#e0453c', '#8b5cf6', '#e0921a', '#008ea8', '#c026d3'];
 const OpenFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
 const MapLibreCssUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css';
 const MapLibreScriptUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js';
 const EditorRowsEdgePx = 36;
+const VersionPollMs = 60_000;
 
 interface GeoJsonSource {
   setData(data: unknown): void;
@@ -76,6 +78,12 @@ interface DisplayDevice {
   readonly occurrenceCount: number;
 }
 
+interface ReloadDialog {
+  readonly kind: ReloadDialogKind;
+  readonly title: string;
+  readonly body: string;
+}
+
 declare const maplibregl: MapLibreGlobal;
 
 declare global {
@@ -101,6 +109,11 @@ export class App implements AfterViewInit, OnDestroy {
   private renderedRouteIds = new Set<string>();
   private editorRouteRendered = false;
   private editorRowsLoadInFlight = false;
+  private currentFrontendVersion?: string;
+  private versionPollId?: ReturnType<typeof window.setInterval>;
+  private readonly checkVersionOnFocus = (): void => {
+    void this.checkFrontendVersion();
+  };
 
   @ViewChild('mapHost') private mapHost?: ElementRef<HTMLDivElement>;
   @ViewChild('editorMapHost') private editorMapHost?: ElementRef<HTMLDivElement>;
@@ -126,6 +139,7 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly editorExport = signal<ExportRepairResponse | null>(null);
   protected readonly editorRouteTrack = signal<RouteTrack | null>(null);
   protected readonly editorSelectedRow = signal<EditorRecordRow | null>(null);
+  protected readonly reloadDialog = signal<ReloadDialog | null>(null);
 
   protected readonly readyIds = computed(() =>
     this.segments()
@@ -182,18 +196,21 @@ export class App implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     void this.initializeMap();
+    this.startVersionMonitor();
   }
 
   ngOnDestroy(): void {
     this.map?.remove();
     this.editorMap?.remove();
+    if (this.versionPollId !== undefined) window.clearInterval(this.versionPollId);
+    window.removeEventListener('focus', this.checkVersionOnFocus);
   }
 
   private async initializeMap(): Promise<void> {
     try {
       await this.loadMapLibre();
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
       return;
     }
 
@@ -291,7 +308,7 @@ export class App implements AfterViewInit, OnDestroy {
       this.dryRun.set(await this.api.merge(this.readyIds(), true, this.lapStrategy()));
       this.merged.set(null);
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
     } finally {
       this.busy.set(null);
     }
@@ -310,7 +327,7 @@ export class App implements AfterViewInit, OnDestroy {
         window.location.assign(download.url);
       }
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
     } finally {
       this.busy.set(null);
     }
@@ -339,7 +356,7 @@ export class App implements AfterViewInit, OnDestroy {
       this.editorRows.set(await this.api.editorRows(open.id, messageType, 0, 80));
       this.editorSelectedRow.set(null);
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
     } finally {
       this.busy.set(null);
       this.editorRowsBusy.set(null);
@@ -392,7 +409,7 @@ export class App implements AfterViewInit, OnDestroy {
         });
       }
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
     } finally {
       this.editorRowsBusy.set(null);
       this.editorRowsLoadInFlight = false;
@@ -471,7 +488,7 @@ export class App implements AfterViewInit, OnDestroy {
       this.editorPreview.set(await this.api.editorRepairPreview(open.id, this.editorOperations()));
       this.editorExport.set(null);
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
     } finally {
       this.busy.set(null);
     }
@@ -489,7 +506,7 @@ export class App implements AfterViewInit, OnDestroy {
       const download = await this.api.download(exported.id);
       window.location.assign(download.url);
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
     } finally {
       this.busy.set(null);
     }
@@ -528,7 +545,7 @@ export class App implements AfterViewInit, OnDestroy {
           additions.some((addition) => addition.localId === segment.localId) ? { ...segment, state: 'failed', error: message } : segment,
         ),
       );
-      this.error.set(message);
+      this.handleError(err);
     } finally {
       this.busy.set(null);
     }
@@ -576,7 +593,7 @@ export class App implements AfterViewInit, OnDestroy {
     } catch (err) {
       const message = messageOf(err);
       this.editorFile.set({ ...local, state: 'failed', error: message });
-      this.error.set(message);
+      this.handleError(err);
     } finally {
       this.busy.set(null);
     }
@@ -619,6 +636,98 @@ export class App implements AfterViewInit, OnDestroy {
     this.theme.set(theme);
     document.documentElement.dataset['theme'] = theme;
     this.localStorage()?.setItem('ffmforge-theme', theme);
+  }
+
+  protected reloadApplication(): void {
+    window.location.reload();
+  }
+
+  private handleError(err: unknown): void {
+    if (isSessionExpired(err)) {
+      this.showReloadDialog('session');
+    } else {
+      this.error.set(messageOf(err));
+    }
+  }
+
+  private startVersionMonitor(): void {
+    void this.checkFrontendVersion();
+    this.versionPollId = window.setInterval(() => {
+      void this.checkFrontendVersion();
+    }, VersionPollMs);
+    window.addEventListener('focus', this.checkVersionOnFocus);
+  }
+
+  private async checkFrontendVersion(): Promise<void> {
+    if (this.reloadDialog()) return;
+
+    const version = await this.frontendVersion();
+    if (version !== undefined) {
+      if (this.currentFrontendVersion === undefined) {
+        this.currentFrontendVersion = version;
+      } else if (version !== this.currentFrontendVersion) {
+        this.showReloadDialog('version');
+        return;
+      }
+    }
+
+    await this.checkActiveSession();
+  }
+
+  private async frontendVersion(): Promise<string | undefined> {
+    if (typeof fetch !== 'function') return undefined;
+
+    try {
+      const response = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+      if (!response.ok) return undefined;
+      const body = (await response.json()) as unknown;
+      if (typeof body !== 'object' || body === null) return undefined;
+      const fields = body as Record<string, unknown>;
+      return [fields['name'], fields['version'], fields['status']].map((field) => String(field ?? '')).join(':');
+    } catch {
+      return undefined;
+    }
+  }
+
+  private showReloadDialog(kind: ReloadDialogKind): void {
+    if (this.reloadDialog()) return;
+    this.busy.set(null);
+    this.editorRowsBusy.set(null);
+    this.reloadDialog.set(
+      kind === 'version'
+        ? {
+            kind,
+            title: 'FFMForge has been updated',
+            body: 'A newer version of the service is available. Reload to use the current frontend and API together.',
+          }
+        : {
+            kind,
+            title: 'Session expired',
+            body: 'The temporary FIT files for this workspace have expired. Reload and upload the files again to continue.',
+          },
+    );
+  }
+
+  private async checkActiveSession(): Promise<void> {
+    const ids = this.activeSessionIds();
+    if (ids.length === 0 || this.reloadDialog()) return;
+
+    try {
+      await this.api.describe(ids);
+    } catch (err) {
+      this.handleError(err);
+    }
+  }
+
+  private activeSessionIds(): string[] {
+    return Array.from(
+      new Set(
+        [
+          ...this.readyIds(),
+          this.editorFile()?.remoteId,
+        ].filter((id): id is string => id !== undefined),
+      ),
+    );
   }
 
   private localStorage(): Storage | undefined {

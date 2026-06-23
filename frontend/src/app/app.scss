@@ -10,6 +10,65 @@
     var(--ff-bg);
 }
 
+.app-shell.reload-blocked .topbar,
+.app-shell.reload-blocked .workspace,
+.app-shell.reload-blocked .app-footer {
+  filter: grayscale(0.75);
+  opacity: 0.34;
+  pointer-events: none;
+  user-select: none;
+}
+
+.reload-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: color-mix(in srgb, var(--ff-bg), transparent 18%);
+  backdrop-filter: blur(2px);
+}
+
+.reload-dialog {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 91;
+  width: min(430px, calc(100vw - 34px));
+  display: grid;
+  gap: 16px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--ff-border);
+  border-radius: 14px;
+  padding: 20px;
+  color: var(--ff-text);
+  background: var(--ff-card);
+  box-shadow: var(--ff-shadow);
+}
+
+.reload-dialog h2 {
+  margin-bottom: 8px;
+}
+
+.reload-dialog p:not(.panel-kicker) {
+  color: var(--ff-text-2);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.reload-mark {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: #1a1206;
+  background: var(--ff-orange);
+}
+
+.reload-mark svg {
+  width: 25px;
+  height: 25px;
+}
+
 .app-footer {
   width: min(1440px, 100%);
   margin: 0 auto;

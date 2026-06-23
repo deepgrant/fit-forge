@@ -314,3 +314,10 @@ export function messageOf(err: unknown): string {
   if (err instanceof Error) return err.message;
   return 'Unknown error';
 }
+
+export function isSessionExpired(err: unknown): boolean {
+  if (err instanceof HttpErrorResponse) {
+    return err.status === 410 || messageOf(err).toLowerCase().includes('session expired');
+  }
+  return messageOf(err).toLowerCase().includes('session expired');
+}
