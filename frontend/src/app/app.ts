@@ -31,7 +31,7 @@ const OpenFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
 const MapLibreCssUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css';
 const MapLibreScriptUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js';
 const EditorRowsEdgePx = 36;
-const VersionPollMs = 60_000;
+const VersionPollMs = 60 * 60 * 1000;
 
 interface GeoJsonSource {
   setData(data: unknown): void;
