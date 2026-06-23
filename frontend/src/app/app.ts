@@ -139,6 +139,7 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly editorExport = signal<ExportRepairResponse | null>(null);
   protected readonly editorRouteTrack = signal<RouteTrack | null>(null);
   protected readonly editorSelectedRow = signal<EditorRecordRow | null>(null);
+  protected readonly editorIssueMapBusy = signal(false);
   protected readonly reloadDialog = signal<ReloadDialog | null>(null);
 
   protected readonly readyIds = computed(() =>
@@ -457,12 +458,15 @@ export class App implements AfterViewInit, OnDestroy {
     return table.scrollTop + table.clientHeight >= table.scrollHeight - EditorRowsEdgePx;
   }
 
-  protected selectEditorIssue(issue: DiagnosticIssue): void {
+  protected async selectEditorIssue(issue: DiagnosticIssue): Promise<void> {
     this.editorSelectedIssueId.set(issue.id);
+    this.editorSelectedRow.set(null);
+    await this.showIssueOnEditorMap(issue);
   }
 
   protected selectEditorRow(row: EditorRecordRow): void {
     this.editorSelectedRow.set(row);
+    this.renderEditorIssueSelection(this.emptyGeoJson());
   }
 
   protected stageSuggestedRepair(issue: DiagnosticIssue | undefined): void {
@@ -572,6 +576,7 @@ export class App implements AfterViewInit, OnDestroy {
     this.editorExport.set(null);
     this.editorRouteTrack.set(null);
     this.editorSelectedRow.set(null);
+    this.editorIssueMapBusy.set(false);
     this.busy.set('Uploading FIT file for editor');
     this.error.set(null);
 
@@ -693,6 +698,7 @@ export class App implements AfterViewInit, OnDestroy {
     if (this.reloadDialog()) return;
     this.busy.set(null);
     this.editorRowsBusy.set(null);
+    this.editorIssueMapBusy.set(false);
     this.reloadDialog.set(
       kind === 'version'
         ? {
@@ -1069,6 +1075,7 @@ export class App implements AfterViewInit, OnDestroy {
     this.editorRouteRendered = true;
     this.removeEditorSelectionLayers();
     this.renderEditorSelectedRow(this.editorSelectedRow());
+    this.renderEditorIssueSelection(this.emptyGeoJson());
     this.fitBoundsOnMap(map, [track.geojson], 38);
     map.resize();
   }
@@ -1119,6 +1126,75 @@ export class App implements AfterViewInit, OnDestroy {
     }
   }
 
+  private async showIssueOnEditorMap(issue: DiagnosticIssue): Promise<void> {
+    const open = this.editorOpen();
+    if (!open || issue.messageType !== 'record') {
+      this.renderEditorIssueSelection(this.emptyGeoJson());
+      return;
+    }
+
+    const offset = Math.max(0, issue.startIndex - 8);
+    const limit = Math.min(250, issue.endIndex - offset + 10);
+    this.editorIssueMapBusy.set(true);
+    try {
+      const rows = await this.api.editorRows(open.id, issue.messageType, offset, limit);
+      this.renderEditorIssueSelection(this.issueSelectionGeoJson(issue, rows.rows));
+    } catch (err) {
+      this.handleError(err);
+    } finally {
+      this.editorIssueMapBusy.set(false);
+    }
+  }
+
+  private renderEditorIssueSelection(data: TrackGeoJson): void {
+    const map = this.editorMap;
+    if (!map || !this.editorMapLoaded) return;
+
+    const source = map.getSource('editor-issue-selection');
+    if (source) {
+      source.setData(data);
+    } else {
+      map.addSource('editor-issue-selection', {
+        type: 'geojson',
+        data,
+      });
+    }
+
+    if (!map.getLayer('editor-issue-selection-line')) {
+      map.addLayer({
+        id: 'editor-issue-selection-line',
+        type: 'line',
+        source: 'editor-issue-selection',
+        filter: ['==', ['geometry-type'], 'LineString'],
+        paint: {
+          'line-color': '#e0921a',
+          'line-dasharray': [1, 1.2],
+          'line-opacity': 0.9,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 7, 3, 13, 5],
+        },
+      });
+    }
+
+    if (!map.getLayer('editor-issue-selection-point')) {
+      map.addLayer({
+        id: 'editor-issue-selection-point',
+        type: 'circle',
+        source: 'editor-issue-selection',
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: {
+          'circle-color': '#e0921a',
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 8, 13, 12],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 3,
+        },
+      });
+    }
+
+    if (data.features.length > 0) {
+      this.fitBoundsOnMap(map, [data], 54);
+    }
+  }
+
   private removeEditorRouteLayers(): void {
     const map = this.editorMap;
     if (!map) return;
@@ -1132,12 +1208,65 @@ export class App implements AfterViewInit, OnDestroy {
   private removeEditorSelectionLayers(): void {
     const map = this.editorMap;
     if (!map) return;
-    for (const layer of ['editor-selected-row-point', 'editor-selected-row-line']) {
+    for (const layer of ['editor-issue-selection-point', 'editor-issue-selection-line', 'editor-selected-row-point', 'editor-selected-row-line']) {
       if (map.getLayer(layer)) map.removeLayer(layer);
     }
-    for (const source of ['editor-selected-row']) {
+    for (const source of ['editor-issue-selection', 'editor-selected-row']) {
       if (map.getSource(source)) map.removeSource(source);
     }
+  }
+
+  private issueSelectionGeoJson(issue: DiagnosticIssue, rows: readonly EditorRecordRow[]): TrackGeoJson {
+    const issueRows = rows.filter((row) => row.index >= issue.startIndex && row.index <= issue.endIndex);
+    const exactPositions = issueRows.flatMap((row) => this.editorRowPositions(row));
+    if (exactPositions.length > 0) {
+      return this.positionsGeoJson(exactPositions, exactPositions.length > 1);
+    }
+
+    const before = rows
+      .filter((row) => row.index < issue.startIndex)
+      .reverse()
+      .flatMap((row) => this.editorRowPositions(row))
+      .at(0);
+    const after = rows
+      .filter((row) => row.index > issue.endIndex)
+      .flatMap((row) => this.editorRowPositions(row))
+      .at(0);
+
+    if (before && after) {
+      return this.positionsGeoJson([this.midpoint(before, after), before, after], true);
+    }
+
+    const fallback = before ?? after;
+    return fallback ? this.positionsGeoJson([fallback], false) : this.emptyGeoJson();
+  }
+
+  private positionsGeoJson(positions: readonly [number, number][], includeLine: boolean): TrackGeoJson {
+    const pointPositions = includeLine && positions.length > 2 ? positions.slice(0, 1) : positions;
+    const features: TrackFeature[] = pointPositions.map((position) => ({
+      type: 'Feature',
+      properties: { type: 'issue' },
+      geometry: { type: 'Point', coordinates: position },
+    }));
+
+    const linePositions = includeLine && positions.length > 1 ? (positions.length > 2 ? positions.slice(1) : positions) : [];
+    if (linePositions.length > 1) {
+      features.unshift({
+        type: 'Feature',
+        properties: { type: 'issue-range' },
+        geometry: { type: 'LineString', coordinates: linePositions },
+      });
+    }
+
+    return { type: 'FeatureCollection', features };
+  }
+
+  private midpoint(a: [number, number], b: [number, number]): [number, number] {
+    return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  }
+
+  private emptyGeoJson(): TrackGeoJson {
+    return { type: 'FeatureCollection', features: [] };
   }
 
   private editorSelectionGeoJson(row: EditorRecordRow | null): TrackGeoJson {
