@@ -346,7 +346,13 @@
           @if (editorOpen(); as opened) {
             <div class="anatomy-list">
               @for (group of opened.anatomy; track group.name) {
-                <button type="button" class="anatomy-row" [class.active]="editorMessageType() === group.name" (click)="selectEditorMessageType(group.name)">
+                <button
+                  type="button"
+                  class="anatomy-row"
+                  [class.active]="editorMessageType() === group.name"
+                  [class.map-row]="editorMessageTypeIsMappable(group.name)"
+                  (click)="selectEditorMessageType(group.name)"
+                >
                   <span>{{ group.name }}</span>
                   <span>
                     {{ group.count }}
@@ -416,10 +422,6 @@
             <div #editorMapHost class="map-host" aria-label="Editor route context map"></div>
             @if (!editorRouteTrack()) {
               <div class="map-empty">Upload a FIT file with GPS data to draw its route.</div>
-            } @else if (!editorSelectedRow() && editorMapCanSelectRows()) {
-              <div class="map-empty">Select a record or lap row to mark it on the route.</div>
-            } @else if (!editorMapCanSelectRows()) {
-              <div class="map-empty">Switch to record or lap messages to mark table rows.</div>
             }
           </div>
         </section>

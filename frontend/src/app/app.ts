@@ -563,8 +563,14 @@ export class App implements AfterViewInit, OnDestroy {
       if (!uploaded) throw new Error('Upload did not return a file id.');
       this.editorFile.set({ ...local, state: 'ready', remoteId: uploaded.id });
       const opened = await this.api.editorOpen(uploaded.id);
+      const defaultMessageType = this.defaultEditorMessageType(opened);
       this.editorOpen.set(opened);
-      this.editorRows.set(opened.rows);
+      this.editorMessageType.set(defaultMessageType);
+      this.editorRows.set(
+        defaultMessageType === opened.rows.messageType
+          ? opened.rows
+          : await this.api.editorRows(uploaded.id, defaultMessageType, 0, 80),
+      );
       this.editorSelectedIssueId.set(opened.diagnostics.at(0)?.id ?? null);
       this.editorRouteTrack.set(await this.loadEditorRouteTrack(uploaded.id, file.name));
     } catch (err) {
@@ -725,7 +731,18 @@ export class App implements AfterViewInit, OnDestroy {
 
   protected editorMapCanSelectRows(): boolean {
     const type = this.editorRows()?.messageType;
-    return type === 'record' || type === 'lap';
+    return type !== undefined && this.editorMessageTypeIsMappable(type);
+  }
+
+  protected editorMessageTypeIsMappable(messageType: string): boolean {
+    return messageType === 'record' || messageType === 'lap';
+  }
+
+  private defaultEditorMessageType(opened: EditorOpenResponse): string {
+    const messageTypes = opened.anatomy.filter((group) => group.count > 0).map((group) => group.name);
+    if (messageTypes.includes('record')) return 'record';
+    if (messageTypes.includes('lap')) return 'lap';
+    return messageTypes.at(0) ?? 'record';
   }
 
   private deviceKey(device: DeviceInfo): string {

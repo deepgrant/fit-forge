@@ -805,6 +805,33 @@ select {
   background: color-mix(in srgb, var(--ff-orange), transparent 91%);
 }
 
+.anatomy-row.map-row {
+  border-color: color-mix(in srgb, var(--ff-active), transparent 36%);
+  background: color-mix(in srgb, var(--ff-active), transparent 92%);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ff-active), transparent 58%);
+  animation: map-row-pulse 2.8s ease-in-out infinite;
+}
+
+.anatomy-row.map-row span:last-child {
+  color: color-mix(in srgb, var(--ff-active), var(--ff-text) 24%);
+}
+
+.anatomy-row.map-row.active {
+  border-color: color-mix(in srgb, var(--ff-active), transparent 12%);
+  background: color-mix(in srgb, var(--ff-active), transparent 84%);
+}
+
+@keyframes map-row-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ff-active), transparent 72%);
+  }
+
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ff-active), transparent 86%);
+  }
+}
+
 .editor-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -875,7 +902,8 @@ select {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .table-busy-mark {
+  .table-busy-mark,
+  .anatomy-row.map-row {
     animation: none;
   }
 }
