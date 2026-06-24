@@ -418,7 +418,7 @@
             }
           </div>
 
-          <div class="map-shell editor-map-shell">
+          <div class="map-shell editor-map-shell" [class.selectable]="editorCanPickRecordFromMap()">
             <div #editorMapHost class="map-host" aria-label="Editor route context map"></div>
             @if (!editorRouteTrack()) {
               <div class="map-empty">Upload a FIT file with GPS data to draw its route.</div>
@@ -445,7 +445,7 @@
             </div>
 
             @if (editorRows(); as rows) {
-              <div class="editor-record-table" role="table" aria-label="Editor record rows" (scroll)="onEditorTableScroll($event)" (wheel)="onEditorTableWheel($event)">
+              <div #editorRecordTable class="editor-record-table" role="table" aria-label="Editor record rows" (scroll)="onEditorTableScroll($event)" (wheel)="onEditorTableWheel($event)">
                 @if (rows.messageType === 'record') {
                   <div class="editor-row editor-row-head" role="row">
                     <span>#</span>
