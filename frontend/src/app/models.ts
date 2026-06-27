@@ -1,4 +1,5 @@
 export type UploadState = 'queued' | 'uploading' | 'ready' | 'failed';
+export type DownloadFormat = 'fit' | 'gpx';
 
 export interface SegmentFile {
   readonly localId: string;
@@ -86,6 +87,8 @@ export interface DownloadUrlResponse {
   readonly id: string;
   readonly url: string;
   readonly expiresAt: string;
+  readonly format: DownloadFormat;
+  readonly filename: string;
 }
 
 export type TrackGeometryType = 'LineString' | 'Point';

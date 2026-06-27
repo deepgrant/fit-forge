@@ -10,6 +10,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
 
+import ffmforge.DownloadFormat
 import org.apache.pekko.http.scaladsl.model.StatusCodes
 import software.amazon.awssdk.core.ResponseBytes
 import software.amazon.awssdk.core.sync.RequestBody
@@ -34,7 +35,12 @@ final class S3FitStore(bucket: String, client: S3Client, presigner: S3Presigner,
     ec: ExecutionContext
 ) extends FitStore {
 
-  private def keyFor(id: String): String         = s"fit/$id"
+  private def keyFor(id: String, format: DownloadFormat = DownloadFormat.Fit): String =
+    format match {
+      case DownloadFormat.Fit => s"fit/$id"
+      case DownloadFormat.Gpx => s"gpx/$id"
+    }
+
   private def expiryMs(id: String): Option[Long] = id.takeWhile(_ != '_').toLongOption
 
   def createUpload(ttl: FiniteDuration, presignTtl: FiniteDuration): Future[PresignedUpload] = Future {
@@ -66,6 +72,25 @@ final class S3FitStore(bucket: String, client: S3Client, presigner: S3Presigner,
     }
   }
 
+  def putDerived(id: String, format: DownloadFormat, bytes: Array[Byte]): Future[Either[StoreError, Unit]] = Future {
+    blocking {
+      ifExpired(id) match {
+        case Some(err) => Left(err)
+        case None =>
+          client.putObject(
+            PutObjectRequest
+              .builder()
+              .bucket(bucket)
+              .key(keyFor(id, format))
+              .contentType(format.contentType)
+              .build(),
+            RequestBody.fromBytes(bytes),
+          )
+          Right(())
+      }
+    }
+  }
+
   def get(id: String): Future[Either[StoreError, Array[Byte]]] = Future {
     blocking {
       ifExpired(id) match {
@@ -83,22 +108,29 @@ final class S3FitStore(bucket: String, client: S3Client, presigner: S3Presigner,
     }
   }
 
-  def createDownload(id: String, presignTtl: FiniteDuration): Future[Either[StoreError, PresignedDownload]] = Future {
+  def createDownload(
+      id: String,
+      format: DownloadFormat,
+      presignTtl: FiniteDuration,
+  ): Future[Either[StoreError, PresignedDownload]] = Future {
     blocking {
       ifExpired(id) match {
         case Some(err) => Left(err)
         case None =>
           try {
+            val key      = keyFor(id, format)
+            val filename = s"$id.${format.extension}"
             client.headObject { r =>
               r.bucket(bucket)
-              r.key(keyFor(id))
+              r.key(key)
               ()
             }
             val get = GetObjectRequest
               .builder()
               .bucket(bucket)
-              .key(keyFor(id))
-              .responseContentDisposition(s"""attachment; filename="$id.fit"""")
+              .key(key)
+              .responseContentDisposition(s"""attachment; filename="$filename"""")
+              .responseContentType(format.contentType)
               .build()
             val req = GetObjectPresignRequest
               .builder()
@@ -110,6 +142,8 @@ final class S3FitStore(bucket: String, client: S3Client, presigner: S3Presigner,
                 id,
                 presigner.presignGetObject(req).url().toString,
                 clock().plusMillis(presignTtl.toMillis),
+                format,
+                filename,
               )
             )
           } catch {
@@ -122,24 +156,14 @@ final class S3FitStore(bucket: String, client: S3Client, presigner: S3Presigner,
 
   def delete(id: String): Future[Unit] = Future {
     blocking {
-      val _ = client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(keyFor(id)).build())
+      deleteAllFormats(id)
     }
   }
 
   def sweepExpired(): Future[Int] = Future {
     blocking {
       val nowMs = clock().toEpochMilli
-      client
-        .listObjectsV2Paginator(ListObjectsV2Request.builder().bucket(bucket).prefix("fit/").build())
-        .contents()
-        .asScala
-        .map(_.key())
-        .filter(k => expiryMs(k.stripPrefix("fit/")).exists(_ < nowMs))
-        .map { key =>
-          client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build())
-          1
-        }
-        .sum
+      Vector("fit/", "gpx/").map(prefix => sweepExpiredPrefix(prefix, nowMs)).sum
     }
   }
 
@@ -150,11 +174,29 @@ final class S3FitStore(bucket: String, client: S3Client, presigner: S3Presigner,
     expiryMs(id) match {
       case None => Some(StoreError.NotFound)
       case Some(exp) if clock().toEpochMilli > exp =>
-        try client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(keyFor(id)).build())
+        try deleteAllFormats(id)
         catch { case NonFatal(_) => () }
         Some(StoreError.Expired)
       case Some(_) => None
     }
+
+  private def deleteAllFormats(id: String): Unit =
+    DownloadFormat.values.foreach(format =>
+      client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(keyFor(id, format)).build())
+    )
+
+  private def sweepExpiredPrefix(prefix: String, nowMs: Long): Int =
+    client
+      .listObjectsV2Paginator(ListObjectsV2Request.builder().bucket(bucket).prefix(prefix).build())
+      .contents()
+      .asScala
+      .map(_.key())
+      .filter(k => expiryMs(k.stripPrefix(prefix)).exists(_ < nowMs))
+      .map { key =>
+        client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build())
+        1
+      }
+      .sum
 }
 
 object S3FitStore {

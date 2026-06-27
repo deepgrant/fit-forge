@@ -5,6 +5,7 @@ import { distance, duration, fileSize, power, speed, temp, timeRange } from './f
 import type {
   DeviceInfo,
   DiagnosticIssue,
+  DownloadFormat,
   EditorOpenResponse,
   EditorRecordRow,
   EditorRowsResponse,
@@ -151,6 +152,8 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly dryRun = signal<MergeResponse | null>(null);
   protected readonly merged = signal<MergeResponse | null>(null);
   protected readonly lapStrategy = signal<LapStrategy>('OnePerSegment');
+  protected readonly mergeDownloadFormat = signal<DownloadFormat>('fit');
+  protected readonly editorDownloadFormat = signal<DownloadFormat>('fit');
   protected readonly busy = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly editorFile = signal<SegmentFile | null>(null);
@@ -303,6 +306,18 @@ export class App implements AfterViewInit, OnDestroy {
     this.merged.set(null);
   }
 
+  protected setMergeDownloadFormat(format: DownloadFormat): void {
+    this.mergeDownloadFormat.set(format);
+  }
+
+  protected setEditorDownloadFormat(format: DownloadFormat): void {
+    this.editorDownloadFormat.set(format);
+  }
+
+  protected downloadFormatLabel(format: DownloadFormat): string {
+    return format.toUpperCase();
+  }
+
   protected toggleTheme(): void {
     this.setTheme(this.theme() === 'dark' ? 'light' : 'dark');
   }
@@ -358,7 +373,7 @@ export class App implements AfterViewInit, OnDestroy {
       this.merged.set(merged);
       this.dryRun.set(merged);
       if (merged.id) {
-        const download = await this.api.download(merged.id);
+        const download = await this.api.download(merged.id, this.mergeDownloadFormat());
         window.location.assign(download.url);
       }
     } catch (err) {
@@ -541,7 +556,7 @@ export class App implements AfterViewInit, OnDestroy {
       const exported = await this.api.editorExport(open.id, this.editorOperations());
       this.editorExport.set(exported);
       this.editorPreview.set(exported.preview);
-      const download = await this.api.download(exported.id);
+      const download = await this.api.download(exported.id, this.editorDownloadFormat());
       window.location.assign(download.url);
     } catch (err) {
       this.handleError(err);

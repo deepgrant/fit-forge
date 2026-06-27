@@ -3,6 +3,7 @@ package ffmforge.lambda
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
+import ffmforge.DownloadFormat
 import ffmforge.FFMForgeConfig
 import ffmforge.fit.FitCodec
 import ffmforge.fit.FitFile
@@ -40,9 +41,15 @@ private final class UnusedStore extends FitStore {
     Future.failed(new UnsupportedOperationException("unused"))
   def put(bytes: Array[Byte], ttl: FiniteDuration): Future[String] =
     Future.failed(new UnsupportedOperationException("unused"))
+  def putDerived(id: String, format: DownloadFormat, bytes: Array[Byte]): Future[Either[StoreError, Unit]] =
+    Future.failed(new UnsupportedOperationException("unused"))
   def get(id: String): Future[Either[StoreError, Array[Byte]]] =
     Future.failed(new UnsupportedOperationException("unused"))
-  def createDownload(id: String, presignTtl: FiniteDuration): Future[Either[StoreError, PresignedDownload]] =
+  def createDownload(
+      id: String,
+      format: DownloadFormat,
+      presignTtl: FiniteDuration,
+  ): Future[Either[StoreError, PresignedDownload]] =
     Future.failed(new UnsupportedOperationException("unused"))
   def delete(id: String): Future[Unit] =
     Future.failed(new UnsupportedOperationException("unused"))

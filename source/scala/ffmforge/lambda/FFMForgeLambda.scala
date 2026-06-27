@@ -2,6 +2,7 @@ package ffmforge.lambda
 
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.Base64
@@ -16,6 +17,7 @@ import scala.util.Try
 
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler
+import ffmforge.DownloadFormat
 import ffmforge.FFMForgeConfig
 import ffmforge.fit.ExportRepairResponse
 import ffmforge.fit.FitCodec
@@ -29,6 +31,8 @@ import ffmforge.fit.GarminFitCodec
 import ffmforge.fit.LapStrategy
 import ffmforge.fit.MergeOptions
 import ffmforge.fit.MergeOutcome
+import ffmforge.gpx.FitToGpx
+import ffmforge.gpx.GpxXmlWriter
 import ffmforge.http.ApiError
 import ffmforge.http.CodecDemoRequest
 import ffmforge.http.DescribeRequest
@@ -151,10 +155,7 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
       responseWithFile(id)(JsonProtocol.trackGeoJson)
 
     case ("GET", DownloadPath(id)) =>
-      await(store.createDownload(id, config.presignTtl)) match {
-        case Right(d)  => response(StatusCodes.OK, DownloadUrlResponse(d.id, d.url, d.expiresAt).toJson)
-        case Left(err) => responseStoreError(err)
-      }
+      responseDownload(id, downloadFormat(event))
 
     case _ => response(StatusCodes.NotFound, ApiError(s"No route for ${event.method} ${event.path}").toJson)
   }
@@ -202,6 +203,38 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
       }
     }
 
+  private def responseDownload(id: String, format: Either[String, DownloadFormat]): String =
+    format match {
+      case Left(message) => response(StatusCodes.UnprocessableContent, ApiError(message).toJson)
+      case Right(DownloadFormat.Fit) =>
+        await(store.createDownload(id, DownloadFormat.Fit, config.presignTtl)) match {
+          case Right(d) =>
+            response(StatusCodes.OK, DownloadUrlResponse(d.id, d.url, d.expiresAt, d.format, d.filename).toJson)
+          case Left(err) => responseStoreError(err)
+        }
+      case Right(DownloadFormat.Gpx) =>
+        readFile(id) match {
+          case Right(file) =>
+            val gpxBytes = GpxXmlWriter.writeBytes(FitToGpx.convert(file))
+            await(store.putDerived(id, DownloadFormat.Gpx, gpxBytes)) match {
+              case Right(()) =>
+                await(store.createDownload(id, DownloadFormat.Gpx, config.presignTtl)) match {
+                  case Right(d) =>
+                    response(StatusCodes.OK, DownloadUrlResponse(d.id, d.url, d.expiresAt, d.format, d.filename).toJson)
+                  case Left(err) => responseStoreError(err)
+                }
+              case Left(err) => responseStoreError(err)
+            }
+          case Left((status, err)) => response(status, err.toJson)
+        }
+    }
+
+  private def downloadFormat(event: LambdaEvent): Either[String, DownloadFormat] =
+    event.query.get("format") match {
+      case None        => Right(DownloadFormat.Default)
+      case Some(value) => DownloadFormat.fromWireName(value).toRight(s"Unsupported download format '$value'")
+    }
+
   private def responseWithFile(id: String)(f: FitFile => JsValue): String =
     readFile(id) match {
       case Right(file)         => response(StatusCodes.OK, f(file))
@@ -243,8 +276,36 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
       .getOrElse("GET")
     val isBase64 = fields.get("isBase64Encoded").collect { case JsBoolean(b) => b }.getOrElse(false)
     val body     = fields.get("body").collect { case JsString(s) => s }.getOrElse("")
-    LambdaEvent(method, path, decodeBody(body, isBase64))
+    LambdaEvent(method, path, queryParams(fields), decodeBody(body, isBase64))
   }
+
+  private def queryParams(fields: Map[String, JsValue]): Map[String, String] = {
+    val fromObject = fields
+      .get("queryStringParameters")
+      .collect { case obj: JsObject =>
+        obj.fields.collect { case (key, JsString(value)) => key -> value }
+      }
+      .getOrElse(Map.empty)
+    val fromRaw = fields
+      .get("rawQueryString")
+      .collect { case JsString(value) => parseRawQuery(value) }
+      .getOrElse(Map.empty)
+    fromRaw ++ fromObject
+  }
+
+  private def parseRawQuery(value: String): Map[String, String] =
+    value
+      .split("&")
+      .toVector
+      .filter(_.nonEmpty)
+      .flatMap { pair =>
+        val parts = pair.split("=", 2)
+        parts.headOption.map(key => decodeQueryPart(key) -> parts.lift(1).map(decodeQueryPart).getOrElse(""))
+      }
+      .toMap
+
+  private def decodeQueryPart(value: String): String =
+    URLDecoder.decode(value, StandardCharsets.UTF_8)
 
   private def decodeBody(body: String, isBase64: Boolean): String =
     if (isBase64) String(Base64.getDecoder.decode(body), StandardCharsets.UTF_8) else body
@@ -265,7 +326,7 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
   private def await[A](f: Future[A]): A = Await.result(f, 60.seconds)
 }
 
-final case class LambdaEvent(method: String, path: String, body: String) {
+final case class LambdaEvent(method: String, path: String, query: Map[String, String], body: String) {
   def bodyJson: JsValue =
     if (body.trim.isEmpty) JsObject.empty else body.parseJson
 }

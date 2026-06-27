@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
+import ffmforge.DownloadFormat
 import ffmforge.FFMForgeConfig
 import ffmforge.fit.CodecDemoReport
 import ffmforge.fit.EditorOpenResponse
@@ -104,6 +105,15 @@ final class FFMForgeLambdaSpec extends AnyFunSuite with Matchers {
     val download = responseBody(api.handle(event("GET", s"/ffmforge/v1/fit/${merged.id.get}/download")))
       .convertTo[DownloadUrlResponse]
     download.url should startWith("https://")
+    download.format shouldBe DownloadFormat.Fit
+    download.filename should endWith(".fit")
+
+    val gpxDownload = responseBody(
+      api.handle(event("GET", s"/ffmforge/v1/fit/${merged.id.get}/download", query = Map("format" -> "gpx")))
+    ).convertTo[DownloadUrlResponse]
+    gpxDownload.url should startWith("https://")
+    gpxDownload.format shouldBe DownloadFormat.Gpx
+    gpxDownload.filename should endWith(".gpx")
   }
 
   test("codec demo route round-trips an uploaded FIT file") {
@@ -170,6 +180,13 @@ final class FFMForgeLambdaSpec extends AnyFunSuite with Matchers {
     val download = responseBody(api.handle(event("GET", s"/ffmforge/v1/fit/${exported.id}/download")))
       .convertTo[DownloadUrlResponse]
     download.url should startWith("https://")
+    download.format shouldBe DownloadFormat.Fit
+
+    val gpxDownload = responseBody(
+      api.handle(event("GET", s"/ffmforge/v1/fit/${exported.id}/download", query = Map("format" -> "gpx")))
+    ).convertTo[DownloadUrlResponse]
+    gpxDownload.url should startWith("https://")
+    gpxDownload.format shouldBe DownloadFormat.Gpx
   }
 
   test("expired object returns Gone") {
@@ -201,9 +218,11 @@ final class FFMForgeLambdaSpec extends AnyFunSuite with Matchers {
     upload.id
   }
 
-  private def event(method: String, path: String, body: String = ""): String =
-    s"""{"rawPath":"$path","requestContext":{"http":{"method":"$method"}},"body":${body.toJson.compactPrint},"isBase64Encoded":false,"requestId":"${UUID
+  private def event(method: String, path: String, body: String = "", query: Map[String, String] = Map.empty): String = {
+    val queryJson = if (query.isEmpty) "" else s""","queryStringParameters":${query.toJson.compactPrint}"""
+    s"""{"rawPath":"$path","requestContext":{"http":{"method":"$method"}}$queryJson,"body":${body.toJson.compactPrint},"isBase64Encoded":false,"requestId":"${UUID
         .randomUUID()}"}"""
+  }
 
   private def responseBody(response: String): spray.json.JsValue = {
     val obj = response.parseJson.asJsObject

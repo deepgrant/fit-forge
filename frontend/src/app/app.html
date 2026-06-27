@@ -127,8 +127,13 @@
             </select>
           </label>
 
+          <div class="format-toggle" role="group" aria-label="Merge download format">
+            <button type="button" [class.active]="mergeDownloadFormat() === 'fit'" (click)="setMergeDownloadFormat('fit')">FIT</button>
+            <button type="button" [class.active]="mergeDownloadFormat() === 'gpx'" (click)="setMergeDownloadFormat('gpx')">GPX</button>
+          </div>
+
           <button type="button" class="secondary-button" (click)="dryRunMerge()" [disabled]="!canMerge()">Preview merge</button>
-          <button type="button" class="primary-button" (click)="mergeAndDownload()" [disabled]="!canMerge()">Merge & download .fit</button>
+          <button type="button" class="primary-button" (click)="mergeAndDownload()" [disabled]="!canMerge()">Merge & download .{{ mergeDownloadFormat() }}</button>
         </aside>
 
         <section class="panel report-panel">
@@ -591,7 +596,12 @@
             </div>
           }
 
-          <button type="button" class="primary-button" (click)="exportEditorRepairs()" [disabled]="!canExportRepair()">Save repaired .fit</button>
+          <div class="format-toggle" role="group" aria-label="Editor download format">
+            <button type="button" [class.active]="editorDownloadFormat() === 'fit'" (click)="setEditorDownloadFormat('fit')">FIT</button>
+            <button type="button" [class.active]="editorDownloadFormat() === 'gpx'" (click)="setEditorDownloadFormat('gpx')">GPX</button>
+          </div>
+
+          <button type="button" class="primary-button" (click)="exportEditorRepairs()" [disabled]="!canExportRepair()">Save repaired .{{ editorDownloadFormat() }}</button>
         </section>
       </div>
     </div>

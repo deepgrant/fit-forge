@@ -19,8 +19,8 @@ runtime reason.
   Control.
 - ACM certificate and Route53 validation/alias records for the configured
   frontend domain.
-- Private FIT data S3 bucket with encryption, browser CORS for presigned
-  uploads/downloads, and a 1-day lifecycle backstop on `fit/`.
+- Private FIT/GPX data S3 bucket with encryption, browser CORS for presigned
+  uploads/downloads, and 1-day lifecycle backstops on `fit/` and `gpx/`.
 - Existing ECR repository lookup for the Lambda container image.
 - Lambda execution role and least-privilege S3 policy.
 - Lambda function using the supplied image URI.
