@@ -9,6 +9,7 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 import ffmforge.DownloadFormat
@@ -36,16 +37,22 @@ import ffmforge.http.UploadUrlRequest
 import ffmforge.http.UploadUrlsResponse
 import org.apache.pekko.http.scaladsl.model.StatusCodes
 import org.scalatest.Outcome
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Millis
+import org.scalatest.time.Seconds
+import org.scalatest.time.Span
 import spray.json.enrichAny
 import spray.json.enrichString
 
-final class FFMForgeLambdaSpec extends AnyFunSuite with Matchers {
+final class FFMForgeLambdaSpec extends AnyFunSuite with Matchers with ScalaFutures {
 
   import JsonProtocol._
 
   private given ExecutionContext = ExecutionContext.global
+  implicit override val patienceConfig: PatienceConfig =
+    PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
 
   private val base       = Instant.parse("2026-06-15T08:00:00Z")
   private val clock      = new AtomicReference[Instant](base)
@@ -63,8 +70,9 @@ final class FFMForgeLambdaSpec extends AnyFunSuite with Matchers {
   }
 
   test("unknown route returns NotFound") {
-    val res = api.handle(event("GET", "/ffmforge/v1/unknown"))
-    res.parseJson.asJsObject.fields("statusCode").convertTo[Int] shouldBe StatusCodes.NotFound.intValue
+    responseJson(api.handle(event("GET", "/ffmforge/v1/unknown")))
+      .fields("statusCode")
+      .convertTo[Int] shouldBe StatusCodes.NotFound.intValue
   }
 
   test("presigned upload, describe, merge and presigned download use real S3") {
@@ -194,6 +202,7 @@ final class FFMForgeLambdaSpec extends AnyFunSuite with Matchers {
     clock.set(base.plusSeconds(3.hours.toSeconds))
     api
       .handle(event("GET", s"/ffmforge/v1/fit/$id/download"))
+      .futureValue
       .parseJson
       .asJsObject
       .fields("statusCode")
@@ -224,8 +233,11 @@ final class FFMForgeLambdaSpec extends AnyFunSuite with Matchers {
         .randomUUID()}"}"""
   }
 
-  private def responseBody(response: String): spray.json.JsValue = {
-    val obj = response.parseJson.asJsObject
+  private def responseJson(response: Future[String]): spray.json.JsObject =
+    response.futureValue.parseJson.asJsObject
+
+  private def responseBody(response: Future[String]): spray.json.JsValue = {
+    val obj = responseJson(response)
     obj.fields("statusCode").convertTo[Int] shouldBe StatusCodes.OK.intValue
     obj.fields("body").convertTo[String].parseJson
   }

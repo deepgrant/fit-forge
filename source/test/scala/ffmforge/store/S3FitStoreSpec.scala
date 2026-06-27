@@ -4,20 +4,24 @@ import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 import ffmforge.http.AwsS3Support
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Outcome
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Millis
+import org.scalatest.time.Seconds
+import org.scalatest.time.Span
 
-final class S3FitStoreSpec extends AnyFunSuite with Matchers with BeforeAndAfterAll {
+final class S3FitStoreSpec extends AnyFunSuite with Matchers with BeforeAndAfterAll with ScalaFutures {
 
   private given ExecutionContext = ExecutionContext.global
+  implicit override val patienceConfig: PatienceConfig =
+    PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
 
   private val base       = Instant.parse("2026-06-15T08:00:00Z")
   private val clock      = new AtomicReference[Instant](base)
@@ -31,44 +35,43 @@ final class S3FitStoreSpec extends AnyFunSuite with Matchers with BeforeAndAfter
 
   override def afterAll(): Unit = ()
 
-  private def await[A](f: Future[A]): A     = Await.result(f, 30.seconds)
   private def bytes(s: String): Array[Byte] = s.getBytes("UTF-8")
 
   test("put then get returns the same bytes") {
     clock.set(base)
-    val id = await(store.put(bytes("hello-fit"), ttl))
-    await(store.get(id)).map(_.toSeq) shouldBe Right(bytes("hello-fit").toSeq)
+    val id = store.put(bytes("hello-fit"), ttl).futureValue
+    store.get(id).futureValue.map(_.toSeq) shouldBe Right(bytes("hello-fit").toSeq)
   }
 
   test("get of an unknown id is NotFound") {
     val id = s"${base.toEpochMilli + 999999}_${UUID.randomUUID()}"
-    await(store.get(id)) shouldBe Left(StoreError.NotFound)
+    store.get(id).futureValue shouldBe Left(StoreError.NotFound)
   }
 
   test("delete removes the object") {
     clock.set(base)
-    val id = await(store.put(bytes("x"), ttl))
-    await(store.delete(id))
-    await(store.get(id)) shouldBe Left(StoreError.NotFound)
+    val id = store.put(bytes("x"), ttl).futureValue
+    store.delete(id).futureValue
+    store.get(id).futureValue shouldBe Left(StoreError.NotFound)
   }
 
   test("get past expiry is Expired and deletes the object") {
     clock.set(base)
-    val id = await(store.put(bytes("y"), ttl))
+    val id = store.put(bytes("y"), ttl).futureValue
     clock.set(base.plusSeconds(3.hours.toSeconds))
-    await(store.get(id)) shouldBe Left(StoreError.Expired)
+    store.get(id).futureValue shouldBe Left(StoreError.Expired)
     clock.set(base)
-    await(store.get(id)) shouldBe Left(StoreError.NotFound)
+    store.get(id).futureValue shouldBe Left(StoreError.NotFound)
   }
 
   test("sweepExpired deletes all past-expiry objects") {
     clock.set(base)
-    val id1 = await(store.put(bytes("a"), ttl))
-    val id2 = await(store.put(bytes("b"), ttl))
+    val id1 = store.put(bytes("a"), ttl).futureValue
+    val id2 = store.put(bytes("b"), ttl).futureValue
     clock.set(base.plusSeconds(3.hours.toSeconds))
-    await(store.sweepExpired()) should be >= 2
+    store.sweepExpired().futureValue should be >= 2
     clock.set(base)
-    await(store.get(id1)) shouldBe Left(StoreError.NotFound)
-    await(store.get(id2)) shouldBe Left(StoreError.NotFound)
+    store.get(id1).futureValue shouldBe Left(StoreError.NotFound)
+    store.get(id2).futureValue shouldBe Left(StoreError.NotFound)
   }
 }

@@ -134,6 +134,7 @@ export class App implements AfterViewInit, OnDestroy {
   private editorRouteRendered = false;
   private editorRowsLoadInFlight = false;
   private editorRouteHoverPosition?: [number, number];
+  private editorRouteCoordinates: readonly [number, number][] = [];
   private currentFrontendVersion?: string;
   private versionPollId?: ReturnType<typeof window.setInterval>;
   private readonly checkVersionOnFocus = (): void => {
@@ -167,7 +168,6 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly editorExport = signal<ExportRepairResponse | null>(null);
   protected readonly editorRouteTrack = signal<RouteTrack | null>(null);
   protected readonly editorSelectedRow = signal<EditorRecordRow | null>(null);
-  protected readonly editorIssueMapBusy = signal(false);
   protected readonly reloadDialog = signal<ReloadDialog | null>(null);
 
   protected readonly readyIds = computed(() =>
@@ -215,6 +215,7 @@ export class App implements AfterViewInit, OnDestroy {
     });
     effect(() => {
       const track = this.editorRouteTrack();
+      this.editorRouteCoordinates = track ? this.trackLineCoordinates(track.geojson) : [];
       queueMicrotask(() => this.renderEditorRouteTrack(track));
     });
     effect(() => {
@@ -312,10 +313,6 @@ export class App implements AfterViewInit, OnDestroy {
 
   protected setEditorDownloadFormat(format: DownloadFormat): void {
     this.editorDownloadFormat.set(format);
-  }
-
-  protected downloadFormatLabel(format: DownloadFormat): string {
-    return format.toUpperCase();
   }
 
   protected toggleTheme(): void {
@@ -625,7 +622,6 @@ export class App implements AfterViewInit, OnDestroy {
     this.editorExport.set(null);
     this.editorRouteTrack.set(null);
     this.editorSelectedRow.set(null);
-    this.editorIssueMapBusy.set(false);
     this.busy.set('Uploading FIT file for editor');
     this.error.set(null);
 
@@ -747,7 +743,6 @@ export class App implements AfterViewInit, OnDestroy {
     if (this.reloadDialog()) return;
     this.busy.set(null);
     this.editorRowsBusy.set(null);
-    this.editorIssueMapBusy.set(false);
     this.reloadDialog.set(
       kind === 'version'
         ? {
@@ -1189,7 +1184,6 @@ export class App implements AfterViewInit, OnDestroy {
 
     const offset = Math.max(0, issue.startIndex - 8);
     const limit = Math.min(250, issue.endIndex - offset + 10);
-    this.editorIssueMapBusy.set(true);
     this.editorRowsBusy.set('message');
     try {
       const rows = await this.api.editorRows(open.id, issue.messageType, offset, limit);
@@ -1202,24 +1196,20 @@ export class App implements AfterViewInit, OnDestroy {
     } catch (err) {
       this.handleError(err);
     } finally {
-      this.editorIssueMapBusy.set(false);
       this.editorRowsBusy.set(null);
     }
   }
 
   private async selectRecordFromEditorMap(event: MapClickEvent): Promise<void> {
     const open = this.editorOpen();
-    const track = this.editorRouteTrack();
     const recordTotal = this.editorRecordCount();
-    if (!open || !track || recordTotal === 0) return;
+    const coordinates = this.editorRouteCoordinates;
+    if (!open || recordTotal === 0 || coordinates.length === 0) return;
 
     const hover = this.editorRouteHoverAt(event);
     if (!hover) return;
 
     const clicked = this.editorRouteHoverPosition ?? hover;
-    const coordinates = this.trackLineCoordinates(track.geojson);
-    if (coordinates.length === 0) return;
-
     const nearestTrackIndex = this.nearestPositionIndex(clicked, coordinates);
     const estimatedRecordIndex = Math.round((nearestTrackIndex / Math.max(1, coordinates.length - 1)) * Math.max(0, recordTotal - 1));
     const limit = Math.min(EditorMapPickPageSize, recordTotal);
@@ -1258,15 +1248,20 @@ export class App implements AfterViewInit, OnDestroy {
 
   private editorRouteHoverAt(event: MapMouseEvent): [number, number] | undefined {
     const map = this.editorMap;
-    const track = this.editorRouteTrack();
-    if (!map || !this.editorMapLoaded || !track || this.editorRecordCount() === 0 || !map.getLayer('editor-route-line')) return undefined;
+    const coordinates = this.editorRouteCoordinates;
+    if (
+      !map ||
+      !this.editorMapLoaded ||
+      coordinates.length === 0 ||
+      this.editorRecordCount() === 0 ||
+      !map.getLayer('editor-route-line')
+    )
+      return undefined;
 
     const features = map.queryRenderedFeatures(this.mapHitArea(event.point, 8), { layers: ['editor-route-line'] });
     if (features.length === 0) return undefined;
 
     const clicked: [number, number] = [event.lngLat.lng, event.lngLat.lat];
-    const coordinates = this.trackLineCoordinates(track.geojson);
-    if (coordinates.length === 0) return undefined;
     const nearest = coordinates.at(this.nearestPositionIndex(clicked, coordinates));
     return nearest;
   }

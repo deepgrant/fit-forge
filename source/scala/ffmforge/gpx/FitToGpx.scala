@@ -38,14 +38,22 @@ object FitToGpx {
       ),
     )
 
-  private def pauseRestartTimes(file: FitFile): Vector[Instant] =
+  private def pauseRestartTimes(file: FitFile): Vector[Instant] = {
+    final case class PauseState(paused: Boolean, restarts: Vector[Instant])
+
     file.events
       .sortBy(_.timestamp.toEpochMilli)
-      .sliding(2)
-      .collect {
-        case Seq(stop, start) if stop.event == TimerEvent.StopAll && start.event == TimerEvent.Start => start.timestamp
+      .foldLeft(PauseState(paused = false, restarts = Vector.empty)) {
+        case (state, event) if event.event == TimerEvent.StopAll =>
+          state.copy(paused = true)
+        case (state, event) if event.event == TimerEvent.Start && state.paused =>
+          PauseState(paused = false, restarts = state.restarts :+ event.timestamp)
+        case (state, event) if event.event == TimerEvent.Start =>
+          state.copy(paused = false)
+        case (state, _) => state
       }
-      .toVector
+      .restarts
+  }
 
   private def splitSegments(points: Vector[GpxTrackPoint], restartTimes: Vector[Instant]): Vector[GpxTrackSegment] = {
     final case class SplitState(

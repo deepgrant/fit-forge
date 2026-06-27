@@ -1,5 +1,6 @@
 package ffmforge.lambda
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
@@ -29,10 +30,10 @@ object LambdaSmokeMain {
           s3.bucket = "unused"
         }
       """),
-    )(using
-      scala.concurrent.ExecutionContext.global
-    )
-    println(api.handle("""{"rawPath":"/ffmforge/v1/smoke","requestContext":{"http":{"method":"GET"}}}"""))
+    )(using ExecutionContext.parasitic)
+    api
+      .handle("""{"rawPath":"/ffmforge/v1/smoke","requestContext":{"http":{"method":"GET"}}}""")
+      .foreach(println)(using ExecutionContext.parasitic)
   }
 }
 
