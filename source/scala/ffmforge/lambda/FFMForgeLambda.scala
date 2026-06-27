@@ -62,6 +62,8 @@ import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsValue
+import spray.json.JsonParser
+import spray.json.JsonReader
 import spray.json.enrichAny
 import spray.json.enrichString
 
@@ -110,7 +112,7 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
 
   def handle(eventJson: String): Future[String] =
     Try(eventJson.parseJson.asJsObject.fields) match {
-      case Failure(e) => Future.successful(response(StatusCodes.InternalServerError, ApiError(e.getMessage).toJson))
+      case Failure(e) => Future.successful(responseBadRequest("invalid lambda event JSON", e))
       case Success(fields) =>
         val routed =
           if (fields.get("source").contains(JsString("ffmforge.cleanup")))
@@ -126,51 +128,54 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
       Future.successful(response(StatusCodes.OK, JsObject.empty))
 
     case ("POST", "/ffmforge/v1/uploads") =>
-      val req = event.bodyJson.convertTo[UploadUrlRequest]
-      Future
-        .traverse(req.files) { name =>
-          store
-            .createUpload(config.sessionTtl, config.presignTtl)
-            .map(u => UploadUrlResult(u.id, name, u.url, u.expiresAt))
-        }
-        .map(urls => response(StatusCodes.OK, UploadUrlsResponse(urls).toJson))
+      request[UploadUrlRequest](event) { req =>
+        Future
+          .traverse(req.files) { name =>
+            store
+              .createUpload(config.sessionTtl, config.presignTtl)
+              .map(u => UploadUrlResult(u.id, name, u.url, u.expiresAt))
+          }
+          .map(urls => response(StatusCodes.OK, UploadUrlsResponse(urls).toJson))
+      }
 
     case ("POST", "/ffmforge/v1/fit/describe") =>
-      val req = event.bodyJson.convertTo[DescribeRequest]
-      describe(req.ids).map {
-        case Right(value)        => response(StatusCodes.OK, value.toJson)
-        case Left((status, err)) => response(status, err.toJson)
+      request[DescribeRequest](event) { req =>
+        describe(req.ids).map {
+          case Right(value)        => response(StatusCodes.OK, value.toJson)
+          case Left((status, err)) => response(status, err.toJson)
+        }
       }
 
     case ("POST", "/ffmforge/v1/fit/codec-demo") =>
-      val req = event.bodyJson.convertTo[CodecDemoRequest]
-      codecDemo(req.id)
+      request[CodecDemoRequest](event)(req => codecDemo(req.id))
 
     case ("POST", "/ffmforge/v1/fit/editor/open") =>
-      val req = event.bodyJson.convertTo[EditorFileRequest]
-      responseWithFile(req.id)(file => FitEditor.open(req.id, file).toJson)
+      request[EditorFileRequest](event)(req => responseWithFile(req.id)(file => FitEditor.open(req.id, file).toJson))
 
     case ("POST", "/ffmforge/v1/fit/editor/rows") =>
-      val req = event.bodyJson.convertTo[EditorRowsRequest]
-      responseWithFile(req.id)(file =>
-        FitEditor.rows(file, req.messageType, req.offset, req.limit, FitEditor.diagnose(file)).toJson
-      )
+      request[EditorRowsRequest](event) { req =>
+        responseWithFile(req.id)(file =>
+          FitEditor.rows(file, req.messageType, req.offset, req.limit, FitEditor.diagnose(file)).toJson
+        )
+      }
 
     case ("POST", "/ffmforge/v1/fit/editor/repair-preview") =>
-      val req = event.bodyJson.convertTo[EditorRepairRequest]
-      responseWithFile(req.id)(file => FitEditor.preview(file, req.operations).toJson)
+      request[EditorRepairRequest](event)(req =>
+        responseWithFile(req.id)(file => FitEditor.preview(file, req.operations).toJson)
+      )
 
     case ("POST", "/ffmforge/v1/fit/editor/export") =>
-      val req = event.bodyJson.convertTo[EditorRepairRequest]
-      responseWithFileF(req.id) { file =>
-        val (repaired, preview) = FitEditor.repair(file, req.operations)
-        store
-          .put(codec.encode(repaired), config.sessionTtl)
-          .map(id => response(StatusCodes.OK, ExportRepairResponse(id, preview).toJson))
+      request[EditorRepairRequest](event) { req =>
+        responseWithFileF(req.id) { file =>
+          val (repaired, preview) = FitEditor.repair(file, req.operations)
+          store
+            .put(codec.encode(repaired), config.sessionTtl)
+            .map(id => response(StatusCodes.OK, ExportRepairResponse(id, preview).toJson))
+        }
       }
 
     case ("POST", "/ffmforge/v1/fit/merge") =>
-      responseMerge(event.bodyJson.convertTo[MergeRequest])
+      request[MergeRequest](event)(responseMerge)
 
     case ("GET", SummaryPath(id)) =>
       responseWithFile(id)(file =>
@@ -186,6 +191,15 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
     case _ =>
       Future.successful(response(StatusCodes.NotFound, ApiError(s"No route for ${event.method} ${event.path}").toJson))
   }
+
+  private def request[A: JsonReader](event: LambdaEvent)(f: A => Future[String]): Future[String] =
+    Try {
+      val json = if (event.body.trim.isEmpty) JsObject.empty else JsonParser(event.body)
+      json.convertTo[A]
+    } match {
+      case Success(value) => f(value)
+      case Failure(e)     => Future.successful(responseBadRequest("invalid request JSON", e))
+    }
 
   private def describe(ids: Vector[String]): Future[Either[(StatusCode, ApiError), UploadResponse]] =
     Future
@@ -309,6 +323,9 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
     case StoreError.Expired  => response(StatusCodes.Gone, ApiError("session expired — re-upload").toJson)
   }
 
+  private def responseBadRequest(prefix: String, e: Throwable): String =
+    response(StatusCodes.BadRequest, ApiError(s"$prefix: ${e.getMessage}").toJson)
+
   private def parseEvent(fields: Map[String, JsValue]): LambdaEvent = {
     val path = fields
       .get("rawPath")
@@ -378,7 +395,4 @@ object FFMForgeLambdaApi {
     ).compactPrint
 }
 
-final case class LambdaEvent(method: String, path: String, query: Map[String, String], body: String) {
-  def bodyJson: JsValue =
-    if (body.trim.isEmpty) JsObject.empty else body.parseJson
-}
+final case class LambdaEvent(method: String, path: String, query: Map[String, String], body: String) {}

@@ -41,15 +41,11 @@ final class FFMForgeLambdaUnitSpec extends AnyFunSuite with Matchers with ScalaF
   test("GPX download reuses an existing derived object") {
     val id    = s"1782527814802_${UUID.randomUUID()}"
     val store = new InMemoryFitStore(id, TestFixtures.sampleBytes)
-    val api = new FFMForgeLambdaApi(
-      store,
-      new GarminFitCodec(),
-      FFMForgeConfig(8080, 2.hours, 15.minutes, "unused", "unused"),
-    )
+    val api   = apiWith(store)
 
-    val first = responseBody(api.handle(event("GET", s"/ffmforge/v1/fit/$id/download", Map("format" -> "gpx"))))
+    val first = responseBody(api.handle(event("GET", s"/ffmforge/v1/fit/$id/download", Map("format" -> "gpx"), "")))
       .convertTo[DownloadUrlResponse]
-    val second = responseBody(api.handle(event("GET", s"/ffmforge/v1/fit/$id/download", Map("format" -> "gpx"))))
+    val second = responseBody(api.handle(event("GET", s"/ffmforge/v1/fit/$id/download", Map("format" -> "gpx"), "")))
       .convertTo[DownloadUrlResponse]
 
     first.format shouldBe DownloadFormat.Gpx
@@ -59,13 +55,41 @@ final class FFMForgeLambdaUnitSpec extends AnyFunSuite with Matchers with ScalaF
     store.hasObject(id, DownloadFormat.Gpx) shouldBe true
   }
 
-  private def event(method: String, path: String, query: Map[String, String]): String = {
-    val queryJson = if (query.isEmpty) "" else s""","queryStringParameters":${query.toJson.compactPrint}"""
-    s"""{"rawPath":"$path","requestContext":{"http":{"method":"$method"}}$queryJson,"body":"","isBase64Encoded":false}"""
+  test("malformed request JSON returns BadRequest") {
+    val api = apiWith(new InMemoryFitStore(s"1782527814802_${UUID.randomUUID()}", TestFixtures.sampleBytes))
+
+    val response = responseJson(api.handle(event("POST", "/ffmforge/v1/fit/describe", Map.empty, "{")))
+
+    response.fields("statusCode").convertTo[Int] shouldBe StatusCodes.BadRequest.intValue
+    response.fields("body").convertTo[String] should include("invalid request JSON")
   }
 
+  test("request deserialization errors return BadRequest") {
+    val api = apiWith(new InMemoryFitStore(s"1782527814802_${UUID.randomUUID()}", TestFixtures.sampleBytes))
+
+    val response = responseJson(api.handle(event("POST", "/ffmforge/v1/fit/describe", Map.empty, """{"ids":42}""")))
+
+    response.fields("statusCode").convertTo[Int] shouldBe StatusCodes.BadRequest.intValue
+    response.fields("body").convertTo[String] should include("invalid request JSON")
+  }
+
+  private def apiWith(store: InMemoryFitStore): FFMForgeLambdaApi =
+    new FFMForgeLambdaApi(
+      store,
+      new GarminFitCodec(),
+      FFMForgeConfig(8080, 2.hours, 15.minutes, "unused", "unused"),
+    )
+
+  private def event(method: String, path: String, query: Map[String, String], body: String): String = {
+    val queryJson = if (query.isEmpty) "" else s""","queryStringParameters":${query.toJson.compactPrint}"""
+    s"""{"rawPath":"$path","requestContext":{"http":{"method":"$method"}}$queryJson,"body":${body.toJson.compactPrint},"isBase64Encoded":false}"""
+  }
+
+  private def responseJson(response: Future[String]): spray.json.JsObject =
+    response.futureValue.parseJson.asJsObject
+
   private def responseBody(response: Future[String]): spray.json.JsValue = {
-    val obj = response.futureValue.parseJson.asJsObject
+    val obj = responseJson(response)
     obj.fields("statusCode").convertTo[Int] shouldBe StatusCodes.OK.intValue
     obj.fields("body").convertTo[String].parseJson
   }
