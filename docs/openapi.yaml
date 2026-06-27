@@ -1,0 +1,1240 @@
+openapi: 3.0.3
+info:
+  title: FFMForge API
+  version: 1.0.0
+  description: |
+    Public HTTP API for FFMForge FIT upload, inspection, merge, editor repair,
+    FIT download, and GPX export workflows.
+
+    Maintenance rule: update this OpenAPI document in the same change as any
+    route, request DTO, response DTO, status code, or query parameter change
+    under `/ffmforge/v1/`.
+  contact:
+    name: FFMForge
+    url: https://github.com/deepgrant/fit-forge
+  license:
+    name: Project license plus Garmin FIT Protocol License for Garmin FIT SDK usage
+    url: https://github.com/deepgrant/fit-forge
+servers:
+  - url: https://ffmforge.com
+    description: Production CloudFront endpoint
+tags:
+  - name: Uploads
+    description: Presigned S3 upload sessions for temporary FIT files.
+  - name: FIT
+    description: FIT file summaries, tracks, downloads, and codec diagnostics.
+  - name: Merge
+    description: Merge split ride recordings into one activity.
+  - name: Editor
+    description: Inspect, diagnose, repair, and export one FIT file.
+paths:
+  /ffmforge/v1/uploads:
+    post:
+      tags: [Uploads]
+      summary: Create presigned upload URLs
+      description: |
+        Creates one temporary upload id and presigned S3 PUT URL per requested
+        filename. The caller uploads FIT bytes directly to S3 using the returned
+        URL, then passes the ids to describe, merge, editor, or codec routes.
+      operationId: createUploadUrls
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URLs created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlsResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /ffmforge/v1/fit/describe:
+    post:
+      tags: [FIT]
+      summary: Describe uploaded FIT files
+      description: Decodes uploaded FIT files and returns ride summary, devices, and layout information.
+      operationId: describeFitFiles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DescribeRequest"
+      responses:
+        "200":
+          description: Uploaded files decoded and described.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Expired"
+        "422":
+          $ref: "#/components/responses/InvalidFit"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /ffmforge/v1/fit/codec-demo:
+    post:
+      tags: [FIT]
+      summary: Run FIT codec round-trip diagnostics
+      description: Decodes, re-encodes, re-decodes, summarizes, and verifies one uploaded FIT file.
+      operationId: runCodecDemo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CodecDemoRequest"
+      responses:
+        "200":
+          description: Codec report generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodecDemoReport"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Expired"
+        "422":
+          $ref: "#/components/responses/InvalidFit"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /ffmforge/v1/fit/merge:
+    post:
+      tags: [Merge]
+      summary: Preview or execute a FIT merge
+      description: |
+        Merges uploaded FIT files into one activity. Gaps are preserved as pauses.
+        When `dryRun` is true, the response includes a report but does not write
+        a merged output file and `id` is null.
+      operationId: mergeFitFiles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MergeRequest"
+      responses:
+        "200":
+          description: Merge preview or merge output created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MergeResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Files cannot be merged, such as overlapping recordings or empty inputs.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "410":
+          $ref: "#/components/responses/Expired"
+        "422":
+          description: Unsupported merge option or invalid FIT input.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /ffmforge/v1/fit/{id}/summary:
+    get:
+      tags: [FIT]
+      summary: Get one FIT file summary
+      operationId: getFitSummary
+      parameters:
+        - $ref: "#/components/parameters/FitId"
+      responses:
+        "200":
+          description: FIT file summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SummaryResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Expired"
+        "422":
+          $ref: "#/components/responses/InvalidFit"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /ffmforge/v1/fit/{id}/track:
+    get:
+      tags: [FIT]
+      summary: Get one FIT file route as GeoJSON
+      operationId: getFitTrack
+      parameters:
+        - $ref: "#/components/parameters/FitId"
+      responses:
+        "200":
+          description: GeoJSON FeatureCollection with track, start, finish, and gap markers.
+          content:
+            application/geo+json:
+              schema:
+                $ref: "#/components/schemas/GeoJsonFeatureCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoJsonFeatureCollection"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Expired"
+        "422":
+          $ref: "#/components/responses/InvalidFit"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /ffmforge/v1/fit/{id}/download:
+    get:
+      tags: [FIT]
+      summary: Create a presigned FIT or GPX download URL
+      description: |
+        Returns a presigned S3 download URL. FIT is returned by default. GPX is
+        derived from the stored FIT file on demand and written to the derived
+        GPX S3 prefix before the URL is created.
+      operationId: createDownloadUrl
+      parameters:
+        - $ref: "#/components/parameters/FitId"
+        - name: format
+          in: query
+          required: false
+          description: Output format. Defaults to `fit`.
+          schema:
+            $ref: "#/components/schemas/DownloadFormat"
+      responses:
+        "200":
+          description: Presigned download URL created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadUrlResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Expired"
+        "422":
+          description: Unsupported download format or invalid FIT input for GPX export.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /ffmforge/v1/fit/editor/open:
+    post:
+      tags: [Editor]
+      summary: Open a FIT file in the editor
+      description: Returns file summary, devices, anatomy, diagnostics, first record page, and export readiness.
+      operationId: openEditorFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditorFileRequest"
+      responses:
+        "200":
+          description: Editor workspace data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditorOpenResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Expired"
+        "422":
+          $ref: "#/components/responses/InvalidFit"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /ffmforge/v1/fit/editor/rows:
+    post:
+      tags: [Editor]
+      summary: Page through editor message rows
+      description: Returns rows for the selected FIT message type. `limit` is clamped by the backend.
+      operationId: getEditorRows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditorRowsRequest"
+      responses:
+        "200":
+          description: Editor row page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditorRowsResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Expired"
+        "422":
+          $ref: "#/components/responses/InvalidFit"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /ffmforge/v1/fit/editor/repair-preview:
+    post:
+      tags: [Editor]
+      summary: Preview editor repair operations
+      description: Computes before/after changes and verification status without writing a repaired output file.
+      operationId: previewEditorRepairs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditorRepairRequest"
+      responses:
+        "200":
+          description: Repair preview.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepairPreview"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Expired"
+        "422":
+          $ref: "#/components/responses/InvalidFit"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /ffmforge/v1/fit/editor/export:
+    post:
+      tags: [Editor]
+      summary: Export a repaired FIT file
+      description: Applies repair operations, writes a repaired FIT file, and returns the new temporary file id.
+      operationId: exportEditorRepairs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditorRepairRequest"
+      responses:
+        "200":
+          description: Repaired FIT file written.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportRepairResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Expired"
+        "422":
+          $ref: "#/components/responses/InvalidFit"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  parameters:
+    FitId:
+      name: id
+      in: path
+      required: true
+      description: Temporary uploaded or generated file id.
+      schema:
+        type: string
+        example: 1782527814802_5507c4b9-0a18-4c88-a05a-0598c2a11054
+
+  responses:
+    NotFound:
+      description: File id was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            message: file not found
+    Expired:
+      description: File id existed but its temporary session has expired.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            message: session expired — re-upload
+    InvalidFit:
+      description: Stored object is not a valid decodable FIT file.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            message: stored file is not valid FIT
+    InternalError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+
+  schemas:
+    ApiError:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    DownloadFormat:
+      type: string
+      enum: [fit, gpx]
+      default: fit
+
+    UploadUrlRequest:
+      type: object
+      required: [files]
+      properties:
+        files:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          example: ["morning_ride.fit", "afternoon_ride.fit"]
+
+    UploadUrlResult:
+      type: object
+      required: [id, name, url, expiresAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+
+    UploadUrlsResponse:
+      type: object
+      required: [files]
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/UploadUrlResult"
+
+    DescribeRequest:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+          minItems: 1
+
+    UploadResponse:
+      type: object
+      required: [files]
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/UploadFileResult"
+
+    UploadFileResult:
+      type: object
+      required: [id, fileId, summary, devices, layout]
+      properties:
+        id:
+          type: string
+        fileId:
+          $ref: "#/components/schemas/FileId"
+        summary:
+          $ref: "#/components/schemas/RideSummary"
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeviceInfo"
+        layout:
+          $ref: "#/components/schemas/FitLayout"
+
+    FileId:
+      type: object
+      required: [manufacturer, product, serialNumber, timeCreated]
+      properties:
+        manufacturer:
+          type: integer
+          format: int32
+          nullable: true
+        product:
+          type: integer
+          format: int32
+          nullable: true
+        serialNumber:
+          type: integer
+          format: int64
+          nullable: true
+        timeCreated:
+          type: string
+          format: date-time
+          nullable: true
+
+    RideSummary:
+      type: object
+      required:
+        - sport
+        - totalDistanceM
+        - elapsedSeconds
+        - movingSeconds
+        - avgSpeedMps
+        - maxSpeedMps
+        - avgPowerW
+        - maxPowerW
+        - avgTempC
+        - maxTempC
+      properties:
+        sport:
+          type: string
+          nullable: true
+          example: cycling
+        totalDistanceM:
+          type: number
+          format: double
+          nullable: true
+        elapsedSeconds:
+          type: number
+          format: double
+          nullable: true
+        movingSeconds:
+          type: number
+          format: double
+          nullable: true
+        avgSpeedMps:
+          type: number
+          format: double
+          nullable: true
+        maxSpeedMps:
+          type: number
+          format: double
+          nullable: true
+        avgPowerW:
+          type: number
+          format: double
+          nullable: true
+        maxPowerW:
+          type: number
+          format: double
+          nullable: true
+        avgTempC:
+          type: number
+          format: double
+          nullable: true
+        maxTempC:
+          type: number
+          format: double
+          nullable: true
+
+    DeviceInfo:
+      type: object
+      required:
+        - index
+        - manufacturer
+        - productName
+        - product
+        - kind
+        - softwareVersion
+        - serialNumber
+        - batteryStatus
+        - sourceType
+      properties:
+        index:
+          type: integer
+          format: int32
+        manufacturer:
+          type: string
+          example: Garmin
+        productName:
+          type: string
+          nullable: true
+          example: Edge 1050
+        product:
+          type: integer
+          format: int32
+          nullable: true
+        kind:
+          type: string
+          nullable: true
+          example: bike_power
+        softwareVersion:
+          type: number
+          format: double
+          nullable: true
+        serialNumber:
+          type: integer
+          format: int64
+          nullable: true
+        batteryStatus:
+          type: string
+          nullable: true
+          example: ok
+        sourceType:
+          type: string
+          nullable: true
+          example: antplus
+
+    FitLayout:
+      type: object
+      required: [counts, totalMessages, totalFields]
+      properties:
+        counts:
+          type: array
+          items:
+            $ref: "#/components/schemas/FitMessageCount"
+        totalMessages:
+          type: integer
+          format: int32
+        totalFields:
+          type: integer
+          format: int32
+
+    FitMessageCount:
+      type: object
+      required: [type, count]
+      properties:
+        type:
+          type: string
+          example: record
+        count:
+          type: integer
+          format: int32
+
+    CodecDemoRequest:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+
+    CodecDemoReport:
+      type: object
+      required:
+        - id
+        - originalBytes
+        - reencodedBytes
+        - original
+        - redecoded
+        - originalStats
+        - reencodedStats
+        - summary
+        - primaryDevice
+        - devices
+        - layout
+        - checks
+        - passed
+      properties:
+        id:
+          type: string
+        originalBytes:
+          type: integer
+          format: int32
+        reencodedBytes:
+          type: integer
+          format: int32
+        original:
+          $ref: "#/components/schemas/FitFileDescription"
+        redecoded:
+          $ref: "#/components/schemas/FitFileDescription"
+        originalStats:
+          $ref: "#/components/schemas/FitStats"
+        reencodedStats:
+          $ref: "#/components/schemas/FitStats"
+        summary:
+          $ref: "#/components/schemas/RideSummary"
+        primaryDevice:
+          allOf:
+            - $ref: "#/components/schemas/DeviceInfo"
+          nullable: true
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeviceInfo"
+        layout:
+          $ref: "#/components/schemas/FitLayout"
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodecCheck"
+        passed:
+          type: boolean
+
+    FitFileDescription:
+      type: object
+      required: [records, sessions, laps, events, startTime, endTime, distanceM]
+      properties:
+        records:
+          type: integer
+          format: int32
+        sessions:
+          type: integer
+          format: int32
+        laps:
+          type: integer
+          format: int32
+        events:
+          type: integer
+          format: int32
+        startTime:
+          type: string
+          format: date-time
+          nullable: true
+        endTime:
+          type: string
+          format: date-time
+          nullable: true
+        distanceM:
+          type: number
+          format: double
+          nullable: true
+
+    FitStats:
+      type: object
+      required: [dataMessages, definitionMessages, developerFields]
+      properties:
+        dataMessages:
+          type: integer
+          format: int32
+        definitionMessages:
+          type: integer
+          format: int32
+        developerFields:
+          type: integer
+          format: int32
+
+    CodecCheck:
+      type: object
+      required: [label, passed, detail]
+      properties:
+        label:
+          type: string
+        passed:
+          type: boolean
+        detail:
+          type: string
+
+    MergeRequest:
+      type: object
+      required: [ids, gapHandling, lapStrategy, dryRun]
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        gapHandling:
+          type: string
+          enum: [preserve]
+          default: preserve
+        lapStrategy:
+          $ref: "#/components/schemas/LapStrategy"
+        dryRun:
+          type: boolean
+
+    LapStrategy:
+      type: string
+      enum: [OnePerSegment, KeepOriginal]
+      default: OnePerSegment
+
+    MergeResponse:
+      type: object
+      required: [id, report]
+      properties:
+        id:
+          type: string
+          nullable: true
+          description: Present when `dryRun` is false; null for dry-run previews.
+        report:
+          $ref: "#/components/schemas/MergeReport"
+
+    MergeReport:
+      type: object
+      required:
+        - segments
+        - gaps
+        - totalDistanceM
+        - elapsedSeconds
+        - movingSeconds
+        - timerEventsAdded
+        - lapStrategy
+        - layout
+      properties:
+        segments:
+          type: array
+          items:
+            $ref: "#/components/schemas/SegmentInfo"
+        gaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/GapInfo"
+        totalDistanceM:
+          type: number
+          format: double
+          nullable: true
+        elapsedSeconds:
+          type: number
+          format: double
+        movingSeconds:
+          type: number
+          format: double
+        timerEventsAdded:
+          type: integer
+          format: int32
+        lapStrategy:
+          $ref: "#/components/schemas/LapStrategy"
+        layout:
+          $ref: "#/components/schemas/FitLayout"
+
+    SegmentInfo:
+      type: object
+      required: [records, start, end, distanceM]
+      properties:
+        records:
+          type: integer
+          format: int32
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        distanceM:
+          type: number
+          format: double
+          nullable: true
+
+    GapInfo:
+      type: object
+      required: [afterSegment, seconds]
+      properties:
+        afterSegment:
+          type: integer
+          format: int32
+          description: One-based segment number after which the preserved pause occurs.
+        seconds:
+          type: number
+          format: double
+
+    SummaryResponse:
+      type: object
+      required: [summary, devices, layout]
+      properties:
+        summary:
+          $ref: "#/components/schemas/RideSummary"
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeviceInfo"
+        layout:
+          $ref: "#/components/schemas/FitLayout"
+
+    DownloadUrlResponse:
+      type: object
+      required: [id, url, expiresAt, format, filename]
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        format:
+          $ref: "#/components/schemas/DownloadFormat"
+        filename:
+          type: string
+          example: ffmforge-1782527814802_5507c4b9.fit
+
+    EditorFileRequest:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+
+    EditorRowsRequest:
+      type: object
+      required: [id, messageType, offset, limit]
+      properties:
+        id:
+          type: string
+        messageType:
+          type: string
+          example: record
+        offset:
+          type: integer
+          format: int32
+          minimum: 0
+        limit:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 250
+
+    EditorRepairRequest:
+      type: object
+      required: [id, operations]
+      properties:
+        id:
+          type: string
+        operations:
+          type: array
+          items:
+            $ref: "#/components/schemas/RepairOperation"
+
+    EditorOpenResponse:
+      type: object
+      required: [id, summary, devices, layout, anatomy, diagnostics, rows, verification]
+      properties:
+        id:
+          type: string
+        summary:
+          $ref: "#/components/schemas/RideSummary"
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeviceInfo"
+        layout:
+          $ref: "#/components/schemas/FitLayout"
+        anatomy:
+          type: array
+          items:
+            $ref: "#/components/schemas/EditorMessageGroup"
+        diagnostics:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagnosticIssue"
+        rows:
+          $ref: "#/components/schemas/EditorRowsResponse"
+        verification:
+          $ref: "#/components/schemas/EditorVerification"
+
+    EditorMessageGroup:
+      type: object
+      required: [name, count, status, issues]
+      properties:
+        name:
+          type: string
+          example: record
+        count:
+          type: integer
+          format: int32
+        status:
+          type: string
+          example: ok
+        issues:
+          type: integer
+          format: int32
+
+    EditorRowsResponse:
+      type: object
+      required: [messageType, offset, limit, total, rows]
+      properties:
+        messageType:
+          type: string
+        offset:
+          type: integer
+          format: int32
+        limit:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int32
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/EditorRecordRow"
+
+    EditorRecordRow:
+      type: object
+      required:
+        - index
+        - messageIndex
+        - messageType
+        - timestamp
+        - position
+        - heartRate
+        - power
+        - speedMps
+        - cadence
+        - altitudeM
+        - temperatureC
+        - fields
+        - issueIds
+      properties:
+        index:
+          type: integer
+          format: int32
+        messageIndex:
+          type: integer
+          format: int32
+        messageType:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+          nullable: true
+        position:
+          type: string
+          nullable: true
+          description: Human-readable latitude/longitude if present.
+        heartRate:
+          type: integer
+          format: int32
+          nullable: true
+        power:
+          type: integer
+          format: int32
+          nullable: true
+        speedMps:
+          type: number
+          format: double
+          nullable: true
+        cadence:
+          type: integer
+          format: int32
+          nullable: true
+        altitudeM:
+          type: number
+          format: double
+          nullable: true
+        temperatureC:
+          type: number
+          format: double
+          nullable: true
+        fields:
+          type: array
+          description: All displayable cells for the selected FIT message type.
+          items:
+            $ref: "#/components/schemas/EditorCell"
+        issueIds:
+          type: array
+          items:
+            type: string
+
+    EditorCell:
+      type: object
+      required: [field, value, numeric]
+      properties:
+        field:
+          type: string
+        value:
+          type: string
+        numeric:
+          type: number
+          format: double
+          nullable: true
+
+    DiagnosticIssue:
+      type: object
+      required:
+        - id
+        - kind
+        - severity
+        - title
+        - detail
+        - messageType
+        - startIndex
+        - endIndex
+        - field
+        - suggestedOperations
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          example: gps_sample_missing
+        severity:
+          type: string
+          example: warning
+        title:
+          type: string
+        detail:
+          type: string
+        messageType:
+          type: string
+          example: record
+        startIndex:
+          type: integer
+          format: int32
+        endIndex:
+          type: integer
+          format: int32
+        field:
+          type: string
+          nullable: true
+          example: position
+        suggestedOperations:
+          type: array
+          items:
+            $ref: "#/components/schemas/RepairOperation"
+
+    RepairOperation:
+      type: object
+      required: [kind, messageType, startIndex, endIndex, field, value]
+      properties:
+        kind:
+          type: string
+          description: Repair strategy, such as interpolate, replace, delete, mark_pause, or recalculate_summary.
+          example: interpolate
+        messageType:
+          type: string
+          example: record
+        startIndex:
+          type: integer
+          format: int32
+        endIndex:
+          type: integer
+          format: int32
+        field:
+          type: string
+          nullable: true
+          example: power
+        value:
+          type: number
+          format: double
+          nullable: true
+
+    RepairPreview:
+      type: object
+      required: [operations, changes, verification]
+      properties:
+        operations:
+          type: array
+          items:
+            $ref: "#/components/schemas/RepairOperation"
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/RepairChange"
+        verification:
+          $ref: "#/components/schemas/EditorVerification"
+
+    RepairChange:
+      type: object
+      required: [rowIndex, field, before, after, method]
+      properties:
+        rowIndex:
+          type: integer
+          format: int32
+        field:
+          type: string
+        before:
+          type: string
+        after:
+          type: string
+        method:
+          type: string
+
+    EditorVerification:
+      type: object
+      required: [status, canExport, checks]
+      properties:
+        status:
+          type: string
+          example: upload-safe
+        canExport:
+          type: boolean
+        checks:
+          type: array
+          items:
+            type: string
+
+    ExportRepairResponse:
+      type: object
+      required: [id, preview]
+      properties:
+        id:
+          type: string
+          description: New repaired FIT file id.
+        preview:
+          $ref: "#/components/schemas/RepairPreview"
+
+    GeoJsonFeatureCollection:
+      type: object
+      required: [type, features]
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        features:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeoJsonFeature"
+
+    GeoJsonFeature:
+      type: object
+      required: [type, properties, geometry]
+      properties:
+        type:
+          type: string
+          enum: [Feature]
+        properties:
+          type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: [track, start, finish, gap]
+        geometry:
+          oneOf:
+            - $ref: "#/components/schemas/GeoJsonLineString"
+            - $ref: "#/components/schemas/GeoJsonPoint"
+
+    GeoJsonLineString:
+      type: object
+      required: [type, coordinates]
+      properties:
+        type:
+          type: string
+          enum: [LineString]
+        coordinates:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeoJsonPosition"
+
+    GeoJsonPoint:
+      type: object
+      required: [type, coordinates]
+      properties:
+        type:
+          type: string
+          enum: [Point]
+        coordinates:
+          $ref: "#/components/schemas/GeoJsonPosition"
+
+    GeoJsonPosition:
+      type: array
+      description: Longitude, latitude pair.
+      minItems: 2
+      maxItems: 2
+      items:
+        type: number
+        format: double

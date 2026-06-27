@@ -237,13 +237,26 @@ Public API prefix:
 /ffmforge/v1/
 ```
 
+Swagger/OpenAPI spec:
+
+```text
+docs/openapi.yaml
+```
+
+Keep this file current with every API route, request DTO, response DTO, status
+code, or query parameter change under `/ffmforge/v1/`.
+
 Implemented routes include:
 
 - `POST /uploads` - create presigned upload URLs.
 - `POST /fit/describe` - summarize uploaded FIT files.
 - `GET /fit/{id}/track` - return GeoJSON route data.
 - `POST /fit/merge` - dry-run or execute a FIT merge.
-- `GET /fit/{id}/download` - create a presigned download URL.
+- `GET /fit/{id}/download?format=fit|gpx` - create a presigned download URL.
+- `POST /fit/editor/open` - open a FIT file in the editor.
+- `POST /fit/editor/rows` - page through FIT message rows.
+- `POST /fit/editor/repair-preview` - preview editor repairs.
+- `POST /fit/editor/export` - export a repaired FIT file.
 - `POST /fit/codec-demo` - deployed Lambda codec round-trip demo.
 
 ---

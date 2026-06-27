@@ -2,16 +2,71 @@
 <html lang="en" data-theme="light">
   <head>
     <meta charset="utf-8" />
-    <title>FFMForge</title>
+    <title>FFMForge | Garmin FIT File Merger, Repair Editor, GPX Export</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="FFMForge merges Garmin FIT ride recordings into one complete activity file."
+      content="Merge split Garmin FIT ride recordings, inspect and repair activity files, preview routes, and download clean FIT or GPX files for Garmin Connect and Strava."
     />
-    <meta name="robots" content="index,follow" />
+    <meta
+      name="robots"
+      content="index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1"
+    />
+    <meta
+      name="googlebot"
+      content="index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1"
+    />
+    <meta name="application-name" content="FFMForge" />
+    <meta name="apple-mobile-web-app-title" content="FFMForge" />
+    <meta name="theme-color" content="#ff6a1a" />
     <link rel="canonical" href="https://ffmforge.com/" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="manifest" href="site.webmanifest" />
+
+    <meta property="og:site_name" content="FFMForge" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ffmforge.com/" />
+    <meta property="og:title" content="FFMForge Garmin FIT file merger and repair editor" />
+    <meta
+      property="og:description"
+      content="Merge split Garmin FIT recordings, inspect ride data, repair suspect records, and export FIT or GPX files."
+    />
+    <meta property="og:image" content="https://ffmforge.com/favicon.svg" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="FFMForge Garmin FIT file merger and repair editor" />
+    <meta
+      name="twitter:description"
+      content="Merge split Garmin FIT recordings, inspect ride data, repair suspect records, and export FIT or GPX files."
+    />
+    <meta name="twitter:image" content="https://ffmforge.com/favicon.svg" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "FFMForge",
+        "url": "https://ffmforge.com/",
+        "applicationCategory": "SportsApplication",
+        "operatingSystem": "Web",
+        "description": "FFMForge is a web application for merging split Garmin FIT ride recordings, inspecting and repairing FIT activity data, and exporting FIT or GPX files.",
+        "softwareVersion": "0.1.0",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "Merge split Garmin FIT ride recordings",
+          "Inspect FIT file anatomy and activity records",
+          "Diagnose heart rate, power, speed, GPS, and timestamp issues",
+          "Repair selected FIT records",
+          "Export clean FIT or GPX files"
+        ],
+        "sameAs": ["https://github.com/deepgrant/fit-forge"]
+      }
+    </script>
   </head>
   <body>
     <ffm-root></ffm-root>
