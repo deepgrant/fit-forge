@@ -256,13 +256,22 @@ Public API prefix:
 /ffmforge/v1/
 ```
 
+Swagger/OpenAPI spec:
+
+```text
+docs/openapi.yaml
+```
+
+Keep this file current with every API route, request DTO, response DTO, status
+code, or query parameter change under `/ffmforge/v1/`.
+
 Implemented routes include:
 
 - `POST /uploads` - create presigned upload URLs.
 - `POST /fit/describe` - summarize uploaded FIT files.
 - `GET /fit/{id}/track` - return GeoJSON route data.
 - `POST /fit/merge` - dry-run or execute a FIT merge.
-- `GET /fit/{id}/download` - create a presigned download URL.
+- `GET /fit/{id}/download?format=fit|gpx` - create a presigned download URL.
 - `POST /fit/codec-demo` - deployed Lambda codec round-trip demo.
 - `POST /fit/editor/open` - decode an uploaded FIT file for editor use,
   returning summary, devices, anatomy, diagnostics, first row page, and export
@@ -324,9 +333,10 @@ files out of commits unless they are intentionally scrubbed/test-safe.
   OpenFreeMap Liberty style at `https://tiles.openfreemap.org/styles/liberty`.
 - Frontend public assets include `robots.txt`, `sitemap.xml`, `version.json`,
   favicon, and brand marks used in the activity/editor device lists.
-- Angular asset versioning is handled by hashed bundle filenames.
-- A future SPA version check can poll `version.json` and prompt users to refresh
-  when a new frontend is available.
+- Angular asset versioning is handled by hashed bundle filenames. Gradle also
+  stamps `version.json` in the deployable frontend artifact with an epoch-millis
+  version so the running SPA can detect a newly published frontend and prompt
+  for reload.
 - FIT processing uses Garmin's official Java SDK behind the FFMForge codec
   facade.
 - The editor keeps repair suggestions advisory until the user explicitly stages,

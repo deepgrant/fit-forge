@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { z } from 'zod';
 
 import type {
+  DownloadFormat,
   DownloadUrlResponse,
   EditorOpenResponse,
   EditorRowsResponse,
@@ -105,6 +106,8 @@ const DownloadUrlResponseSchema = z.object({
   id: z.string(),
   url: z.string(),
   expiresAt: z.string(),
+  format: z.union([z.literal('fit'), z.literal('gpx')]),
+  filename: z.string(),
 });
 
 const TrackGeoJsonSchema = z.object({
@@ -269,9 +272,9 @@ export class FfmForgeApi {
     );
   }
 
-  async download(id: string): Promise<DownloadUrlResponse> {
+  async download(id: string, format: DownloadFormat = 'fit'): Promise<DownloadUrlResponse> {
     return DownloadUrlResponseSchema.parse(
-      await firstValueFrom(this.http.get(`${this.prefix}/fit/${encodeURIComponent(id)}/download`)),
+      await firstValueFrom(this.http.get(`${this.prefix}/fit/${encodeURIComponent(id)}/download?format=${format}`)),
     );
   }
 
@@ -313,4 +316,11 @@ export function messageOf(err: unknown): string {
   }
   if (err instanceof Error) return err.message;
   return 'Unknown error';
+}
+
+export function isSessionExpired(err: unknown): boolean {
+  if (err instanceof HttpErrorResponse) {
+    return err.status === 410 || messageOf(err).toLowerCase().includes('session expired');
+  }
+  return messageOf(err).toLowerCase().includes('session expired');
 }

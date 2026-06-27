@@ -21,9 +21,12 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
 
 data "aws_iam_policy_document" "lambda_s3_access" {
   statement {
-    sid       = "ObjectRW"
-    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-    resources = ["${aws_s3_bucket.data.arn}/fit/*"]
+    sid     = "ObjectRW"
+    actions = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = [
+      "${aws_s3_bucket.data.arn}/fit/*",
+      "${aws_s3_bucket.data.arn}/gpx/*",
+    ]
   }
 
   statement {
@@ -34,7 +37,7 @@ data "aws_iam_policy_document" "lambda_s3_access" {
     condition {
       test     = "StringLike"
       variable = "s3:prefix"
-      values   = ["fit/*"]
+      values   = ["fit/*", "gpx/*"]
     }
   }
 }

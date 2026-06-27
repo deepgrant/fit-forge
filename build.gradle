@@ -1,6 +1,8 @@
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
+import groovy.json.JsonOutput
+
 buildscript {
   repositories { mavenCentral() }
   dependencies {
@@ -219,6 +221,26 @@ def frontendNgCommand = { List<String> args ->
   frontendNodeCommand() + [file("$frontendProjectDir/node_modules/@angular/cli/bin/ng").absolutePath] + args
 }
 
+def frontendVersionStamp = {
+  findProperty('ffmForgeFrontendVersion')?.toString() ?: System.currentTimeMillis().toString()
+}
+
+def writeFrontendVersion = { File targetDir ->
+  if (!targetDir.exists()) {
+    throw new GradleException("Cannot stamp frontend version; directory does not exist: ${targetDir}")
+  }
+
+  def version = frontendVersionStamp()
+  def payload = [
+    name   : 'FFMForge',
+    version: version,
+    status : 'frontend-build',
+  ]
+  def versionFile = file("${targetDir}/version.json")
+  versionFile.setText(JsonOutput.prettyPrint(JsonOutput.toJson(payload)) + "\n", 'UTF-8')
+  println "Stamped ${versionFile} with frontend version ${version}"
+}
+
 def requireFrontendNode = { List<String> nodeCommand ->
   def output = new ByteArrayOutputStream()
   def error = new ByteArrayOutputStream()
@@ -374,10 +396,12 @@ tasks.register('frontendBuild') {
   inputs.file "$frontendProjectDir/tsconfig.json"
   inputs.file "$frontendProjectDir/tsconfig.app.json"
   outputs.dir angularFrontendDist
+  outputs.upToDateWhen { false }
 
   doLast {
     requireFrontendNode(frontendNodeCommand())
     runCommand(frontendNgCommand(['build', '--progress=false']), frontendProjectDir)
+    writeFrontendVersion(angularFrontendDist)
   }
 }
 
@@ -534,6 +558,10 @@ tasks.register('refreshFrontend') {
     def sourceDir = frontendSourceDir()
     if (!sourceDir.exists()) {
       throw new GradleException("Frontend source directory does not exist: ${sourceDir}")
+    }
+
+    if (sourceDir.canonicalFile == angularFrontendDist.canonicalFile) {
+      writeFrontendVersion(sourceDir)
     }
 
     def bucket = tofuOutput('frontend_bucket_name')

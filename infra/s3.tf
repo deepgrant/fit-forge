@@ -77,4 +77,17 @@ resource "aws_s3_bucket_lifecycle_configuration" "data" {
       days = 1
     }
   }
+
+  rule {
+    id     = "expire-gpx-objects"
+    status = "Enabled"
+
+    filter {
+      prefix = "gpx/"
+    }
+
+    expiration {
+      days = 1
+    }
+  }
 }

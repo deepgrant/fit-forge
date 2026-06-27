@@ -2,6 +2,7 @@ package ffmforge.http
 
 import java.time.Instant
 
+import ffmforge.DownloadFormat
 import ffmforge.fit.DeviceInfo
 import ffmforge.fit.FileId
 import ffmforge.fit.FitLayout
@@ -25,7 +26,13 @@ final case class UploadUrlRequest(files: Vector[String])
 final case class UploadUrlResult(id: String, name: String, url: String, expiresAt: Instant)
 final case class UploadUrlsResponse(files: Vector[UploadUrlResult])
 final case class DescribeRequest(ids: Vector[String])
-final case class DownloadUrlResponse(id: String, url: String, expiresAt: Instant)
+final case class DownloadUrlResponse(
+    id: String,
+    url: String,
+    expiresAt: Instant,
+    format: DownloadFormat,
+    filename: String,
+)
 final case class CodecDemoRequest(id: String)
 
 final case class EditorFileRequest(id: String)

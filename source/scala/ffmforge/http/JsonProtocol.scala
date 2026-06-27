@@ -4,6 +4,7 @@ import java.time.Instant
 
 import scala.util.Try
 
+import ffmforge.DownloadFormat
 import ffmforge.fit.CodecCheck
 import ffmforge.fit.CodecDemoReport
 import ffmforge.fit.DeviceInfo
@@ -56,6 +57,14 @@ object JsonProtocol extends DefaultJsonProtocol {
     def read(v: JsValue): LapStrategy = v match {
       case JsString(s) => Try(LapStrategy.valueOf(s)).getOrElse(LapStrategy.OnePerSegment)
       case _           => deserializationError("lap strategy string expected")
+    }
+  }
+
+  implicit val downloadFormatFormat: JsonFormat[DownloadFormat] = new JsonFormat[DownloadFormat] {
+    def write(format: DownloadFormat): JsValue = JsString(format.wireName)
+    def read(v: JsValue): DownloadFormat = v match {
+      case JsString(s) => DownloadFormat.fromWireName(s).getOrElse(deserializationError("download format expected"))
+      case _           => deserializationError("download format string expected")
     }
   }
 
@@ -127,7 +136,7 @@ object JsonProtocol extends DefaultJsonProtocol {
   implicit val editorFileRequestFormat: RootJsonFormat[EditorFileRequest]     = jsonFormat1(EditorFileRequest.apply)
   implicit val editorRowsRequestFormat: RootJsonFormat[EditorRowsRequest]     = jsonFormat4(EditorRowsRequest.apply)
   implicit val editorRepairRequestFormat: RootJsonFormat[EditorRepairRequest] = jsonFormat2(EditorRepairRequest.apply)
-  implicit val downloadUrlResponseFormat: RootJsonFormat[DownloadUrlResponse] = jsonFormat3(DownloadUrlResponse.apply)
+  implicit val downloadUrlResponseFormat: RootJsonFormat[DownloadUrlResponse] = jsonFormat5(DownloadUrlResponse.apply)
   implicit val codecDemoRequestFormat: RootJsonFormat[CodecDemoRequest]       = jsonFormat1(CodecDemoRequest.apply)
   implicit val mergeResponseFormat: RootJsonFormat[MergeResponse]             = jsonFormat2(MergeResponse.apply)
   implicit val apiErrorFormat: RootJsonFormat[ApiError]                       = jsonFormat1(ApiError.apply)

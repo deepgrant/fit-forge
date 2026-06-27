@@ -1,4 +1,4 @@
-<main class="app-shell">
+<main class="app-shell" [class.reload-blocked]="reloadDialog() !== null">
   <header class="topbar">
     <div class="brand" aria-label="FFMForge">
       <span class="mark" aria-hidden="true">
@@ -127,8 +127,13 @@
             </select>
           </label>
 
+          <div class="format-toggle" role="group" aria-label="Merge download format">
+            <button type="button" [class.active]="mergeDownloadFormat() === 'fit'" (click)="setMergeDownloadFormat('fit')">FIT</button>
+            <button type="button" [class.active]="mergeDownloadFormat() === 'gpx'" (click)="setMergeDownloadFormat('gpx')">GPX</button>
+          </div>
+
           <button type="button" class="secondary-button" (click)="dryRunMerge()" [disabled]="!canMerge()">Preview merge</button>
-          <button type="button" class="primary-button" (click)="mergeAndDownload()" [disabled]="!canMerge()">Merge & download .fit</button>
+          <button type="button" class="primary-button" (click)="mergeAndDownload()" [disabled]="!canMerge()">Merge & download .{{ mergeDownloadFormat() }}</button>
         </aside>
 
         <section class="panel report-panel">
@@ -346,7 +351,13 @@
           @if (editorOpen(); as opened) {
             <div class="anatomy-list">
               @for (group of opened.anatomy; track group.name) {
-                <button type="button" class="anatomy-row" [class.active]="editorMessageType() === group.name" (click)="selectEditorMessageType(group.name)">
+                <button
+                  type="button"
+                  class="anatomy-row"
+                  [class.active]="editorMessageType() === group.name"
+                  [class.map-row]="editorMessageTypeIsMappable(group.name)"
+                  (click)="selectEditorMessageType(group.name)"
+                >
                   <span>{{ group.name }}</span>
                   <span>
                     {{ group.count }}
@@ -399,6 +410,27 @@
           }
         </section>
 
+        <section class="panel editor-map-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Route context</p>
+              <h2>Selected row map</h2>
+            </div>
+            @if (editorRows(); as rows) {
+              <span class="badge" [class.valid]="editorMapCanSelectRows()">
+                {{ editorMapCanSelectRows() ? rows.messageType + ' rows' : 'route only' }}
+              </span>
+            }
+          </div>
+
+          <div class="map-shell editor-map-shell" [class.selectable]="editorCanPickRecordFromMap()">
+            <div #editorMapHost class="map-host" aria-label="Editor route context map"></div>
+            @if (!editorRouteTrack()) {
+              <div class="map-empty">Upload a FIT file with GPS data to draw its route.</div>
+            }
+          </div>
+        </section>
+
         <section class="panel editor-table-panel" [class.loading]="editorRowsBusy() !== null">
           <div class="panel-heading">
             <div>
@@ -418,7 +450,7 @@
             </div>
 
             @if (editorRows(); as rows) {
-              <div class="editor-record-table" role="table" aria-label="Editor record rows" (scroll)="onEditorTableScroll($event)" (wheel)="onEditorTableWheel($event)">
+              <div #editorRecordTable class="editor-record-table" role="table" aria-label="Editor record rows" (scroll)="onEditorTableScroll($event)" (wheel)="onEditorTableWheel($event)">
                 @if (rows.messageType === 'record') {
                   <div class="editor-row editor-row-head" role="row">
                     <span>#</span>
@@ -432,7 +464,7 @@
                     <span>Temp</span>
                   </div>
                   @for (row of rows.rows; track row.index) {
-                    <div class="editor-row" [class.has-issue]="row.issueIds.length > 0" role="row">
+                    <button type="button" class="editor-row" [class.has-issue]="row.issueIds.length > 0" [class.selected]="editorRowIsSelected(row)" role="row" (click)="selectEditorRow(row)">
                       <span>{{ row.index }}</span>
                       <span>{{ row.timestamp ?? '-' }}</span>
                       <span>{{ row.position ?? '-' }}</span>
@@ -442,7 +474,7 @@
                       <span>{{ cellValue(row.cadence) }}</span>
                       <span>{{ cellValue(row.altitudeM) }}</span>
                       <span>{{ temp(row.temperatureC) }}</span>
-                    </div>
+                    </button>
                   }
                 } @else {
                   <div class="editor-row generic-row editor-row-head" [style.grid-template-columns]="editorGenericGridColumns(rows)" role="row">
@@ -453,13 +485,13 @@
                     }
                   </div>
                   @for (row of rows.rows; track row.index) {
-                    <div class="editor-row generic-row" [style.grid-template-columns]="editorGenericGridColumns(rows)" [class.has-issue]="row.issueIds.length > 0" role="row">
+                    <button type="button" class="editor-row generic-row" [style.grid-template-columns]="editorGenericGridColumns(rows)" [class.has-issue]="row.issueIds.length > 0" [class.selected]="editorRowIsSelected(row)" role="row" (click)="selectEditorRow(row)">
                       <span>{{ row.index }}</span>
                       <span>{{ row.timestamp ?? '-' }}</span>
                       @for (column of editorFieldColumns(rows); track column) {
                         <span>{{ editorFieldValue(row, column) }}</span>
                       }
-                    </div>
+                    </button>
                   }
                 }
               </div>
@@ -477,7 +509,15 @@
                   <path d="m18.121 15.293 2.586-2.586a1 1 0 0 0 0-1.414l-7.586-7.586a1 1 0 0 0-1.414 0L9.121 6.293a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0Z" />
                 </svg>
               </span>
-              <span>{{ direction === 'next' ? 'Loading more rows' : 'Loading earlier rows' }}</span>
+              <span>
+                {{
+                  direction === 'message'
+                    ? 'Loading message rows'
+                    : direction === 'next'
+                      ? 'Loading more rows'
+                      : 'Loading earlier rows'
+                }}
+              </span>
             </div>
           }
         </section>
@@ -556,7 +596,12 @@
             </div>
           }
 
-          <button type="button" class="primary-button" (click)="exportEditorRepairs()" [disabled]="!canExportRepair()">Save repaired .fit</button>
+          <div class="format-toggle" role="group" aria-label="Editor download format">
+            <button type="button" [class.active]="editorDownloadFormat() === 'fit'" (click)="setEditorDownloadFormat('fit')">FIT</button>
+            <button type="button" [class.active]="editorDownloadFormat() === 'gpx'" (click)="setEditorDownloadFormat('gpx')">GPX</button>
+          </div>
+
+          <button type="button" class="primary-button" (click)="exportEditorRepairs()" [disabled]="!canExportRepair()">Save repaired .{{ editorDownloadFormat() }}</button>
         </section>
       </div>
     </div>
@@ -571,4 +616,22 @@
       https://github.com/deepgrant/fit-forge
     </a>
   </footer>
+
+  @if (reloadDialog(); as dialog) {
+    <div class="reload-scrim" aria-hidden="true"></div>
+    <section class="reload-dialog" role="dialog" aria-modal="true" aria-labelledby="reload-dialog-title">
+      <span class="reload-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11.414 10 4.031 17.418a2.091 2.091 0 0 0 0 2.967 2.11 2.11 0 0 0 2.976 0L14.414 13" />
+          <path d="m18.121 15.293 2.586-2.586a1 1 0 0 0 0-1.414l-7.586-7.586a1 1 0 0 0-1.414 0L9.121 6.293a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0Z" />
+        </svg>
+      </span>
+      <div>
+        <p class="panel-kicker">{{ dialog.kind === 'version' ? 'Service update' : 'Workspace expired' }}</p>
+        <h2 id="reload-dialog-title">{{ dialog.title }}</h2>
+        <p>{{ dialog.body }}</p>
+      </div>
+      <button type="button" class="primary-button" (click)="reloadApplication()">OK</button>
+    </section>
+  }
 </main>

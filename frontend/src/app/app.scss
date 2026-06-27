@@ -10,6 +10,65 @@
     var(--ff-bg);
 }
 
+.app-shell.reload-blocked .topbar,
+.app-shell.reload-blocked .workspace,
+.app-shell.reload-blocked .app-footer {
+  filter: grayscale(0.75);
+  opacity: 0.34;
+  pointer-events: none;
+  user-select: none;
+}
+
+.reload-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: color-mix(in srgb, var(--ff-bg), transparent 18%);
+  backdrop-filter: blur(2px);
+}
+
+.reload-dialog {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 91;
+  width: min(430px, calc(100vw - 34px));
+  display: grid;
+  gap: 16px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--ff-border);
+  border-radius: 14px;
+  padding: 20px;
+  color: var(--ff-text);
+  background: var(--ff-card);
+  box-shadow: var(--ff-shadow);
+}
+
+.reload-dialog h2 {
+  margin-bottom: 8px;
+}
+
+.reload-dialog p:not(.panel-kicker) {
+  color: var(--ff-text-2);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.reload-mark {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: #1a1206;
+  background: var(--ff-orange);
+}
+
+.reload-mark svg {
+  width: 25px;
+  height: 25px;
+}
+
 .app-footer {
   width: min(1440px, 100%);
   margin: 0 auto;
@@ -593,6 +652,30 @@ select {
   background: var(--ff-card);
 }
 
+.format-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--ff-border);
+  border-radius: 999px;
+  background: var(--ff-soft);
+}
+
+.format-toggle button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--ff-text-2);
+  font-weight: 800;
+  background: transparent;
+}
+
+.format-toggle button.active {
+  color: #1a1206;
+  background: var(--ff-orange);
+}
+
 .primary-button,
 .secondary-button {
   min-height: 43px;
@@ -805,11 +888,42 @@ select {
   background: color-mix(in srgb, var(--ff-orange), transparent 91%);
 }
 
+.anatomy-row.map-row {
+  border-color: color-mix(in srgb, var(--ff-active), transparent 36%);
+  background: color-mix(in srgb, var(--ff-active), transparent 92%);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ff-active), transparent 58%);
+  animation: map-row-pulse 2.8s ease-in-out infinite;
+}
+
+.anatomy-row.map-row span:last-child {
+  color: color-mix(in srgb, var(--ff-active), var(--ff-text) 24%);
+}
+
+.anatomy-row.map-row.active {
+  border-color: color-mix(in srgb, var(--ff-active), transparent 12%);
+  background: color-mix(in srgb, var(--ff-active), transparent 84%);
+}
+
+@keyframes map-row-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ff-active), transparent 72%);
+  }
+
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ff-active), transparent 86%);
+  }
+}
+
 .editor-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.editor-map-shell {
+  height: 260px;
 }
 
 .editor-record-table {
@@ -871,26 +985,39 @@ select {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .table-busy-mark {
+  .table-busy-mark,
+  .anatomy-row.map-row {
     animation: none;
   }
 }
 
 .editor-row {
   min-width: 980px;
+  width: 100%;
   display: grid;
   grid-template-columns: 54px 190px 170px repeat(6, minmax(78px, 1fr));
   gap: 8px;
   align-items: center;
+  border: 0;
   border-top: 1px solid var(--ff-border);
   padding: 9px 10px;
   color: var(--ff-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
+  text-align: left;
+  background: transparent;
 }
 
 .editor-row:first-child {
   border-top: 0;
+}
+
+button.editor-row {
+  cursor: pointer;
+}
+
+button.editor-row:hover {
+  background: color-mix(in srgb, var(--ff-orange), transparent 94%);
 }
 
 .editor-row-head {
@@ -905,6 +1032,12 @@ select {
 
 .editor-row.has-issue {
   background: color-mix(in srgb, var(--ff-gap), transparent 88%);
+}
+
+.editor-row.selected {
+  outline: 2px solid color-mix(in srgb, var(--ff-orange), transparent 25%);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--ff-orange), transparent 88%);
 }
 
 .editor-row.generic-row {

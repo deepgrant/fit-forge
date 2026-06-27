@@ -1,10 +1,11 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, computed, effect, inject, signal } from '@angular/core';
 
-import { FfmForgeApi, messageOf } from './api-client';
+import { FfmForgeApi, isSessionExpired, messageOf } from './api-client';
 import { distance, duration, fileSize, power, speed, temp, timeRange } from './format';
 import type {
   DeviceInfo,
   DiagnosticIssue,
+  DownloadFormat,
   EditorOpenResponse,
   EditorRecordRow,
   EditorRowsResponse,
@@ -23,12 +24,16 @@ type Theme = 'light' | 'dark';
 type LapStrategy = 'OnePerSegment' | 'KeepOriginal';
 type WorkspaceView = 'merge' | 'editor';
 type EditorRowsDirection = 'previous' | 'next';
+type EditorRowsBusy = EditorRowsDirection | 'message';
+type ReloadDialogKind = 'version' | 'session';
 
 const RouteColors = ['#ff6a1a', '#1f9d6b', '#2f80ed', '#e0453c', '#8b5cf6', '#e0921a', '#008ea8', '#c026d3'];
 const OpenFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
 const MapLibreCssUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css';
 const MapLibreScriptUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js';
 const EditorRowsEdgePx = 36;
+const EditorMapPickPageSize = 160;
+const VersionPollMs = 60 * 60 * 1000;
 
 interface GeoJsonSource {
   setData(data: unknown): void;
@@ -44,14 +49,36 @@ interface MapLibreMap {
   addLayer(layer: Readonly<Record<string, unknown>>): void;
   addSource(id: string, source: Readonly<Record<string, unknown>>): void;
   fitBounds(bounds: MapBounds, options: Readonly<Record<string, unknown>>): void;
+  getCanvas(): HTMLCanvasElement;
   getLayer(id: string): unknown;
   getSource(id: string): GeoJsonSource | undefined;
   on(type: 'load', listener: () => void): void;
+  on(type: 'click', listener: (event: MapClickEvent) => void): void;
+  on(type: 'mousemove', listener: (event: MapMouseEvent) => void): void;
+  on(type: 'mouseout', listener: () => void): void;
+  queryRenderedFeatures(point: MapFeatureQueryGeometry, options?: Readonly<Record<string, unknown>>): readonly unknown[];
   remove(): void;
   removeLayer(id: string): void;
   removeSource(id: string): void;
   resize(): void;
 }
+
+interface MapPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+type MapFeatureQueryGeometry = MapPoint | readonly [MapPoint, MapPoint];
+
+interface MapMouseEvent {
+  readonly lngLat: {
+    readonly lng: number;
+    readonly lat: number;
+  };
+  readonly point: MapPoint;
+}
+
+type MapClickEvent = MapMouseEvent;
 
 interface MapLibreGlobal {
   LngLatBounds: new () => MapBounds;
@@ -75,6 +102,12 @@ interface DisplayDevice {
   readonly occurrenceCount: number;
 }
 
+interface ReloadDialog {
+  readonly kind: ReloadDialogKind;
+  readonly title: string;
+  readonly body: string;
+}
+
 declare const maplibregl: MapLibreGlobal;
 
 declare global {
@@ -94,11 +127,23 @@ export class App implements AfterViewInit, OnDestroy {
 
   private readonly api = inject(FfmForgeApi);
   private map?: MapLibreMap;
+  private editorMap?: MapLibreMap;
   private mapLoaded = false;
+  private editorMapLoaded = false;
   private renderedRouteIds = new Set<string>();
+  private editorRouteRendered = false;
   private editorRowsLoadInFlight = false;
+  private editorRouteHoverPosition?: [number, number];
+  private editorRouteCoordinates: readonly [number, number][] = [];
+  private currentFrontendVersion?: string;
+  private versionPollId?: ReturnType<typeof window.setInterval>;
+  private readonly checkVersionOnFocus = (): void => {
+    void this.checkFrontendVersion();
+  };
 
   @ViewChild('mapHost') private mapHost?: ElementRef<HTMLDivElement>;
+  @ViewChild('editorMapHost') private editorMapHost?: ElementRef<HTMLDivElement>;
+  @ViewChild('editorRecordTable') private editorRecordTable?: ElementRef<HTMLDivElement>;
 
   protected readonly theme = signal<Theme>('light');
   protected readonly activeView = signal<WorkspaceView>('merge');
@@ -108,17 +153,22 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly dryRun = signal<MergeResponse | null>(null);
   protected readonly merged = signal<MergeResponse | null>(null);
   protected readonly lapStrategy = signal<LapStrategy>('OnePerSegment');
+  protected readonly mergeDownloadFormat = signal<DownloadFormat>('fit');
+  protected readonly editorDownloadFormat = signal<DownloadFormat>('fit');
   protected readonly busy = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly editorFile = signal<SegmentFile | null>(null);
   protected readonly editorOpen = signal<EditorOpenResponse | null>(null);
   protected readonly editorRows = signal<EditorRowsResponse | null>(null);
-  protected readonly editorRowsBusy = signal<EditorRowsDirection | null>(null);
+  protected readonly editorRowsBusy = signal<EditorRowsBusy | null>(null);
   protected readonly editorMessageType = signal('record');
   protected readonly editorSelectedIssueId = signal<string | null>(null);
   protected readonly editorOperations = signal<readonly RepairOperation[]>([]);
   protected readonly editorPreview = signal<RepairPreview | null>(null);
   protected readonly editorExport = signal<ExportRepairResponse | null>(null);
+  protected readonly editorRouteTrack = signal<RouteTrack | null>(null);
+  protected readonly editorSelectedRow = signal<EditorRecordRow | null>(null);
+  protected readonly reloadDialog = signal<ReloadDialog | null>(null);
 
   protected readonly readyIds = computed(() =>
     this.segments()
@@ -157,44 +207,82 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly timeRange = timeRange;
 
   constructor() {
-    const stored = window.localStorage.getItem('ffmforge-theme');
+    const stored = this.localStorage()?.getItem('ffmforge-theme');
     this.setTheme(stored === 'dark' ? 'dark' : 'light');
     effect(() => {
       const tracks = this.routeTracks();
       queueMicrotask(() => this.renderRouteTracks(tracks));
     });
+    effect(() => {
+      const track = this.editorRouteTrack();
+      this.editorRouteCoordinates = track ? this.trackLineCoordinates(track.geojson) : [];
+      queueMicrotask(() => this.renderEditorRouteTrack(track));
+    });
+    effect(() => {
+      const row = this.editorSelectedRow();
+      queueMicrotask(() => this.renderEditorSelectedRow(row));
+    });
   }
 
   ngAfterViewInit(): void {
     void this.initializeMap();
+    this.startVersionMonitor();
   }
 
   ngOnDestroy(): void {
     this.map?.remove();
+    this.editorMap?.remove();
+    if (this.versionPollId !== undefined) window.clearInterval(this.versionPollId);
+    window.removeEventListener('focus', this.checkVersionOnFocus);
   }
 
   private async initializeMap(): Promise<void> {
-    if (!this.mapHost) return;
-
     try {
       await this.loadMapLibre();
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
       return;
     }
 
-    this.map = new maplibregl.Map({
-      container: this.mapHost.nativeElement,
-      style: OpenFreeMapStyleUrl,
-      center: [-98.5795, 39.8283],
-      zoom: 3,
-      attributionControl: { compact: true },
-    });
-    this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-    this.map.on('load', () => {
-      this.mapLoaded = true;
-      this.renderRouteTracks(this.routeTracks());
-    });
+    if (this.mapHost) {
+      this.map = new maplibregl.Map({
+        container: this.mapHost.nativeElement,
+        style: OpenFreeMapStyleUrl,
+        center: [-98.5795, 39.8283],
+        zoom: 3,
+        attributionControl: { compact: true },
+      });
+      this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      this.map.on('load', () => {
+        this.mapLoaded = true;
+        this.renderRouteTracks(this.routeTracks());
+      });
+    }
+
+    if (this.editorMapHost) {
+      this.editorMap = new maplibregl.Map({
+        container: this.editorMapHost.nativeElement,
+        style: OpenFreeMapStyleUrl,
+        center: [-98.5795, 39.8283],
+        zoom: 3,
+        attributionControl: { compact: true },
+      });
+      this.editorMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      this.editorMap.on('click', (event) => {
+        void this.selectRecordFromEditorMap(event);
+      });
+      this.editorMap.on('mousemove', (event) => {
+        this.updateEditorRouteHover(event);
+      });
+      this.editorMap.on('mouseout', () => {
+        this.clearEditorRouteHover();
+      });
+      this.editorMap.on('load', () => {
+        this.editorMapLoaded = true;
+        this.renderEditorRouteTrack(this.editorRouteTrack());
+        this.renderEditorSelectedRow(this.editorSelectedRow());
+      });
+    }
   }
 
   protected async onFilesSelected(event: Event): Promise<void> {
@@ -219,13 +307,24 @@ export class App implements AfterViewInit, OnDestroy {
     this.merged.set(null);
   }
 
+  protected setMergeDownloadFormat(format: DownloadFormat): void {
+    this.mergeDownloadFormat.set(format);
+  }
+
+  protected setEditorDownloadFormat(format: DownloadFormat): void {
+    this.editorDownloadFormat.set(format);
+  }
+
   protected toggleTheme(): void {
     this.setTheme(this.theme() === 'dark' ? 'light' : 'dark');
   }
 
   protected setActiveView(view: WorkspaceView): void {
     this.activeView.set(view);
-    queueMicrotask(() => this.map?.resize());
+    queueMicrotask(() => {
+      this.map?.resize();
+      this.editorMap?.resize();
+    });
   }
 
   protected removeSegment(localId: string): void {
@@ -256,7 +355,7 @@ export class App implements AfterViewInit, OnDestroy {
       this.dryRun.set(await this.api.merge(this.readyIds(), true, this.lapStrategy()));
       this.merged.set(null);
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
     } finally {
       this.busy.set(null);
     }
@@ -271,11 +370,11 @@ export class App implements AfterViewInit, OnDestroy {
       this.merged.set(merged);
       this.dryRun.set(merged);
       if (merged.id) {
-        const download = await this.api.download(merged.id);
+        const download = await this.api.download(merged.id, this.mergeDownloadFormat());
         window.location.assign(download.url);
       }
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
     } finally {
       this.busy.set(null);
     }
@@ -297,14 +396,17 @@ export class App implements AfterViewInit, OnDestroy {
     if (!open || messageType === this.editorMessageType()) return;
 
     this.busy.set(`Loading ${messageType} rows`);
+    this.editorRowsBusy.set('message');
     this.error.set(null);
     try {
       this.editorMessageType.set(messageType);
       this.editorRows.set(await this.api.editorRows(open.id, messageType, 0, 80));
+      this.editorSelectedRow.set(null);
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
     } finally {
       this.busy.set(null);
+      this.editorRowsBusy.set(null);
     }
   }
 
@@ -354,7 +456,7 @@ export class App implements AfterViewInit, OnDestroy {
         });
       }
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
     } finally {
       this.editorRowsBusy.set(null);
       this.editorRowsLoadInFlight = false;
@@ -402,8 +504,15 @@ export class App implements AfterViewInit, OnDestroy {
     return table.scrollTop + table.clientHeight >= table.scrollHeight - EditorRowsEdgePx;
   }
 
-  protected selectEditorIssue(issue: DiagnosticIssue): void {
+  protected async selectEditorIssue(issue: DiagnosticIssue): Promise<void> {
     this.editorSelectedIssueId.set(issue.id);
+    this.editorSelectedRow.set(null);
+    await this.showIssueOnEditorMap(issue);
+  }
+
+  protected selectEditorRow(row: EditorRecordRow): void {
+    this.editorSelectedRow.set(row);
+    this.renderEditorIssueSelection(this.emptyGeoJson());
   }
 
   protected stageSuggestedRepair(issue: DiagnosticIssue | undefined): void {
@@ -429,7 +538,7 @@ export class App implements AfterViewInit, OnDestroy {
       this.editorPreview.set(await this.api.editorRepairPreview(open.id, this.editorOperations()));
       this.editorExport.set(null);
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
     } finally {
       this.busy.set(null);
     }
@@ -444,10 +553,10 @@ export class App implements AfterViewInit, OnDestroy {
       const exported = await this.api.editorExport(open.id, this.editorOperations());
       this.editorExport.set(exported);
       this.editorPreview.set(exported.preview);
-      const download = await this.api.download(exported.id);
+      const download = await this.api.download(exported.id, this.editorDownloadFormat());
       window.location.assign(download.url);
     } catch (err) {
-      this.error.set(messageOf(err));
+      this.handleError(err);
     } finally {
       this.busy.set(null);
     }
@@ -486,7 +595,7 @@ export class App implements AfterViewInit, OnDestroy {
           additions.some((addition) => addition.localId === segment.localId) ? { ...segment, state: 'failed', error: message } : segment,
         ),
       );
-      this.error.set(message);
+      this.handleError(err);
     } finally {
       this.busy.set(null);
     }
@@ -511,6 +620,8 @@ export class App implements AfterViewInit, OnDestroy {
     this.editorOperations.set([]);
     this.editorPreview.set(null);
     this.editorExport.set(null);
+    this.editorRouteTrack.set(null);
+    this.editorSelectedRow.set(null);
     this.busy.set('Uploading FIT file for editor');
     this.error.set(null);
 
@@ -519,13 +630,20 @@ export class App implements AfterViewInit, OnDestroy {
       if (!uploaded) throw new Error('Upload did not return a file id.');
       this.editorFile.set({ ...local, state: 'ready', remoteId: uploaded.id });
       const opened = await this.api.editorOpen(uploaded.id);
+      const defaultMessageType = this.defaultEditorMessageType(opened);
       this.editorOpen.set(opened);
-      this.editorRows.set(opened.rows);
+      this.editorMessageType.set(defaultMessageType);
+      this.editorRows.set(
+        defaultMessageType === opened.rows.messageType
+          ? opened.rows
+          : await this.api.editorRows(uploaded.id, defaultMessageType, 0, 80),
+      );
       this.editorSelectedIssueId.set(opened.diagnostics.at(0)?.id ?? null);
+      this.editorRouteTrack.set(await this.loadEditorRouteTrack(uploaded.id, file.name));
     } catch (err) {
       const message = messageOf(err);
       this.editorFile.set({ ...local, state: 'failed', error: message });
-      this.error.set(message);
+      this.handleError(err);
     } finally {
       this.busy.set(null);
     }
@@ -555,10 +673,119 @@ export class App implements AfterViewInit, OnDestroy {
     );
   }
 
+  private async loadEditorRouteTrack(id: string, name: string): Promise<RouteTrack> {
+    return {
+      id,
+      name,
+      color: RouteColors[0],
+      geojson: await this.api.track(id),
+    };
+  }
+
   private setTheme(theme: Theme): void {
     this.theme.set(theme);
     document.documentElement.dataset['theme'] = theme;
-    window.localStorage.setItem('ffmforge-theme', theme);
+    this.localStorage()?.setItem('ffmforge-theme', theme);
+  }
+
+  protected reloadApplication(): void {
+    window.location.reload();
+  }
+
+  private handleError(err: unknown): void {
+    if (isSessionExpired(err)) {
+      this.showReloadDialog('session');
+    } else {
+      this.error.set(messageOf(err));
+    }
+  }
+
+  private startVersionMonitor(): void {
+    void this.checkFrontendVersion();
+    this.versionPollId = window.setInterval(() => {
+      void this.checkFrontendVersion();
+    }, VersionPollMs);
+    window.addEventListener('focus', this.checkVersionOnFocus);
+  }
+
+  private async checkFrontendVersion(): Promise<void> {
+    if (this.reloadDialog()) return;
+
+    const version = await this.frontendVersion();
+    if (version !== undefined) {
+      if (this.currentFrontendVersion === undefined) {
+        this.currentFrontendVersion = version;
+      } else if (version !== this.currentFrontendVersion) {
+        this.showReloadDialog('version');
+        return;
+      }
+    }
+
+    await this.checkActiveSession();
+  }
+
+  private async frontendVersion(): Promise<string | undefined> {
+    if (typeof fetch !== 'function') return undefined;
+
+    try {
+      const response = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+      if (!response.ok) return undefined;
+      const body = (await response.json()) as unknown;
+      if (typeof body !== 'object' || body === null) return undefined;
+      const fields = body as Record<string, unknown>;
+      return [fields['name'], fields['version'], fields['status']].map((field) => String(field ?? '')).join(':');
+    } catch {
+      return undefined;
+    }
+  }
+
+  private showReloadDialog(kind: ReloadDialogKind): void {
+    if (this.reloadDialog()) return;
+    this.busy.set(null);
+    this.editorRowsBusy.set(null);
+    this.reloadDialog.set(
+      kind === 'version'
+        ? {
+            kind,
+            title: 'FFMForge has been updated',
+            body: 'A newer version of the service is available. Reload to use the current frontend and API together.',
+          }
+        : {
+            kind,
+            title: 'Session expired',
+            body: 'The temporary FIT files for this workspace have expired. Reload and upload the files again to continue.',
+          },
+    );
+  }
+
+  private async checkActiveSession(): Promise<void> {
+    const ids = this.activeSessionIds();
+    if (ids.length === 0 || this.reloadDialog()) return;
+
+    try {
+      await this.api.describe(ids);
+    } catch (err) {
+      this.handleError(err);
+    }
+  }
+
+  private activeSessionIds(): string[] {
+    return Array.from(
+      new Set(
+        [
+          ...this.readyIds(),
+          this.editorFile()?.remoteId,
+        ].filter((id): id is string => id !== undefined),
+      ),
+    );
+  }
+
+  private localStorage(): Storage | undefined {
+    try {
+      return window.localStorage;
+    } catch {
+      return undefined;
+    }
   }
 
   private groupDevices(files: readonly UploadFileResult[]): readonly DisplayDevice[] {
@@ -654,6 +881,31 @@ export class App implements AfterViewInit, OnDestroy {
 
   protected editorFieldValue(row: EditorRecordRow, column: string): string {
     return row.fields.find((field) => field.field === column)?.value ?? '-';
+  }
+
+  protected editorRowIsSelected(row: EditorRecordRow): boolean {
+    const selected = this.editorSelectedRow();
+    return selected?.messageType === row.messageType && selected.index === row.index;
+  }
+
+  protected editorMapCanSelectRows(): boolean {
+    const type = this.editorRows()?.messageType;
+    return type !== undefined && this.editorMessageTypeIsMappable(type);
+  }
+
+  protected editorCanPickRecordFromMap(): boolean {
+    return this.editorOpen()?.anatomy.some((group) => group.name === 'record' && group.count > 0) === true && this.editorRouteTrack() !== null;
+  }
+
+  protected editorMessageTypeIsMappable(messageType: string): boolean {
+    return messageType === 'record' || messageType === 'lap';
+  }
+
+  private defaultEditorMessageType(opened: EditorOpenResponse): string {
+    const messageTypes = opened.anatomy.filter((group) => group.count > 0).map((group) => group.name);
+    if (messageTypes.includes('record')) return 'record';
+    if (messageTypes.includes('lap')) return 'lap';
+    return messageTypes.at(0) ?? 'record';
   }
 
   private deviceKey(device: DeviceInfo): string {
@@ -819,6 +1071,492 @@ export class App implements AfterViewInit, OnDestroy {
     map.resize();
   }
 
+  private renderEditorRouteTrack(track: RouteTrack | null): void {
+    const map = this.editorMap;
+    if (!map || !this.editorMapLoaded) return;
+
+    if (!track) {
+      if (this.editorRouteRendered) this.removeEditorRouteLayers();
+      this.editorRouteRendered = false;
+      return;
+    }
+
+    const source = map.getSource('editor-route');
+    if (source) {
+      source.setData(track.geojson);
+    } else {
+      map.addSource('editor-route', {
+        type: 'geojson',
+        data: track.geojson,
+      });
+    }
+
+    if (!map.getLayer('editor-route-line')) {
+      map.addLayer({
+        id: 'editor-route-line',
+        type: 'line',
+        source: 'editor-route',
+        filter: ['==', ['get', 'type'], 'track'],
+        paint: {
+          'line-color': track.color,
+          'line-opacity': 0.88,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 7, 3, 12, 6, 16, 9],
+        },
+      });
+    }
+
+    if (!map.getLayer('editor-route-points')) {
+      map.addLayer({
+        id: 'editor-route-points',
+        type: 'circle',
+        source: 'editor-route',
+        filter: ['!=', ['get', 'type'], 'track'],
+        paint: {
+          'circle-color': ['match', ['get', 'type'], 'start', '#1f9d6b', 'finish', '#e0453c', '#e0921a'],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 4, 13, 7],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
+        },
+      });
+    }
+
+    this.editorRouteRendered = true;
+    this.removeEditorSelectionLayers();
+    this.renderEditorSelectedRow(this.editorSelectedRow());
+    this.renderEditorIssueSelection(this.emptyGeoJson());
+    this.fitBoundsOnMap(map, [track.geojson], 38);
+    map.resize();
+  }
+
+  private renderEditorSelectedRow(row: EditorRecordRow | null): void {
+    const map = this.editorMap;
+    if (!map || !this.editorMapLoaded) return;
+
+    const data = this.editorSelectionGeoJson(row);
+    const source = map.getSource('editor-selected-row');
+    if (source) {
+      source.setData(data);
+    } else {
+      map.addSource('editor-selected-row', {
+        type: 'geojson',
+        data,
+      });
+    }
+
+    if (!map.getLayer('editor-selected-row-line')) {
+      map.addLayer({
+        id: 'editor-selected-row-line',
+        type: 'line',
+        source: 'editor-selected-row',
+        filter: ['==', ['geometry-type'], 'LineString'],
+        paint: {
+          'line-color': '#15181e',
+          'line-dasharray': [1.5, 1],
+          'line-opacity': 0.82,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 7, 2, 13, 4],
+        },
+      });
+    }
+
+    if (!map.getLayer('editor-selected-row-point')) {
+      map.addLayer({
+        id: 'editor-selected-row-point',
+        type: 'circle',
+        source: 'editor-selected-row',
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: {
+          'circle-color': '#15181e',
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 7, 13, 10],
+          'circle-stroke-color': '#ff6a1a',
+          'circle-stroke-width': 4,
+        },
+      });
+    }
+  }
+
+  private async showIssueOnEditorMap(issue: DiagnosticIssue): Promise<void> {
+    const open = this.editorOpen();
+    if (!open || issue.messageType !== 'record') {
+      this.renderEditorIssueSelection(this.emptyGeoJson());
+      this.editorSelectedRow.set(null);
+      return;
+    }
+
+    const offset = Math.max(0, issue.startIndex - 8);
+    const limit = Math.min(250, issue.endIndex - offset + 10);
+    this.editorRowsBusy.set('message');
+    try {
+      const rows = await this.api.editorRows(open.id, issue.messageType, offset, limit);
+      if (this.editorSelectedIssueId() !== issue.id) return;
+      this.editorMessageType.set(issue.messageType);
+      this.editorRows.set(rows);
+      this.editorSelectedRow.set(this.issueTableRow(issue, rows.rows));
+      this.scrollSelectedEditorRowIntoView();
+      this.renderEditorIssueSelection(this.issueSelectionGeoJson(issue, rows.rows));
+    } catch (err) {
+      this.handleError(err);
+    } finally {
+      this.editorRowsBusy.set(null);
+    }
+  }
+
+  private async selectRecordFromEditorMap(event: MapClickEvent): Promise<void> {
+    const open = this.editorOpen();
+    const recordTotal = this.editorRecordCount();
+    const coordinates = this.editorRouteCoordinates;
+    if (!open || recordTotal === 0 || coordinates.length === 0) return;
+
+    const hover = this.editorRouteHoverAt(event);
+    if (!hover) return;
+
+    const clicked = this.editorRouteHoverPosition ?? hover;
+    const nearestTrackIndex = this.nearestPositionIndex(clicked, coordinates);
+    const estimatedRecordIndex = Math.round((nearestTrackIndex / Math.max(1, coordinates.length - 1)) * Math.max(0, recordTotal - 1));
+    const limit = Math.min(EditorMapPickPageSize, recordTotal);
+    const offset = this.clamp(estimatedRecordIndex - Math.floor(limit / 2), 0, Math.max(0, recordTotal - limit));
+
+    this.editorRowsBusy.set('message');
+    this.error.set(null);
+    try {
+      const rows = await this.api.editorRows(open.id, 'record', offset, limit);
+      const selected = this.nearestRecordRow(clicked, rows.rows);
+      this.editorMessageType.set('record');
+      this.editorRows.set(rows);
+      this.editorSelectedIssueId.set(null);
+      this.editorSelectedRow.set(selected);
+      this.scrollSelectedEditorRowIntoView();
+      this.renderEditorIssueSelection(this.emptyGeoJson());
+    } catch (err) {
+      this.handleError(err);
+    } finally {
+      this.editorRowsBusy.set(null);
+    }
+  }
+
+  private updateEditorRouteHover(event: MapMouseEvent): void {
+    const hover = this.editorRouteHoverAt(event);
+    this.editorRouteHoverPosition = hover;
+    this.setEditorMapCursor(hover ? 'copy' : '');
+    this.renderEditorRouteHover(hover ?? null);
+  }
+
+  private clearEditorRouteHover(): void {
+    this.editorRouteHoverPosition = undefined;
+    this.setEditorMapCursor('');
+    this.renderEditorRouteHover(null);
+  }
+
+  private editorRouteHoverAt(event: MapMouseEvent): [number, number] | undefined {
+    const map = this.editorMap;
+    const coordinates = this.editorRouteCoordinates;
+    if (
+      !map ||
+      !this.editorMapLoaded ||
+      coordinates.length === 0 ||
+      this.editorRecordCount() === 0 ||
+      !map.getLayer('editor-route-line')
+    )
+      return undefined;
+
+    const features = map.queryRenderedFeatures(this.mapHitArea(event.point, 8), { layers: ['editor-route-line'] });
+    if (features.length === 0) return undefined;
+
+    const clicked: [number, number] = [event.lngLat.lng, event.lngLat.lat];
+    const nearest = coordinates.at(this.nearestPositionIndex(clicked, coordinates));
+    return nearest;
+  }
+
+  private setEditorMapCursor(cursor: string): void {
+    this.editorMap?.getCanvas().style.setProperty('cursor', cursor);
+  }
+
+  private mapHitArea(point: MapPoint, tolerancePx: number): readonly [MapPoint, MapPoint] {
+    return [
+      { x: point.x - tolerancePx, y: point.y - tolerancePx },
+      { x: point.x + tolerancePx, y: point.y + tolerancePx },
+    ];
+  }
+
+  private renderEditorRouteHover(position: [number, number] | null): void {
+    const map = this.editorMap;
+    if (!map || !this.editorMapLoaded) return;
+
+    const data = position ? this.positionsGeoJson([position], false) : this.emptyGeoJson();
+    const source = map.getSource('editor-route-hover');
+    if (source) {
+      source.setData(data);
+    } else {
+      map.addSource('editor-route-hover', {
+        type: 'geojson',
+        data,
+      });
+    }
+
+    if (!map.getLayer('editor-route-hover-point')) {
+      map.addLayer({
+        id: 'editor-route-hover-point',
+        type: 'circle',
+        source: 'editor-route-hover',
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: {
+          'circle-color': '#ffffff',
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 7, 13, 11],
+          'circle-stroke-color': '#ff6a1a',
+          'circle-stroke-width': 4,
+        },
+      });
+    }
+  }
+
+  private editorRecordCount(): number {
+    return this.editorOpen()?.anatomy.find((group) => group.name === 'record')?.count ?? 0;
+  }
+
+  private trackLineCoordinates(track: TrackGeoJson): readonly [number, number][] {
+    const line = track.features.find((feature) => feature.geometry.type === 'LineString' && feature.properties?.['type'] === 'track');
+    if (!line || !Array.isArray(line.geometry.coordinates)) return [];
+    return line.geometry.coordinates
+      .map((coordinate) => this.positionOf(coordinate))
+      .filter((position): position is [number, number] => position !== undefined);
+  }
+
+  private nearestRecordRow(target: [number, number], rows: readonly EditorRecordRow[]): EditorRecordRow | null {
+    const positionedRows = rows
+      .map((row) => ({ row, position: this.editorRowPositions(row).at(0) }))
+      .filter((item): item is { readonly row: EditorRecordRow; readonly position: [number, number] } => item.position !== undefined);
+    if (positionedRows.length === 0) return rows.at(0) ?? null;
+    const nearestIndex = this.nearestPositionIndex(
+      target,
+      positionedRows.map((item) => item.position),
+    );
+    return positionedRows[nearestIndex]?.row ?? null;
+  }
+
+  private nearestPositionIndex(target: [number, number], positions: readonly [number, number][]): number {
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    positions.forEach((position, index) => {
+      const currentDistance = this.positionDistanceSquared(target, position);
+      if (currentDistance < nearestDistance) {
+        nearestDistance = currentDistance;
+        nearestIndex = index;
+      }
+    });
+    return nearestIndex;
+  }
+
+  private positionDistanceSquared(a: [number, number], b: [number, number]): number {
+    const latScale = Math.cos(((a[1] + b[1]) / 2) * (Math.PI / 180));
+    const dx = (a[0] - b[0]) * latScale;
+    const dy = a[1] - b[1];
+    return dx * dx + dy * dy;
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  private scrollSelectedEditorRowIntoView(): void {
+    requestAnimationFrame(() => {
+      const table = this.editorRecordTable?.nativeElement;
+      const selected = table?.querySelector<HTMLElement>('.editor-row.selected');
+      selected?.scrollIntoView({ block: 'center' });
+    });
+  }
+
+  private renderEditorIssueSelection(data: TrackGeoJson): void {
+    const map = this.editorMap;
+    if (!map || !this.editorMapLoaded) return;
+
+    const source = map.getSource('editor-issue-selection');
+    if (source) {
+      source.setData(data);
+    } else {
+      map.addSource('editor-issue-selection', {
+        type: 'geojson',
+        data,
+      });
+    }
+
+    if (!map.getLayer('editor-issue-selection-line')) {
+      map.addLayer({
+        id: 'editor-issue-selection-line',
+        type: 'line',
+        source: 'editor-issue-selection',
+        filter: ['==', ['geometry-type'], 'LineString'],
+        paint: {
+          'line-color': '#e0921a',
+          'line-dasharray': [1, 1.2],
+          'line-opacity': 0.9,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 7, 3, 13, 5],
+        },
+      });
+    }
+
+    if (!map.getLayer('editor-issue-selection-point')) {
+      map.addLayer({
+        id: 'editor-issue-selection-point',
+        type: 'circle',
+        source: 'editor-issue-selection',
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: {
+          'circle-color': '#e0921a',
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 8, 13, 12],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 3,
+        },
+      });
+    }
+
+    if (data.features.length > 0) {
+      this.fitBoundsOnMap(map, [data], 54);
+    }
+  }
+
+  private removeEditorRouteLayers(): void {
+    const map = this.editorMap;
+    if (!map) return;
+    this.removeEditorSelectionLayers();
+    for (const layer of ['editor-route-points', 'editor-route-line']) {
+      if (map.getLayer(layer)) map.removeLayer(layer);
+    }
+    if (map.getSource('editor-route')) map.removeSource('editor-route');
+  }
+
+  private removeEditorSelectionLayers(): void {
+    const map = this.editorMap;
+    if (!map) return;
+    for (const layer of [
+      'editor-route-hover-point',
+      'editor-issue-selection-point',
+      'editor-issue-selection-line',
+      'editor-selected-row-point',
+      'editor-selected-row-line',
+    ]) {
+      if (map.getLayer(layer)) map.removeLayer(layer);
+    }
+    for (const source of ['editor-route-hover', 'editor-issue-selection', 'editor-selected-row']) {
+      if (map.getSource(source)) map.removeSource(source);
+    }
+  }
+
+  private issueSelectionGeoJson(issue: DiagnosticIssue, rows: readonly EditorRecordRow[]): TrackGeoJson {
+    const issueRows = rows.filter((row) => row.index >= issue.startIndex && row.index <= issue.endIndex);
+    const exactPositions = issueRows.flatMap((row) => this.editorRowPositions(row));
+    if (exactPositions.length > 0) {
+      return this.positionsGeoJson(exactPositions, exactPositions.length > 1);
+    }
+
+    const before = rows
+      .filter((row) => row.index < issue.startIndex)
+      .reverse()
+      .flatMap((row) => this.editorRowPositions(row))
+      .at(0);
+    const after = rows
+      .filter((row) => row.index > issue.endIndex)
+      .flatMap((row) => this.editorRowPositions(row))
+      .at(0);
+
+    if (before && after) {
+      return this.positionsGeoJson([this.midpoint(before, after), before, after], true);
+    }
+
+    const fallback = before ?? after;
+    return fallback ? this.positionsGeoJson([fallback], false) : this.emptyGeoJson();
+  }
+
+  private issueTableRow(issue: DiagnosticIssue, rows: readonly EditorRecordRow[]): EditorRecordRow | null {
+    return (
+      rows.find((row) => row.index >= issue.startIndex && row.index <= issue.endIndex) ??
+      rows.find((row) => row.index >= issue.startIndex) ??
+      rows.at(-1) ??
+      null
+    );
+  }
+
+  private positionsGeoJson(positions: readonly [number, number][], includeLine: boolean): TrackGeoJson {
+    const pointPositions = includeLine && positions.length > 2 ? positions.slice(0, 1) : positions;
+    const features: TrackFeature[] = pointPositions.map((position) => ({
+      type: 'Feature',
+      properties: { type: 'issue' },
+      geometry: { type: 'Point', coordinates: position },
+    }));
+
+    const linePositions = includeLine && positions.length > 1 ? (positions.length > 2 ? positions.slice(1) : positions) : [];
+    if (linePositions.length > 1) {
+      features.unshift({
+        type: 'Feature',
+        properties: { type: 'issue-range' },
+        geometry: { type: 'LineString', coordinates: linePositions },
+      });
+    }
+
+    return { type: 'FeatureCollection', features };
+  }
+
+  private midpoint(a: [number, number], b: [number, number]): [number, number] {
+    return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  }
+
+  private emptyGeoJson(): TrackGeoJson {
+    return { type: 'FeatureCollection', features: [] };
+  }
+
+  private editorSelectionGeoJson(row: EditorRecordRow | null): TrackGeoJson {
+    const positions = row && (row.messageType === 'record' || row.messageType === 'lap') ? this.editorRowPositions(row) : [];
+    const features: TrackFeature[] = positions.map((position, index) => ({
+      type: 'Feature',
+      properties: { type: index === 0 ? 'selected-start' : 'selected-end' },
+      geometry: { type: 'Point', coordinates: position },
+    }));
+
+    if (positions.length > 1) {
+      features.unshift({
+        type: 'Feature',
+        properties: { type: 'selected-range' },
+        geometry: { type: 'LineString', coordinates: positions },
+      });
+    }
+
+    return { type: 'FeatureCollection', features };
+  }
+
+  private editorRowPositions(row: EditorRecordRow): [number, number][] {
+    if (row.messageType === 'record') {
+      const position = this.positionFromLatLonText(row.position);
+      return position ? [position] : [];
+    }
+
+    if (row.messageType === 'lap') {
+      const start = this.positionFromNamedFields(row, 'Start latitude', 'Start longitude');
+      const end = this.positionFromNamedFields(row, 'End latitude', 'End longitude');
+      return [start, end].filter((position): position is [number, number] => position !== undefined);
+    }
+
+    return [];
+  }
+
+  private positionFromNamedFields(row: EditorRecordRow, latField: string, lonField: string): [number, number] | undefined {
+    const lat = this.numberFromField(row, latField);
+    const lon = this.numberFromField(row, lonField);
+    return lat !== undefined && lon !== undefined ? [lon, lat] : undefined;
+  }
+
+  private numberFromField(row: EditorRecordRow, fieldName: string): number | undefined {
+    const field = row.fields.find((cell) => cell.field === fieldName);
+    if (!field) return undefined;
+    const value = Number.parseFloat(field.value);
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  private positionFromLatLonText(value: string | undefined): [number, number] | undefined {
+    if (!value) return undefined;
+    const [latText, lonText] = value.split(',');
+    const lat = Number.parseFloat(latText);
+    const lon = Number.parseFloat(lonText);
+    return Number.isFinite(lat) && Number.isFinite(lon) ? [lon, lat] : undefined;
+  }
+
   private upsertRouteTrack(track: RouteTrack): void {
     const map = this.map;
     if (!map) return;
@@ -883,7 +1621,10 @@ export class App implements AfterViewInit, OnDestroy {
   private fitRouteBounds(files: readonly TrackGeoJson[]): void {
     const map = this.map;
     if (!map) return;
+    this.fitBoundsOnMap(map, files, 42);
+  }
 
+  private fitBoundsOnMap(map: MapLibreMap, files: readonly TrackGeoJson[], padding: number): void {
     const bounds = new maplibregl.LngLatBounds();
     for (const file of files) {
       for (const feature of file.features) {
@@ -891,7 +1632,7 @@ export class App implements AfterViewInit, OnDestroy {
       }
     }
     if (!bounds.isEmpty()) {
-      map.fitBounds(bounds, { padding: 42, maxZoom: 14, duration: 500 });
+      map.fitBounds(bounds, { padding, maxZoom: 14, duration: 500 });
     }
   }
 
