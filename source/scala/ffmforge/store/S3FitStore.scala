@@ -10,7 +10,6 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
 
-import ffmforge.DownloadFormat
 import org.apache.pekko.http.scaladsl.model.StatusCodes
 import software.amazon.awssdk.core.ResponseBytes
 import software.amazon.awssdk.core.sync.RequestBody
@@ -26,6 +25,8 @@ import software.amazon.awssdk.services.s3.model.S3Exception
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest
+
+import ffmforge.DownloadFormat
 
 /**
  * [[FitStore]] backed by real AWS S3. Credentials and region resolve from the AWS default provider chains. Object ids

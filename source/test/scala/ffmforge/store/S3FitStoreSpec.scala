@@ -7,7 +7,6 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
-import ffmforge.http.AwsS3Support
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Outcome
 import org.scalatest.concurrent.ScalaFutures
@@ -16,6 +15,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.Millis
 import org.scalatest.time.Seconds
 import org.scalatest.time.Span
+
+import ffmforge.http.AwsS3Support
 
 final class S3FitStoreSpec extends AnyFunSuite with Matchers with BeforeAndAfterAll with ScalaFutures {
 

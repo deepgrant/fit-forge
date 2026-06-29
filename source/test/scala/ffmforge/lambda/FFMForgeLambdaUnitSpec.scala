@@ -10,6 +10,16 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 
+import org.apache.pekko.http.scaladsl.model.StatusCodes
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Millis
+import org.scalatest.time.Seconds
+import org.scalatest.time.Span
+import spray.json.enrichAny
+import spray.json.enrichString
+
 import ffmforge.DownloadFormat
 import ffmforge.FFMForgeConfig
 import ffmforge.fit.GarminFitCodec
@@ -20,15 +30,6 @@ import ffmforge.store.FitStore
 import ffmforge.store.PresignedDownload
 import ffmforge.store.PresignedUpload
 import ffmforge.store.StoreError
-import org.apache.pekko.http.scaladsl.model.StatusCodes
-import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.Millis
-import org.scalatest.time.Seconds
-import org.scalatest.time.Span
-import spray.json.enrichAny
-import spray.json.enrichString
 
 final class FFMForgeLambdaUnitSpec extends AnyFunSuite with Matchers with ScalaFutures {
 
