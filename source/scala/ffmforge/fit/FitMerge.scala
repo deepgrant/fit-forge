@@ -26,14 +26,14 @@ final case class GapInfo(afterSegment: Int, seconds: Double)
 
 /** A structured log of a merge: what was read, what changed, and the final file's layout. */
 final case class MergeReport(
-    segments: Vector[SegmentInfo],
-    gaps: Vector[GapInfo],
-    totalDistanceM: Option[Double],
-    elapsedSeconds: Double,
-    movingSeconds: Double,
-    timerEventsAdded: Int,
-    lapStrategy: LapStrategy,
-    layout: FitLayout,
+  segments: Vector[SegmentInfo],
+  gaps: Vector[GapInfo],
+  totalDistanceM: Option[Double],
+  elapsedSeconds: Double,
+  movingSeconds: Double,
+  timerEventsAdded: Int,
+  lapStrategy: LapStrategy,
+  layout: FitLayout,
 )
 
 /** A merge result paired with its report. */

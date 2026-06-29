@@ -13,11 +13,11 @@ import com.typesafe.config.ConfigFactory
  * Deployment-specific values are required at runtime and are not hard-coded in repo files.
  */
 final case class FFMForgeConfig(
-    port: Int,
-    sessionTtl: FiniteDuration,
-    presignTtl: FiniteDuration,
-    staticDir: String,
-    s3Bucket: String,
+  port: Int,
+  sessionTtl: FiniteDuration,
+  presignTtl: FiniteDuration,
+  staticDir: String,
+  s3Bucket: String,
 )
 
 object FFMForgeConfig {

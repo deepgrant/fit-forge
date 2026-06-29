@@ -4,31 +4,31 @@ import java.time.Duration
 import java.time.Instant
 
 final case class FitFileDescription(
-    records: Int,
-    sessions: Int,
-    laps: Int,
-    events: Int,
-    startTime: Option[Instant],
-    endTime: Option[Instant],
-    distanceM: Option[Double],
+  records: Int,
+  sessions: Int,
+  laps: Int,
+  events: Int,
+  startTime: Option[Instant],
+  endTime: Option[Instant],
+  distanceM: Option[Double],
 )
 
 final case class CodecCheck(label: String, passed: Boolean, detail: String)
 
 final case class CodecDemoReport(
-    id: String,
-    originalBytes: Int,
-    reencodedBytes: Int,
-    original: FitFileDescription,
-    redecoded: FitFileDescription,
-    originalStats: FitStats,
-    reencodedStats: FitStats,
-    summary: RideSummary,
-    primaryDevice: Option[DeviceInfo],
-    devices: Vector[DeviceInfo],
-    layout: FitLayout,
-    checks: Vector[CodecCheck],
-    passed: Boolean,
+  id: String,
+  originalBytes: Int,
+  reencodedBytes: Int,
+  original: FitFileDescription,
+  redecoded: FitFileDescription,
+  originalStats: FitStats,
+  reencodedStats: FitStats,
+  summary: RideSummary,
+  primaryDevice: Option[DeviceInfo],
+  devices: Vector[DeviceInfo],
+  layout: FitLayout,
+  checks: Vector[CodecCheck],
+  passed: Boolean,
 )
 
 object FitCodecReport {

@@ -96,7 +96,7 @@ final class FFMForgeLambdaUnitSpec extends AnyFunSuite with Matchers with ScalaF
 }
 
 private final class InMemoryFitStore(initialId: String, initialBytes: Array[Byte])(using ExecutionContext)
-    extends FitStore {
+  extends FitStore {
 
   private val expiresAt = Instant.parse("2026-06-15T10:00:00Z")
   private val objects =
@@ -127,9 +127,9 @@ private final class InMemoryFitStore(initialId: String, initialBytes: Array[Byte
     Future.successful(objects.get((id, DownloadFormat.Fit)).toRight(StoreError.NotFound))
 
   def createDownload(
-      id: String,
-      format: DownloadFormat,
-      presignTtl: FiniteDuration,
+    id: String,
+    format: DownloadFormat,
+    presignTtl: FiniteDuration,
   ): Future[Either[StoreError, PresignedDownload]] =
     Future.successful(
       if (objects.contains((id, format)))

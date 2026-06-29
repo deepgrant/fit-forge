@@ -32,7 +32,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
  * encode expiry (`<expiresAtMs>_<uuid>`) so Lambda can reject stale sessions without separate metadata.
  */
 final class S3FitStore(bucket: String, client: S3Client, presigner: S3Presigner, clock: () => Instant)(using
-    ec: ExecutionContext
+  ec: ExecutionContext
 ) extends FitStore {
 
   private def keyFor(id: String, format: DownloadFormat = DownloadFormat.Fit): String =
@@ -109,9 +109,9 @@ final class S3FitStore(bucket: String, client: S3Client, presigner: S3Presigner,
   }
 
   def createDownload(
-      id: String,
-      format: DownloadFormat,
-      presignTtl: FiniteDuration,
+    id: String,
+    format: DownloadFormat,
+    presignTtl: FiniteDuration,
   ): Future[Either[StoreError, PresignedDownload]] = Future {
     blocking {
       ifExpired(id) match {

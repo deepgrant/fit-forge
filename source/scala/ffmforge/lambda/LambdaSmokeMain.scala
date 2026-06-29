@@ -47,9 +47,9 @@ private final class UnusedStore extends FitStore {
   def get(id: String): Future[Either[StoreError, Array[Byte]]] =
     Future.failed(new UnsupportedOperationException("unused"))
   def createDownload(
-      id: String,
-      format: DownloadFormat,
-      presignTtl: FiniteDuration,
+    id: String,
+    format: DownloadFormat,
+    presignTtl: FiniteDuration,
   ): Future[Either[StoreError, PresignedDownload]] =
     Future.failed(new UnsupportedOperationException("unused"))
   def delete(id: String): Future[Unit] =

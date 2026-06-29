@@ -222,13 +222,13 @@ final class FitEditorSpec extends AnyFunSuite with Matchers {
   }
 
   private def record(
-      timestamp: Instant,
-      hr: Option[Int],
-      power: Option[Int],
-      speed: Option[Double],
-      lat: Double = 42.0,
-      lon: Double = -71.0,
-      includePosition: Boolean = true,
+    timestamp: Instant,
+    hr: Option[Int],
+    power: Option[Int],
+    speed: Option[Double],
+    lat: Double = 42.0,
+    lon: Double = -71.0,
+    includePosition: Boolean = true,
   ): FitMessage = {
     val base = FitMessage(FitProfile.Mesg.Record)
       .setInstant(FitProfile.Rec.Timestamp, timestamp)

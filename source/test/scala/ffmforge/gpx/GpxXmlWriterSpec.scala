@@ -34,7 +34,7 @@ final class GpxXmlWriterSpec extends AnyFunSuite with Matchers {
       ),
     )
     val doc = GpxDocument(
-      metadata = Some(GpxMetadata(name = Some("Test ride"), time = Some(t0))),
+      metadata = GpxMetadata(name = Some("Test ride"), time = Some(t0)),
       tracks = Vector(GpxTrack(name = Some("Track"), segments = Vector(GpxTrackSegment(Vector(point))))),
     )
 

@@ -204,11 +204,20 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
   private def describe(ids: Vector[String]): Future[Either[(StatusCode, ApiError), UploadResponse]] =
     Future
       .traverse(ids) { id =>
-        readFile(id).map(file =>
-          file.map(file =>
-            UploadFileResult(id, file.fileId, FitSummary.ride(file), FitSummary.devices(file), FitLayout.of(file))
-          )
-        )
+        readFile(id).map {
+          case Right(file) =>
+            Right(
+              UploadFileResult(
+                id = id,
+                fileId = file.fileId,
+                summary = FitSummary.ride(file),
+                devices = FitSummary.devices(file),
+                layout = FitLayout.of(file),
+              )
+            )
+          case Left(error) =>
+            Left(error)
+        }
       }
       .map { files =>
         files.collectFirst { case Left(err) => err } match {

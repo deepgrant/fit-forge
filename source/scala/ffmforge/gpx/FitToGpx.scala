@@ -14,7 +14,7 @@ object FitToGpx {
     val points   = file.recordMessages.flatMap(trackPoint).sortBy(_.time.map(_.toEpochMilli).getOrElse(Long.MinValue))
     val segments = splitSegments(points, pauseRestartTimes(file))
     GpxDocument(
-      metadata = Some(GpxMetadata(name = trackName, time = file.startTime.orElse(points.flatMap(_.time).headOption))),
+      metadata = GpxMetadata(name = trackName, time = file.startTime.orElse(points.flatMap(_.time).headOption)),
       tracks = Vector(GpxTrack(name = trackName.orElse(Some("FFMForge export")), segments = segments)),
     )
   }
@@ -57,9 +57,9 @@ object FitToGpx {
 
   private def splitSegments(points: Vector[GpxTrackPoint], restartTimes: Vector[Instant]): Vector[GpxTrackSegment] = {
     final case class SplitState(
-        segments: Vector[GpxTrackSegment],
-        current: Vector[GpxTrackPoint],
-        restarts: Vector[Instant],
+      segments: Vector[GpxTrackSegment],
+      current: Vector[GpxTrackPoint],
+      restarts: Vector[Instant],
     )
 
     val initial = SplitState(Vector.empty, Vector.empty, restartTimes.sortBy(_.toEpochMilli))
