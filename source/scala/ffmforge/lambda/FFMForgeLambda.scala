@@ -20,6 +20,18 @@ import scala.util.control.NonFatal
 
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler
+import org.apache.pekko.http.scaladsl.model.StatusCode
+import org.apache.pekko.http.scaladsl.model.StatusCodes
+import spray.json.JsBoolean
+import spray.json.JsNumber
+import spray.json.JsObject
+import spray.json.JsString
+import spray.json.JsValue
+import spray.json.JsonParser
+import spray.json.JsonReader
+import spray.json.enrichAny
+import spray.json.enrichString
+
 import ffmforge.DownloadFormat
 import ffmforge.FFMForgeConfig
 import ffmforge.fit.ExportRepairResponse
@@ -55,17 +67,6 @@ import ffmforge.http.UploadUrlsResponse
 import ffmforge.store.FitStore
 import ffmforge.store.S3FitStore
 import ffmforge.store.StoreError
-import org.apache.pekko.http.scaladsl.model.StatusCode
-import org.apache.pekko.http.scaladsl.model.StatusCodes
-import spray.json.JsBoolean
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.JsonParser
-import spray.json.JsonReader
-import spray.json.enrichAny
-import spray.json.enrichString
 
 /** AWS Lambda API Gateway proxy handler for the versioned FFMForge API. */
 final class FFMForgeLambda extends RequestStreamHandler {
@@ -204,11 +205,20 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
   private def describe(ids: Vector[String]): Future[Either[(StatusCode, ApiError), UploadResponse]] =
     Future
       .traverse(ids) { id =>
-        readFile(id).map(file =>
-          file.map(file =>
-            UploadFileResult(id, file.fileId, FitSummary.ride(file), FitSummary.devices(file), FitLayout.of(file))
-          )
-        )
+        readFile(id).map {
+          case Right(file) =>
+            Right(
+              UploadFileResult(
+                id = id,
+                fileId = file.fileId,
+                summary = FitSummary.ride(file),
+                devices = FitSummary.devices(file),
+                layout = FitLayout.of(file),
+              )
+            )
+          case Left(error) =>
+            Left(error)
+        }
       }
       .map { files =>
         files.collectFirst { case Left(err) => err } match {

@@ -12,11 +12,11 @@ import ffmforge.fit.RideSummary
 
 /** One uploaded file's parsed summary, returned from `POST /ffmforge/v1/fit/upload`. */
 final case class UploadFileResult(
-    id: String,
-    fileId: FileId,
-    summary: RideSummary,
-    devices: Vector[DeviceInfo],
-    layout: FitLayout,
+  id: String,
+  fileId: FileId,
+  summary: RideSummary,
+  devices: Vector[DeviceInfo],
+  layout: FitLayout,
 )
 
 /** Response from `POST /ffmforge/v1/fit/upload` (wrapped so the array marshals unambiguously). */
@@ -27,11 +27,11 @@ final case class UploadUrlResult(id: String, name: String, url: String, expiresA
 final case class UploadUrlsResponse(files: Vector[UploadUrlResult])
 final case class DescribeRequest(ids: Vector[String])
 final case class DownloadUrlResponse(
-    id: String,
-    url: String,
-    expiresAt: Instant,
-    format: DownloadFormat,
-    filename: String,
+  id: String,
+  url: String,
+  expiresAt: Instant,
+  format: DownloadFormat,
+  filename: String,
 )
 final case class CodecDemoRequest(id: String)
 
@@ -44,10 +44,10 @@ final case class SummaryResponse(summary: RideSummary, devices: Vector[DeviceInf
 
 /** Request body for `POST /ffmforge/v1/fit/merge`. */
 final case class MergeRequest(
-    ids: Vector[String],
-    gapHandling: String,
-    lapStrategy: String,
-    dryRun: Boolean,
+  ids: Vector[String],
+  gapHandling: String,
+  lapStrategy: String,
+  dryRun: Boolean,
 )
 
 /** Response from a merge: `id` is present unless this was a dry run. */
