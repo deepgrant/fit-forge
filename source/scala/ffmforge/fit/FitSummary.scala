@@ -4,15 +4,15 @@ import ffmforge.fit.FitProfile._
 
 /** A device that contributed to a recording (from a `device_info` message). */
 final case class DeviceInfo(
-    index: Int,
-    manufacturer: String,
-    productName: Option[String],
-    product: Option[Int],
-    kind: Option[String],
-    softwareVersion: Option[Double],
-    serialNumber: Option[Long],
-    batteryStatus: Option[String],
-    sourceType: Option[String],
+  index: Int,
+  manufacturer: String,
+  productName: Option[String],
+  product: Option[Int],
+  kind: Option[String],
+  softwareVersion: Option[Double],
+  serialNumber: Option[Long],
+  batteryStatus: Option[String],
+  sourceType: Option[String],
 ) {
 
   /** Best human label: the product name if present, else manufacturer (+ product number). */
@@ -22,16 +22,16 @@ final case class DeviceInfo(
 
 /** Headline ride statistics (read from the `session`, with record-derived fallbacks). */
 final case class RideSummary(
-    sport: Option[String],
-    totalDistanceM: Option[Double],
-    elapsedSeconds: Option[Double],
-    movingSeconds: Option[Double],
-    avgSpeedMps: Option[Double],
-    maxSpeedMps: Option[Double],
-    avgPowerW: Option[Double],
-    maxPowerW: Option[Double],
-    avgTempC: Option[Double],
-    maxTempC: Option[Double],
+  sport: Option[String],
+  totalDistanceM: Option[Double],
+  elapsedSeconds: Option[Double],
+  movingSeconds: Option[Double],
+  avgSpeedMps: Option[Double],
+  maxSpeedMps: Option[Double],
+  avgPowerW: Option[Double],
+  maxPowerW: Option[Double],
+  avgTempC: Option[Double],
+  maxTempC: Option[Double],
 )
 
 object FitSummary {

@@ -10,7 +10,6 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
 
-import ffmforge.DownloadFormat
 import org.apache.pekko.http.scaladsl.model.StatusCodes
 import software.amazon.awssdk.core.ResponseBytes
 import software.amazon.awssdk.core.sync.RequestBody
@@ -27,12 +26,14 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest
 
+import ffmforge.DownloadFormat
+
 /**
  * [[FitStore]] backed by real AWS S3. Credentials and region resolve from the AWS default provider chains. Object ids
  * encode expiry (`<expiresAtMs>_<uuid>`) so Lambda can reject stale sessions without separate metadata.
  */
 final class S3FitStore(bucket: String, client: S3Client, presigner: S3Presigner, clock: () => Instant)(using
-    ec: ExecutionContext
+  ec: ExecutionContext
 ) extends FitStore {
 
   private def keyFor(id: String, format: DownloadFormat = DownloadFormat.Fit): String =
@@ -109,9 +110,9 @@ final class S3FitStore(bucket: String, client: S3Client, presigner: S3Presigner,
   }
 
   def createDownload(
-      id: String,
-      format: DownloadFormat,
-      presignTtl: FiniteDuration,
+    id: String,
+    format: DownloadFormat,
+    presignTtl: FiniteDuration,
   ): Future[Either[StoreError, PresignedDownload]] = Future {
     blocking {
       ifExpired(id) match {

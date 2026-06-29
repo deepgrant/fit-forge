@@ -9,6 +9,10 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Duration
 
+import org.apache.pekko.http.scaladsl.model.StatusCodes
+import spray.json.enrichAny
+import spray.json.enrichString
+
 import ffmforge.fit.CodecDemoReport
 import ffmforge.fit.DeviceInfo
 import ffmforge.fit.FitFileDescription
@@ -16,9 +20,6 @@ import ffmforge.http.CodecDemoRequest
 import ffmforge.http.JsonProtocol
 import ffmforge.http.UploadUrlRequest
 import ffmforge.http.UploadUrlsResponse
-import org.apache.pekko.http.scaladsl.model.StatusCodes
-import spray.json.enrichAny
-import spray.json.enrichString
 
 /**
  * Deployed Lambda equivalent of `codecDemo`.

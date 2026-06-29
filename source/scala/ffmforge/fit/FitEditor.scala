@@ -7,63 +7,63 @@ import ffmforge.fit.FitProfile._
 final case class EditorMessageGroup(name: String, count: Int, status: String, issues: Int)
 final case class EditorCell(field: String, value: String, numeric: Option[Double])
 final case class EditorRecordRow(
-    index: Int,
-    messageIndex: Int,
-    messageType: String,
-    timestamp: Option[Instant],
-    position: Option[String],
-    heartRate: Option[Int],
-    power: Option[Int],
-    speedMps: Option[Double],
-    cadence: Option[Int],
-    altitudeM: Option[Double],
-    temperatureC: Option[Double],
-    fields: Vector[EditorCell],
-    issueIds: Vector[String],
+  index: Int,
+  messageIndex: Int,
+  messageType: String,
+  timestamp: Option[Instant],
+  position: Option[String],
+  heartRate: Option[Int],
+  power: Option[Int],
+  speedMps: Option[Double],
+  cadence: Option[Int],
+  altitudeM: Option[Double],
+  temperatureC: Option[Double],
+  fields: Vector[EditorCell],
+  issueIds: Vector[String],
 )
 final case class DiagnosticIssue(
-    id: String,
-    kind: String,
-    severity: String,
-    title: String,
-    detail: String,
-    messageType: String,
-    startIndex: Int,
-    endIndex: Int,
-    field: Option[String],
-    suggestedOperations: Vector[RepairOperation],
+  id: String,
+  kind: String,
+  severity: String,
+  title: String,
+  detail: String,
+  messageType: String,
+  startIndex: Int,
+  endIndex: Int,
+  field: Option[String],
+  suggestedOperations: Vector[RepairOperation],
 )
 final case class RepairOperation(
-    kind: String,
-    messageType: String,
-    startIndex: Int,
-    endIndex: Int,
-    field: Option[String],
-    value: Option[Double],
+  kind: String,
+  messageType: String,
+  startIndex: Int,
+  endIndex: Int,
+  field: Option[String],
+  value: Option[Double],
 )
 final case class RepairChange(rowIndex: Int, field: String, before: String, after: String, method: String)
 final case class EditorVerification(status: String, canExport: Boolean, checks: Vector[String])
 final case class RepairPreview(
-    operations: Vector[RepairOperation],
-    changes: Vector[RepairChange],
-    verification: EditorVerification,
+  operations: Vector[RepairOperation],
+  changes: Vector[RepairChange],
+  verification: EditorVerification,
 )
 final case class EditorRowsResponse(
-    messageType: String,
-    offset: Int,
-    limit: Int,
-    total: Int,
-    rows: Vector[EditorRecordRow],
+  messageType: String,
+  offset: Int,
+  limit: Int,
+  total: Int,
+  rows: Vector[EditorRecordRow],
 )
 final case class EditorOpenResponse(
-    id: String,
-    summary: RideSummary,
-    devices: Vector[DeviceInfo],
-    layout: FitLayout,
-    anatomy: Vector[EditorMessageGroup],
-    diagnostics: Vector[DiagnosticIssue],
-    rows: EditorRowsResponse,
-    verification: EditorVerification,
+  id: String,
+  summary: RideSummary,
+  devices: Vector[DeviceInfo],
+  layout: FitLayout,
+  anatomy: Vector[EditorMessageGroup],
+  diagnostics: Vector[DiagnosticIssue],
+  rows: EditorRowsResponse,
+  verification: EditorVerification,
 )
 final case class ExportRepairResponse(id: String, preview: RepairPreview)
 
@@ -87,11 +87,11 @@ object FitEditor {
   }
 
   def rows(
-      file: FitFile,
-      messageType: String,
-      offset: Int,
-      limit: Int,
-      diagnostics: Vector[DiagnosticIssue] = Vector.empty,
+    file: FitFile,
+    messageType: String,
+    offset: Int,
+    limit: Int,
+    diagnostics: Vector[DiagnosticIssue] = Vector.empty,
   ): EditorRowsResponse = {
     val requestedType = normalizeMessageType(messageType)
     val selected = file.messages.zipWithIndex.filter { case (message, _) =>
@@ -193,11 +193,11 @@ object FitEditor {
   }
 
   private def rowOf(
-      message: FitMessage,
-      messageIndex: Int,
-      messageType: String,
-      rowIndex: Int,
-      issueIds: Vector[String],
+    message: FitMessage,
+    messageIndex: Int,
+    messageType: String,
+    rowIndex: Int,
+    issueIds: Vector[String],
   ): EditorRecordRow = {
     val record = if (messageType == "record") FitViews.record(message) else None
     val pos    = record.flatMap(_.position).map(p => f"${p.lat}%.5f,${p.lon}%.5f")
@@ -579,10 +579,10 @@ object FitEditor {
       .groupMap(_._1)(_._2)
 
   private def numericDropouts(
-      rows: Vector[(Int, Record)],
-      field: String,
-      valueOf: Record => Option[Double],
-      zeroIsDropout: Boolean,
+    rows: Vector[(Int, Record)],
+    field: String,
+    valueOf: Record => Option[Double],
+    zeroIsDropout: Boolean,
   ): Vector[DiagnosticIssue] =
     contiguousRanges(
       rows.collect {
@@ -618,11 +618,11 @@ object FitEditor {
     }
 
   private def numericSpikes(
-      rows: Vector[(Int, Record)],
-      field: String,
-      valueOf: Record => Option[Double],
-      absoluteMax: Double,
-      deltaMax: Double,
+    rows: Vector[(Int, Record)],
+    field: String,
+    valueOf: Record => Option[Double],
+    absoluteMax: Double,
+    deltaMax: Double,
   ): Vector[DiagnosticIssue] =
     rows
       .sliding(3)
@@ -677,15 +677,15 @@ object FitEditor {
     }
 
   private def issue(
-      id: String,
-      kind: String,
-      severity: String,
-      title: String,
-      detail: String,
-      start: Int,
-      end: Int,
-      field: Option[String],
-      operations: Vector[RepairOperation],
+    id: String,
+    kind: String,
+    severity: String,
+    title: String,
+    detail: String,
+    start: Int,
+    end: Int,
+    field: Option[String],
+    operations: Vector[RepairOperation],
   ): DiagnosticIssue =
     DiagnosticIssue(id, kind, severity, title, detail, "record", start, end, field, operations)
 
@@ -783,9 +783,9 @@ object FitEditor {
     }
 
   private def editRecordRange(
-      file: FitFile,
-      operation: RepairOperation,
-      f: (FitMessage, Int) => FitMessage,
+    file: FitFile,
+    operation: RepairOperation,
+    f: (FitMessage, Int) => FitMessage,
   ): FitFile = {
     val (messages, _) = file.messages.foldLeft((Vector.empty[FitMessage], -1)) { case ((out, recordIndex), message) =>
       if (message.globalNum == Mesg.Record) {
@@ -870,12 +870,12 @@ object FitEditor {
   }
 
   private def interpolationFraction(
-      before: Record,
-      beforeRow: Int,
-      target: Record,
-      targetRow: Int,
-      after: Record,
-      afterRow: Int,
+    before: Record,
+    beforeRow: Int,
+    target: Record,
+    targetRow: Int,
+    after: Record,
+    afterRow: Int,
   ): Double = {
     val totalSeconds  = after.timestamp.getEpochSecond - before.timestamp.getEpochSecond
     val targetSeconds = target.timestamp.getEpochSecond - before.timestamp.getEpochSecond

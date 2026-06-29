@@ -10,6 +10,16 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 
+import org.apache.pekko.http.scaladsl.model.StatusCodes
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Millis
+import org.scalatest.time.Seconds
+import org.scalatest.time.Span
+import spray.json.enrichAny
+import spray.json.enrichString
+
 import ffmforge.DownloadFormat
 import ffmforge.FFMForgeConfig
 import ffmforge.fit.GarminFitCodec
@@ -20,15 +30,6 @@ import ffmforge.store.FitStore
 import ffmforge.store.PresignedDownload
 import ffmforge.store.PresignedUpload
 import ffmforge.store.StoreError
-import org.apache.pekko.http.scaladsl.model.StatusCodes
-import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.Millis
-import org.scalatest.time.Seconds
-import org.scalatest.time.Span
-import spray.json.enrichAny
-import spray.json.enrichString
 
 final class FFMForgeLambdaUnitSpec extends AnyFunSuite with Matchers with ScalaFutures {
 
@@ -96,7 +97,7 @@ final class FFMForgeLambdaUnitSpec extends AnyFunSuite with Matchers with ScalaF
 }
 
 private final class InMemoryFitStore(initialId: String, initialBytes: Array[Byte])(using ExecutionContext)
-    extends FitStore {
+  extends FitStore {
 
   private val expiresAt = Instant.parse("2026-06-15T10:00:00Z")
   private val objects =
@@ -127,9 +128,9 @@ private final class InMemoryFitStore(initialId: String, initialBytes: Array[Byte
     Future.successful(objects.get((id, DownloadFormat.Fit)).toRight(StoreError.NotFound))
 
   def createDownload(
-      id: String,
-      format: DownloadFormat,
-      presignTtl: FiniteDuration,
+    id: String,
+    format: DownloadFormat,
+    presignTtl: FiniteDuration,
   ): Future[Either[StoreError, PresignedDownload]] =
     Future.successful(
       if (objects.contains((id, format)))

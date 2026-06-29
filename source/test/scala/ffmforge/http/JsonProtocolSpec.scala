@@ -2,6 +2,11 @@ package ffmforge.http
 
 import java.time.Instant
 
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+import spray.json.enrichAny
+import spray.json.enrichString
+
 import ffmforge.fit.CodecCheck
 import ffmforge.fit.CodecDemoReport
 import ffmforge.fit.DeviceInfo
@@ -17,10 +22,6 @@ import ffmforge.fit.FitLayout
 import ffmforge.fit.FitStats
 import ffmforge.fit.RepairOperation
 import ffmforge.fit.RideSummary
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
-import spray.json.enrichAny
-import spray.json.enrichString
 
 final class JsonProtocolSpec extends AnyFunSuite with Matchers {
 

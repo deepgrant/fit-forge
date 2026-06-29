@@ -4,6 +4,9 @@ import java.time.Instant
 
 import scala.xml.XML
 
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+
 import ffmforge.fit.Event
 import ffmforge.fit.FileId
 import ffmforge.fit.FitFile
@@ -12,8 +15,6 @@ import ffmforge.fit.FitViews
 import ffmforge.fit.GpsPoint
 import ffmforge.fit.Record
 import ffmforge.fit.TimerEvent
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
 
 final class GpxXmlWriterSpec extends AnyFunSuite with Matchers {
 
@@ -34,7 +35,7 @@ final class GpxXmlWriterSpec extends AnyFunSuite with Matchers {
       ),
     )
     val doc = GpxDocument(
-      metadata = Some(GpxMetadata(name = Some("Test ride"), time = Some(t0))),
+      metadata = GpxMetadata(name = Some("Test ride"), time = Some(t0)),
       tracks = Vector(GpxTrack(name = Some("Track"), segments = Vector(GpxTrackSegment(Vector(point))))),
     )
 

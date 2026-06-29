@@ -4,6 +4,18 @@ import java.time.Instant
 
 import scala.util.Try
 
+import spray.json.DefaultJsonProtocol
+import spray.json.JsArray
+import spray.json.JsBoolean
+import spray.json.JsNumber
+import spray.json.JsObject
+import spray.json.JsString
+import spray.json.JsValue
+import spray.json.JsonFormat
+import spray.json.RootJsonFormat
+import spray.json.deserializationError
+import spray.json.enrichAny
+
 import ffmforge.DownloadFormat
 import ffmforge.fit.CodecCheck
 import ffmforge.fit.CodecDemoReport
@@ -29,17 +41,6 @@ import ffmforge.fit.RepairOperation
 import ffmforge.fit.RepairPreview
 import ffmforge.fit.RideSummary
 import ffmforge.fit.SegmentInfo
-import spray.json.DefaultJsonProtocol
-import spray.json.JsArray
-import spray.json.JsBoolean
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.JsonFormat
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import spray.json.enrichAny
 
 /** Spray-JSON formats for the API + a GeoJSON writer for the track endpoint. */
 object JsonProtocol extends DefaultJsonProtocol {

@@ -15,14 +15,14 @@ final case class GpsPoint(lat: Double, lon: Double)
 
 /** A single `record` message — one trackpoint sample. */
 final case class Record(
-    timestamp: Instant,
-    position: Option[GpsPoint] = None,
-    distanceM: Option[Double] = None,
-    speedMps: Option[Double] = None,
-    altitudeM: Option[Double] = None,
-    heartRate: Option[Int] = None,
-    cadence: Option[Int] = None,
-    power: Option[Int] = None,
+  timestamp: Instant,
+  position: Option[GpsPoint] = None,
+  distanceM: Option[Double] = None,
+  speedMps: Option[Double] = None,
+  altitudeM: Option[Double] = None,
+  heartRate: Option[Int] = None,
+  cadence: Option[Int] = None,
+  power: Option[Int] = None,
 )
 
 /** Timer events bracket active vs. paused periods of a ride. */
@@ -35,29 +35,29 @@ final case class Event(timestamp: Instant, event: TimerEvent)
 
 /** A `lap` summary. */
 final case class Lap(
-    startTime: Instant,
-    timestamp: Instant,
-    totalElapsedTimeS: Option[Double] = None,
-    totalTimerTimeS: Option[Double] = None,
-    totalDistanceM: Option[Double] = None,
+  startTime: Instant,
+  timestamp: Instant,
+  totalElapsedTimeS: Option[Double] = None,
+  totalTimerTimeS: Option[Double] = None,
+  totalDistanceM: Option[Double] = None,
 )
 
 /** A `session` summary (one continuous workout). */
 final case class Session(
-    startTime: Instant,
-    timestamp: Instant,
-    totalElapsedTimeS: Option[Double] = None,
-    totalTimerTimeS: Option[Double] = None,
-    totalDistanceM: Option[Double] = None,
-    sport: Option[String] = None,
+  startTime: Instant,
+  timestamp: Instant,
+  totalElapsedTimeS: Option[Double] = None,
+  totalTimerTimeS: Option[Double] = None,
+  totalDistanceM: Option[Double] = None,
+  sport: Option[String] = None,
 )
 
 /** The required `file_id` message identifying the file's origin. */
 final case class FileId(
-    manufacturer: Option[Int] = None,
-    product: Option[Int] = None,
-    serialNumber: Option[Long] = None,
-    timeCreated: Option[Instant] = None,
+  manufacturer: Option[Int] = None,
+  product: Option[Int] = None,
+  serialNumber: Option[Long] = None,
+  timeCreated: Option[Instant] = None,
 )
 
 /**
@@ -83,11 +83,11 @@ object FitFile {
 
   /** Build a file from typed parts (used by tests/examples). Real files come from [[GarminFitCodec.decode]]. */
   def of(
-      fileId: FileId,
-      records: Vector[Record],
-      events: Vector[Event] = Vector.empty,
-      laps: Vector[Lap] = Vector.empty,
-      sessions: Vector[Session] = Vector.empty,
+    fileId: FileId,
+    records: Vector[Record],
+    events: Vector[Event] = Vector.empty,
+    laps: Vector[Lap] = Vector.empty,
+    sessions: Vector[Session] = Vector.empty,
   ): FitFile = {
     val msgs =
       Vector(FitViews.toMessage(fileId)) ++

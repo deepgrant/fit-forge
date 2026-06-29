@@ -15,11 +15,11 @@ enum StoreError {
 
 final case class PresignedUpload(id: String, url: String, expiresAt: Instant)
 final case class PresignedDownload(
-    id: String,
-    url: String,
-    expiresAt: Instant,
-    format: DownloadFormat,
-    filename: String,
+  id: String,
+  url: String,
+  expiresAt: Instant,
+  format: DownloadFormat,
+  filename: String,
 )
 
 /**
@@ -42,9 +42,9 @@ trait FitStore {
 
   /** Create a presigned URL for downloading an existing object. */
   def createDownload(
-      id: String,
-      format: DownloadFormat,
-      presignTtl: FiniteDuration,
+    id: String,
+    format: DownloadFormat,
+    presignTtl: FiniteDuration,
   ): Future[Either[StoreError, PresignedDownload]]
 
   /** Delete an object (best effort). */

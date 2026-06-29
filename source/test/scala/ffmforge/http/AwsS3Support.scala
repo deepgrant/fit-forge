@@ -4,8 +4,9 @@ import java.time.Instant
 
 import scala.util.Try
 
-import ffmforge.store.S3FitStore
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
+
+import ffmforge.store.S3FitStore
 
 /**
  * Builds an `S3FitStore` against **real AWS S3** for tests. Deployment-specific values must be supplied externally.

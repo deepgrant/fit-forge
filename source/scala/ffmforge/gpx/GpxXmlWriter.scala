@@ -41,7 +41,10 @@ ${new PrettyPrinter(160, 2).format(toXml(document))}
       creator="FFMForge">{children(document)}</gpx>
 
   private def children(document: GpxDocument): NodeSeq =
-    document.metadata.map(metadata).getOrElse(NodeSeq.Empty) ++ document.tracks.map(track)
+    optionalMetadata(document.metadata) ++ document.tracks.map(track)
+
+  private def optionalMetadata(value: GpxMetadata): NodeSeq =
+    if (value.isEmpty) NodeSeq.Empty else metadata(value)
 
   private def metadata(value: GpxMetadata): Node =
     <metadata>{optionalName(value.name)}{optionalTime(value.time)}</metadata>
