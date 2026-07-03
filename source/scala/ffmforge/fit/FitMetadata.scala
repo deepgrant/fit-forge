@@ -4,6 +4,7 @@ import java.lang.reflect.Method
 import java.text.NumberFormat
 import java.util.Locale
 
+import scala.collection.concurrent.TrieMap
 import scala.util.Try
 
 import ffmforge.fit.FitProfile._
@@ -235,6 +236,13 @@ object FitMetadata {
 
   private val IntegerFormat: NumberFormat = NumberFormat.getIntegerInstance(Locale.US)
 
+  private val MessageNameCache: TrieMap[Int, String]                               = TrieMap.empty
+  private val FieldNameCache: TrieMap[(Int, String, Int), String]                  = TrieMap.empty
+  private val SdkMessageCache: TrieMap[Int, Option[AnyRef]]                        = TrieMap.empty
+  private val SdkFieldCache: TrieMap[(Int, Int), Option[SdkField]]                 = TrieMap.empty
+  private val SdkEnumValueCache: TrieMap[(Int, Int, Long), Option[String]]         = TrieMap.empty
+  private val EnumStringCache: TrieMap[(String, Class[?], AnyRef), Option[String]] = TrieMap.empty
+
   private lazy val factoryCreateMesg: Option[Method] =
     Try(Class.forName("com.garmin.fit.Factory").getMethod("createMesg", java.lang.Integer.TYPE)).toOption
 
@@ -249,17 +257,23 @@ object FitMetadata {
   }
 
   def messageName(globalNum: Int): String =
-    MessageNames
-      .get(globalNum)
-      .orElse(sdkMessage(globalNum).flatMap(nameOfMessage).filterNot(isUnknown))
-      .getOrElse(s"mesg_$globalNum")
+    MessageNameCache.getOrElseUpdate(
+      globalNum,
+      MessageNames
+        .get(globalNum)
+        .orElse(sdkMessage(globalNum).flatMap(nameOfMessage).filterNot(isUnknown))
+        .getOrElse(s"mesg_$globalNum"),
+    )
 
   def fieldName(globalNum: Int, messageType: String, fieldNum: Int): String =
-    FieldLabels
-      .get(messageType)
-      .flatMap(_.get(fieldNum))
-      .orElse(sdkField(globalNum, fieldNum).map(_.name).filterNot(isUnknown).map(prettyFieldName))
-      .getOrElse(s"field $fieldNum")
+    FieldNameCache.getOrElseUpdate(
+      (globalNum, messageType, fieldNum),
+      FieldLabels
+        .get(messageType)
+        .flatMap(_.get(fieldNum))
+        .orElse(sdkField(globalNum, fieldNum).map(_.name).filterNot(isUnknown).map(prettyFieldName))
+        .getOrElse(s"field $fieldNum"),
+    )
 
   def sortFields(messageType: String, fields: Vector[RawField]): Vector[RawField] =
     if (messageType == "sensor")
@@ -382,6 +396,12 @@ object FitMetadata {
     sdkField(globalNum, fieldNum).flatMap(_.units).filter(_.nonEmpty).map(unit => s"${formatNumber(value)} $unit")
 
   private def sdkEnumValue(globalNum: Int, fieldNum: Int, value: Double): Option[String] =
+    SdkEnumValueCache.getOrElseUpdate(
+      (globalNum, fieldNum, value.toLong),
+      sdkEnumValueUncached(globalNum, fieldNum, value),
+    )
+
+  private def sdkEnumValueUncached(globalNum: Int, fieldNum: Int, value: Double): Option[String] =
     for {
       method <- profileEnumValueName
       field  <- sdkField(globalNum, fieldNum)
@@ -393,20 +413,26 @@ object FitMetadata {
     } yield prettyEnumValue(cleaned)
 
   private def sdkMessage(globalNum: Int): Option[AnyRef] =
-    factoryCreateMesg.flatMap(method =>
-      Try(method.invoke(method.getDeclaringClass, Integer.valueOf(globalNum))).toOption.collect { case ref: AnyRef =>
-        ref
-      }
+    SdkMessageCache.getOrElseUpdate(
+      globalNum,
+      factoryCreateMesg.flatMap(method =>
+        Try(method.invoke(method.getDeclaringClass, Integer.valueOf(globalNum))).toOption.collect { case ref: AnyRef =>
+          ref
+        }
+      ),
     )
 
   private def sdkField(globalNum: Int, fieldNum: Int): Option[SdkField] =
-    sdkMessage(globalNum).flatMap { message =>
-      val field = for {
-        method <- Try(message.getClass.getMethod("getField", java.lang.Integer.TYPE)).toOption
-        value  <- Try(method.invoke(message, Integer.valueOf(fieldNum))).toOption
-      } yield value
-      field.collect { case ref: AnyRef => ref }.flatMap(fieldMeta)
-    }
+    SdkFieldCache.getOrElseUpdate(
+      (globalNum, fieldNum),
+      sdkMessage(globalNum).flatMap { message =>
+        val field = for {
+          method <- Try(message.getClass.getMethod("getField", java.lang.Integer.TYPE)).toOption
+          value  <- Try(method.invoke(message, Integer.valueOf(fieldNum))).toOption
+        } yield value
+        field.collect { case ref: AnyRef => ref }.flatMap(fieldMeta)
+      },
+    )
 
   private def fieldMeta(field: AnyRef): Option[SdkField] =
     for {
@@ -424,11 +450,14 @@ object FitMetadata {
     Try(target.getClass.getMethod(methodName).invoke(target)).toOption.collect { case s: String => s.trim }
 
   private def enumString(className: String, argumentType: Class[?], value: AnyRef): Option[String] =
-    for {
-      cls    <- Try(Class.forName(className)).toOption
-      method <- Try(cls.getMethod("getStringFromValue", argumentType)).toOption
-      raw    <- Try(method.invoke(method.getDeclaringClass, value)).toOption.collect { case s: String => s.trim }
-    } yield raw
+    EnumStringCache.getOrElseUpdate(
+      (className, argumentType, value),
+      for {
+        cls    <- Try(Class.forName(className)).toOption
+        method <- Try(cls.getMethod("getStringFromValue", argumentType)).toOption
+        raw    <- Try(method.invoke(method.getDeclaringClass, value)).toOption.collect { case s: String => s.trim }
+      } yield raw,
+    )
 
   private def prettyManufacturer(raw: String): String =
     ManufacturerAliases.getOrElse(raw.toLowerCase(Locale.ROOT), prettyEnumValue(raw))

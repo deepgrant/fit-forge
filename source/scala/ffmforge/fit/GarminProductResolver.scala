@@ -54,7 +54,7 @@ object GarminProductResolver {
       .get(product)
       .orElse(
         getStringFromValue
-          .flatMap(method => Try(method.invoke(ProductClass, Integer.valueOf(product))).toOption)
+          .flatMap(method => Try(method.invoke(method.getDeclaringClass, Integer.valueOf(product))).toOption)
           .collect { case value: String => value }
       )
       .map(_.trim)
