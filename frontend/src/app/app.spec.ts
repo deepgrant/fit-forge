@@ -111,6 +111,108 @@ describe('App', () => {
     expect(fixture.nativeElement.textContent).toContain('ANT 6-1-7A-6CA2');
   });
 
+  it('renders aliased manufacturer logos in the editor devices panel', async () => {
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [provideHttpClient()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(App);
+    const component = fixture.componentInstance as unknown as {
+      activeView: { set(value: 'editor'): void };
+      editorOpen: { set(value: EditorOpenResponse): void };
+    };
+    const response: EditorOpenResponse = {
+      id: 'sample-id',
+      summary: {},
+      devices: [
+        {
+          index: 8,
+          manufacturer: 'Polar Electro',
+          productName: 'Polar H10',
+          product: 2,
+          softwareVersion: 1,
+          sourceType: 'antplus',
+        },
+      ],
+      sensors: [],
+      layout: { counts: [{ type: 'device_info', count: 1 }], totalMessages: 1, totalFields: 8 },
+      anatomy: [{ name: 'device_info', count: 1, status: 'ok', issues: 0 }],
+      diagnostics: [],
+      rows: { messageType: 'device_info', offset: 0, limit: 80, total: 1, rows: [] },
+      verification: { status: 'upload-safe', canExport: true, checks: [] },
+    };
+
+    component.activeView.set('editor');
+    component.editorOpen.set(response);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const logo = root.querySelector<HTMLImageElement>('.editor-device-list .manufacturer-mark img');
+    expect(logo?.getAttribute('src')).toBe('brands/polar.svg');
+    expect(fixture.nativeElement.textContent).toContain('Polar H10');
+  });
+
+  it('infers manufacturer logos from known device names and product ids', async () => {
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [provideHttpClient()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(App);
+    const component = fixture.componentInstance as unknown as {
+      activeView: { set(value: 'editor'): void };
+      editorOpen: { set(value: EditorOpenResponse): void };
+    };
+    const response: EditorOpenResponse = {
+      id: 'sample-id',
+      summary: {},
+      devices: [
+        {
+          index: 9,
+          manufacturer: 'unknown',
+          productName: 'SRAM Eagle',
+          product: 1016,
+          sourceType: 'antplus',
+        },
+        {
+          index: 12,
+          manufacturer: 'unknown',
+          product: 2567,
+          sourceType: 'antplus',
+        },
+      ],
+      sensors: [
+        {
+          index: 13,
+          manufacturer: 'unknown',
+          product: 3578,
+          kind: 'bike_power',
+          name: 'Rally:0537480',
+          sourceType: 'antplus',
+        },
+      ],
+      layout: { counts: [{ type: 'device_info', count: 2 }], totalMessages: 3, totalFields: 12 },
+      anatomy: [{ name: 'device_info', count: 2, status: 'ok', issues: 0 }],
+      diagnostics: [],
+      rows: { messageType: 'device_info', offset: 0, limit: 80, total: 2, rows: [] },
+      verification: { status: 'upload-safe', canExport: true, checks: [] },
+    };
+
+    component.activeView.set('editor');
+    component.editorOpen.set(response);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const logoSrcs = Array.from(root.querySelectorAll<HTMLImageElement>('.editor-device-list .manufacturer-mark img')).map((logo) =>
+      logo.getAttribute('src'),
+    );
+    expect(logoSrcs).toContain('brands/sram.svg');
+    expect(logoSrcs).toContain('brands/garmin.svg');
+    expect(fixture.nativeElement.textContent).toContain('SRAM Eagle');
+    expect(fixture.nativeElement.textContent).toContain('Headlight');
+  });
+
   it('dims the merge workspace while uploads are in progress', async () => {
     await TestBed.configureTestingModule({
       imports: [App],

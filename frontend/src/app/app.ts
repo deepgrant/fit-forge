@@ -27,6 +27,7 @@ type WorkspaceView = 'merge' | 'editor';
 type EditorRowsDirection = 'previous' | 'next';
 type EditorRowsBusy = EditorRowsDirection | 'message';
 type ReloadDialogKind = 'version' | 'session';
+type DeviceBrand = 'garmin' | 'polar' | 'shimano' | 'sram' | 'wahoo';
 
 const RouteColors = ['#ff6a1a', '#1f9d6b', '#2f80ed', '#e0453c', '#8b5cf6', '#e0921a', '#008ea8', '#c026d3'];
 const OpenFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
@@ -35,6 +36,20 @@ const MapLibreScriptUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl
 const EditorRowsEdgePx = 36;
 const EditorMapPickPageSize = 160;
 const VersionPollMs = 60 * 60 * 1000;
+const KnownDeviceBrands: readonly DeviceBrand[] = ['garmin', 'polar', 'shimano', 'sram', 'wahoo'];
+const DeviceBrandProductHints = new Map<number, DeviceBrand>([
+  [20, 'garmin'],
+  [1016, 'sram'],
+  [2567, 'garmin'],
+  [2875, 'garmin'],
+  [3107, 'garmin'],
+  [3192, 'garmin'],
+  [3299, 'garmin'],
+  [3578, 'garmin'],
+  [3808, 'garmin'],
+  [4470, 'garmin'],
+  [12868, 'shimano'],
+]);
 
 interface GeoJsonSource {
   setData(data: unknown): void;
@@ -102,6 +117,13 @@ interface DisplayDevice {
   readonly idLabel: string;
   readonly recordingCount: number;
   readonly occurrenceCount: number;
+}
+
+interface DeviceBrandCandidate {
+  readonly manufacturer: string;
+  readonly productName?: string;
+  readonly product?: number;
+  readonly name?: string;
 }
 
 interface ReloadDialog {
@@ -1019,14 +1041,14 @@ export class App implements AfterViewInit, OnDestroy {
     return this.titleize(kind) ?? kind;
   }
 
-  private garminAccessoryTypeLabel(device: Pick<DeviceInfo | SensorInfo, 'manufacturer' | 'product' | 'productName'>): string | undefined {
+  private garminAccessoryTypeLabel(device: DeviceBrandCandidate): string | undefined {
     if (!this.isManufacturer(device, 'garmin')) return undefined;
 
     const productName = device.productName?.toLowerCase() ?? '';
     if (device.product === 4470 || productName.includes('varia vue')) return 'Headlight camera';
     if (device.product === 3808 || productName.includes('varia rct')) return 'Radar camera';
     if (productName.includes('varia radar')) return 'Radar';
-    if (productName.includes('varia ut') || productName.includes('varia headlight')) return 'Headlight';
+    if (device.product === 2567 || productName.includes('varia ut') || productName.includes('varia headlight')) return 'Headlight';
     if (productName.includes('varia taillight')) return 'Tail light';
     return undefined;
   }
@@ -1072,30 +1094,67 @@ export class App implements AfterViewInit, OnDestroy {
       .toUpperCase();
   }
 
-  private deviceLogoSrc(device: Pick<DeviceInfo | SensorInfo, 'manufacturer'>): string | undefined {
-    const normalized = this.normalizeManufacturer(device.manufacturer);
-    if (normalized === 'garmin') return 'brands/garmin.svg';
-    if (normalized === 'polar') return 'brands/polar.svg';
-    if (normalized === 'wahoo' || normalized === 'wahoo fitness') return 'brands/wahoo.png';
-    if (normalized === 'shimano') return 'brands/shimano.svg';
-    if (normalized === 'sram') return 'brands/sram.svg';
+  private deviceLogoSrc(device: DeviceBrandCandidate): string | undefined {
+    const brand = this.deviceBrand(device);
+    if (brand === 'garmin') return 'brands/garmin.svg';
+    if (brand === 'polar') return 'brands/polar.svg';
+    if (brand === 'wahoo') return 'brands/wahoo.png';
+    if (brand === 'shimano') return 'brands/shimano.svg';
+    if (brand === 'sram') return 'brands/sram.svg';
     return undefined;
   }
 
-  private deviceLogoClass(device: Pick<DeviceInfo | SensorInfo, 'manufacturer'>): string | undefined {
-    const normalized = this.normalizeManufacturer(device.manufacturer);
-    if (normalized === 'garmin') return 'garmin-logo';
-    if (normalized === 'shimano') return 'shimano-logo';
-    if (normalized === 'sram') return 'sram-logo';
+  private deviceLogoClass(device: DeviceBrandCandidate): string | undefined {
+    const brand = this.deviceBrand(device);
+    if (brand === 'garmin') return 'garmin-logo';
+    if (brand === 'shimano') return 'shimano-logo';
+    if (brand === 'sram') return 'sram-logo';
     return undefined;
   }
 
-  private isManufacturer(device: Pick<DeviceInfo | SensorInfo, 'manufacturer'>, manufacturer: string): boolean {
-    return this.normalizeManufacturer(device.manufacturer) === manufacturer;
+  private isManufacturer(device: DeviceBrandCandidate, manufacturer: DeviceBrand): boolean {
+    return this.deviceBrand(device) === manufacturer;
+  }
+
+  private deviceBrand(device: DeviceBrandCandidate): DeviceBrand | undefined {
+    const normalized = this.normalizeManufacturer(device.manufacturer);
+    if (this.isDeviceBrand(normalized)) return normalized;
+
+    const labelBrand = this.deviceBrandFromLabel([device.productName, device.name].filter(Boolean).join(' '));
+    if (labelBrand !== undefined) return labelBrand;
+
+    return device.product === undefined ? undefined : DeviceBrandProductHints.get(device.product);
+  }
+
+  private deviceBrandFromLabel(label: string): DeviceBrand | undefined {
+    const normalized = label.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+    if (normalized.includes('sram')) return 'sram';
+    if (normalized.includes('shimano') || normalized.includes('di2')) return 'shimano';
+    if (normalized.includes('polar')) return 'polar';
+    if (normalized.includes('wahoo')) return 'wahoo';
+    if (
+      normalized.includes('garmin') ||
+      normalized.includes('tacx') ||
+      normalized.includes('rally') ||
+      normalized.includes('varia') ||
+      normalized.includes('edge') ||
+      normalized.includes('hrm dual') ||
+      normalized.includes('vector')
+    ) {
+      return 'garmin';
+    }
+    return undefined;
+  }
+
+  private isDeviceBrand(brand: string): brand is DeviceBrand {
+    return (KnownDeviceBrands as readonly string[]).includes(brand);
   }
 
   private normalizeManufacturer(manufacturer: string): string {
-    return manufacturer.trim().toLowerCase();
+    const normalized = manufacturer.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+    if (normalized === 'polar electro' || normalized === 'polar electro oy') return 'polar';
+    if (normalized === 'wahoo fitness') return 'wahoo';
+    return normalized;
   }
 
   private titleize(value: string | undefined): string | undefined {
