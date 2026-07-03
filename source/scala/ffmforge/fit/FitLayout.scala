@@ -11,7 +11,7 @@ object FitLayout {
       .groupBy(_.globalNum)
       .toVector
       .sortBy { case (num, _) => num }
-      .map { case (num, msgs) => (FitProfile.Mesg.nameOf(num), msgs.size) }
+      .map { case (num, msgs) => (FitMetadata.messageName(num), msgs.size) }
     FitLayout(counts, file.messages.size, file.messages.map(_.fields.size).sum)
   }
 }

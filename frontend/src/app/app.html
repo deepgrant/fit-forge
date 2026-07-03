@@ -21,7 +21,7 @@
     </button>
   </header>
 
-  <section class="workspace" aria-label="FIT merge workspace" [hidden]="activeView() !== 'merge'">
+  <section class="workspace" [class.workspace-busy]="mergeUploadBusy() !== null" aria-label="FIT merge workspace" [hidden]="activeView() !== 'merge'">
     <div class="workspace-header">
       <div>
         <p class="eyebrow">Garmin FIT merge workspace</p>
@@ -39,6 +39,18 @@
 
     @if (busy()) {
       <div class="notice busy" role="status">{{ busy() }}</div>
+    }
+
+    @if (mergeUploadBusy(); as message) {
+      <div class="workspace-busy-overlay" role="status" aria-live="polite">
+        <span class="busy-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11.414 10 4.031 17.418a2.091 2.091 0 0 0 0 2.967 2.11 2.11 0 0 0 2.976 0L14.414 13" />
+            <path d="m18.121 15.293 2.586-2.586a1 1 0 0 0 0-1.414l-7.586-7.586a1 1 0 0 0-1.414 0L9.121 6.293a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0Z" />
+          </svg>
+        </span>
+        <span>{{ message }}</span>
+      </div>
     }
 
     <div class="grid">
@@ -192,10 +204,21 @@
           </div>
         </div>
 
-        <div class="map-shell">
+        <div class="map-shell" [class.map-loading]="mergeMapBusy() !== null">
           <div #mapHost class="map-host" aria-label="Route preview map"></div>
           @if (routeTracks().length === 0) {
             <div class="map-empty">Upload a FIT file to draw its route.</div>
+          }
+          @if (mergeMapBusy(); as message) {
+            <div class="map-busy-overlay" role="status" aria-live="polite">
+              <span class="busy-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11.414 10 4.031 17.418a2.091 2.091 0 0 0 0 2.967 2.11 2.11 0 0 0 2.976 0L14.414 13" />
+                  <path d="m18.121 15.293 2.586-2.586a1 1 0 0 0 0-1.414l-7.586-7.586a1 1 0 0 0-1.414 0L9.121 6.293a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0Z" />
+                </svg>
+              </span>
+              <span>{{ message }}</span>
+            </div>
           }
         </div>
 
@@ -287,7 +310,7 @@
     </div>
   </section>
 
-  <section class="workspace editor-workspace" aria-label="FIT editor workspace" [hidden]="activeView() !== 'editor'">
+  <section class="workspace editor-workspace" [class.workspace-busy]="editorUploadBusy() !== null" aria-label="FIT editor workspace" [hidden]="activeView() !== 'editor'">
     <div class="workspace-header">
       <div>
         <p class="eyebrow">Garmin FIT editor workspace</p>
@@ -299,6 +322,18 @@
         <span [class.ready]="editorExport()">{{ editorExport() ? 'export ready' : 'export pending' }}</span>
       </div>
     </div>
+
+    @if (editorUploadBusy(); as message) {
+      <div class="workspace-busy-overlay" role="status" aria-live="polite">
+        <span class="busy-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11.414 10 4.031 17.418a2.091 2.091 0 0 0 0 2.967 2.11 2.11 0 0 0 2.976 0L14.414 13" />
+            <path d="m18.121 15.293 2.586-2.586a1 1 0 0 0 0-1.414l-7.586-7.586a1 1 0 0 0-1.414 0L9.121 6.293a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0Z" />
+          </svg>
+        </span>
+        <span>{{ message }}</span>
+      </div>
+    }
 
     <div class="editor-grid">
       <div class="editor-left">
@@ -423,10 +458,21 @@
             }
           </div>
 
-          <div class="map-shell editor-map-shell" [class.selectable]="editorCanPickRecordFromMap()">
+          <div class="map-shell editor-map-shell" [class.selectable]="editorCanPickRecordFromMap()" [class.map-loading]="editorMapBusy() !== null">
             <div #editorMapHost class="map-host" aria-label="Editor route context map"></div>
             @if (!editorRouteTrack()) {
               <div class="map-empty">Upload a FIT file with GPS data to draw its route.</div>
+            }
+            @if (editorMapBusy(); as message) {
+              <div class="map-busy-overlay" role="status" aria-live="polite">
+                <span class="busy-mark" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11.414 10 4.031 17.418a2.091 2.091 0 0 0 0 2.967 2.11 2.11 0 0 0 2.976 0L14.414 13" />
+                    <path d="m18.121 15.293 2.586-2.586a1 1 0 0 0 0-1.414l-7.586-7.586a1 1 0 0 0-1.414 0L9.121 6.293a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0Z" />
+                  </svg>
+                </span>
+                <span>{{ message }}</span>
+              </div>
             }
           </div>
         </section>
@@ -503,7 +549,7 @@
 
           @if (editorRowsBusy(); as direction) {
             <div class="table-busy-overlay" role="status" aria-live="polite">
-              <span class="table-busy-mark" aria-hidden="true">
+              <span class="busy-mark" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M11.414 10 4.031 17.418a2.091 2.091 0 0 0 0 2.967 2.11 2.11 0 0 0 2.976 0L14.414 13" />
                   <path d="m18.121 15.293 2.586-2.586a1 1 0 0 0 0-1.414l-7.586-7.586a1 1 0 0 0-1.414 0L9.121 6.293a1 1 0 0 0 0 1.414l7.586 7.586a1 1 0 0 0 1.414 0Z" />

@@ -17,6 +17,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import scala.util.control.NonFatal
+import scala.util.matching.Regex
 
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler
@@ -73,10 +74,10 @@ final class FFMForgeLambda extends RequestStreamHandler {
 
   private given ExecutionContext = ExecutionContext.global
 
-  private val config = FFMForgeConfig.fromEnv()
-  private val codec  = new GarminFitCodec()
-  private val store  = S3FitStore.fromDefaultChain(config.s3Bucket, () => Instant.now())
-  private val api    = new FFMForgeLambdaApi(store, codec, config)
+  private val config: FFMForgeConfig = FFMForgeConfig.fromEnv()
+  private val codec: GarminFitCodec  = new GarminFitCodec()
+  private val store: S3FitStore      = S3FitStore.fromDefaultChain(config.s3Bucket, () => Instant.now())
+  private val api: FFMForgeLambdaApi = new FFMForgeLambdaApi(store, codec, config)
 
   def handleRequest(input: InputStream, output: OutputStream, context: Context): Unit = {
     val event  = String(input.readAllBytes(), StandardCharsets.UTF_8)
@@ -107,9 +108,9 @@ final class FFMForgeLambdaApi(store: FitStore, codec: FitCodec, config: FFMForge
 
   import JsonProtocol._
 
-  private val SummaryPath  = "^/ffmforge/v1/fit/([^/]+)/summary$".r
-  private val TrackPath    = "^/ffmforge/v1/fit/([^/]+)/track$".r
-  private val DownloadPath = "^/ffmforge/v1/fit/([^/]+)/download$".r
+  private val SummaryPath: Regex  = "^/ffmforge/v1/fit/([^/]+)/summary$".r
+  private val TrackPath: Regex    = "^/ffmforge/v1/fit/([^/]+)/track$".r
+  private val DownloadPath: Regex = "^/ffmforge/v1/fit/([^/]+)/download$".r
 
   def handle(eventJson: String): Future[String] =
     Try(eventJson.parseJson.asJsObject.fields) match {

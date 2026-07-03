@@ -15,6 +15,7 @@ import type {
   RepairPreview,
   RouteTrack,
   SegmentFile,
+  SensorInfo,
   TrackFeature,
   TrackGeoJson,
   UploadFileResult,
@@ -26,6 +27,7 @@ type WorkspaceView = 'merge' | 'editor';
 type EditorRowsDirection = 'previous' | 'next';
 type EditorRowsBusy = EditorRowsDirection | 'message';
 type ReloadDialogKind = 'version' | 'session';
+type DeviceBrand = 'garmin' | 'polar' | 'shimano' | 'sram' | 'wahoo';
 
 const RouteColors = ['#ff6a1a', '#1f9d6b', '#2f80ed', '#e0453c', '#8b5cf6', '#e0921a', '#008ea8', '#c026d3'];
 const OpenFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
@@ -34,6 +36,20 @@ const MapLibreScriptUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl
 const EditorRowsEdgePx = 36;
 const EditorMapPickPageSize = 160;
 const VersionPollMs = 60 * 60 * 1000;
+const KnownDeviceBrands: readonly DeviceBrand[] = ['garmin', 'polar', 'shimano', 'sram', 'wahoo'];
+const DeviceBrandProductHints = new Map<number, DeviceBrand>([
+  [20, 'garmin'],
+  [1016, 'sram'],
+  [2567, 'garmin'],
+  [2875, 'garmin'],
+  [3107, 'garmin'],
+  [3192, 'garmin'],
+  [3299, 'garmin'],
+  [3578, 'garmin'],
+  [3808, 'garmin'],
+  [4470, 'garmin'],
+  [12868, 'shimano'],
+]);
 
 interface GeoJsonSource {
   setData(data: unknown): void;
@@ -56,6 +72,7 @@ interface MapLibreMap {
   on(type: 'click', listener: (event: MapClickEvent) => void): void;
   on(type: 'mousemove', listener: (event: MapMouseEvent) => void): void;
   on(type: 'mouseout', listener: () => void): void;
+  once(type: 'idle', listener: () => void): void;
   queryRenderedFeatures(point: MapFeatureQueryGeometry, options?: Readonly<Record<string, unknown>>): readonly unknown[];
   remove(): void;
   removeLayer(id: string): void;
@@ -100,6 +117,13 @@ interface DisplayDevice {
   readonly idLabel: string;
   readonly recordingCount: number;
   readonly occurrenceCount: number;
+}
+
+interface DeviceBrandCandidate {
+  readonly manufacturer: string;
+  readonly productName?: string;
+  readonly product?: number;
+  readonly name?: string;
 }
 
 interface ReloadDialog {
@@ -157,6 +181,10 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly editorDownloadFormat = signal<DownloadFormat>('fit');
   protected readonly busy = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
+  protected readonly mergeUploadBusy = signal<string | null>(null);
+  protected readonly editorUploadBusy = signal<string | null>(null);
+  protected readonly mergeMapBusy = signal<string | null>(null);
+  protected readonly editorMapBusy = signal<string | null>(null);
   protected readonly editorFile = signal<SegmentFile | null>(null);
   protected readonly editorOpen = signal<EditorOpenResponse | null>(null);
   protected readonly editorRows = signal<EditorRowsResponse | null>(null);
@@ -194,7 +222,14 @@ export class App implements AfterViewInit, OnDestroy {
     const selected = this.editorSelectedIssueId();
     return issues.find((issue) => issue.id === selected) ?? issues.at(0);
   });
-  protected readonly editorDevices = computed(() => this.editorOpen()?.devices.map((device) => this.displayDeviceOf(device, this.editorOpen()?.id ?? 'editor')) ?? []);
+  protected readonly editorDevices = computed(() => {
+    const open = this.editorOpen();
+    if (!open) return [];
+    return [
+      ...open.devices.map((device) => this.displayDeviceOf(device, open.id)),
+      ...open.sensors.map((sensor) => this.displaySensorOf(sensor, open.id)),
+    ].sort((a, b) => `${a.typeLabel}:${a.name}:${a.sourceLabel ?? ''}`.localeCompare(`${b.typeLabel}:${b.name}:${b.sourceLabel ?? ''}`));
+  });
   protected readonly canPreviewRepair = computed(() => this.editorOpen() !== null && this.editorOperations().length > 0 && this.busy() === null);
   protected readonly canExportRepair = computed(() => this.canPreviewRepair() && (this.editorPreview()?.verification.canExport ?? this.editorOpen()?.verification.canExport ?? false));
 
@@ -240,6 +275,8 @@ export class App implements AfterViewInit, OnDestroy {
     try {
       await this.loadMapLibre();
     } catch (err) {
+      this.mergeMapBusy.set(null);
+      this.editorMapBusy.set(null);
       this.handleError(err);
       return;
     }
@@ -342,6 +379,8 @@ export class App implements AfterViewInit, OnDestroy {
     this.segments.set([]);
     this.descriptions.set([]);
     this.routeTracks.set([]);
+    this.mergeUploadBusy.set(null);
+    this.mergeMapBusy.set(null);
     this.dryRun.set(null);
     this.merged.set(null);
     this.error.set(null);
@@ -575,8 +614,11 @@ export class App implements AfterViewInit, OnDestroy {
       state: 'uploading' as const,
     }));
     this.segments.update((segments) => [...segments, ...additions]);
+    this.mergeUploadBusy.set('Uploading FIT files');
+    this.mergeMapBusy.set(null);
     this.busy.set('Uploading FIT files');
     this.error.set(null);
+    let routeRenderQueued = false;
 
     try {
       const uploaded = await this.api.uploadFiles(fitFiles);
@@ -587,6 +629,9 @@ export class App implements AfterViewInit, OnDestroy {
           return { ...segment, state: 'ready', remoteId: uploaded[index].id };
         }),
       );
+      this.mergeUploadBusy.set(null);
+      this.mergeMapBusy.set('Drawing route map');
+      routeRenderQueued = true;
       await this.describeReadyFiles();
     } catch (err) {
       const message = messageOf(err);
@@ -595,8 +640,11 @@ export class App implements AfterViewInit, OnDestroy {
           additions.some((addition) => addition.localId === segment.localId) ? { ...segment, state: 'failed', error: message } : segment,
         ),
       );
+      this.mergeMapBusy.set(null);
       this.handleError(err);
     } finally {
+      this.mergeUploadBusy.set(null);
+      if (!routeRenderQueued || this.routeTracks().length === 0) this.mergeMapBusy.set(null);
       this.busy.set(null);
     }
   }
@@ -622,13 +670,17 @@ export class App implements AfterViewInit, OnDestroy {
     this.editorExport.set(null);
     this.editorRouteTrack.set(null);
     this.editorSelectedRow.set(null);
+    this.editorUploadBusy.set('Uploading FIT file');
+    this.editorMapBusy.set(null);
     this.busy.set('Uploading FIT file for editor');
     this.error.set(null);
+    let routeRenderQueued = false;
 
     try {
       const uploaded = (await this.api.uploadFiles([file])).at(0);
       if (!uploaded) throw new Error('Upload did not return a file id.');
       this.editorFile.set({ ...local, state: 'ready', remoteId: uploaded.id });
+      this.editorUploadBusy.set('Opening FIT file');
       const opened = await this.api.editorOpen(uploaded.id);
       const defaultMessageType = this.defaultEditorMessageType(opened);
       this.editorOpen.set(opened);
@@ -639,12 +691,18 @@ export class App implements AfterViewInit, OnDestroy {
           : await this.api.editorRows(uploaded.id, defaultMessageType, 0, 80),
       );
       this.editorSelectedIssueId.set(opened.diagnostics.at(0)?.id ?? null);
+      this.editorUploadBusy.set(null);
+      this.editorMapBusy.set('Drawing route map');
+      routeRenderQueued = true;
       this.editorRouteTrack.set(await this.loadEditorRouteTrack(uploaded.id, file.name));
     } catch (err) {
       const message = messageOf(err);
       this.editorFile.set({ ...local, state: 'failed', error: message });
+      this.editorMapBusy.set(null);
       this.handleError(err);
     } finally {
+      this.editorUploadBusy.set(null);
+      if (!routeRenderQueued || !this.editorRouteTrack()) this.editorMapBusy.set(null);
       this.busy.set(null);
     }
   }
@@ -853,6 +911,24 @@ export class App implements AfterViewInit, OnDestroy {
     };
   }
 
+  private displaySensorOf(sensor: SensorInfo, recordingId: string): DisplayDevice {
+    return {
+      key: `${recordingId}:${this.sensorKey(sensor)}`,
+      manufacturer: sensor.manufacturer,
+      logoSrc: this.deviceLogoSrc(sensor),
+      logoAlt: `${sensor.manufacturer} sensor`,
+      logoClass: this.deviceLogoClass(sensor),
+      markText: this.deviceMarkText(sensor.manufacturer),
+      name: this.sensorName(sensor),
+      typeLabel: this.sensorTypeLabel(sensor),
+      sourceLabel: this.deviceSourceLabel(sensor.sourceType),
+      statusLabel: undefined,
+      idLabel: this.sensorIdLabel(sensor),
+      recordingCount: 1,
+      occurrenceCount: 1,
+    };
+  }
+
   protected issueSeverityLabel(issue: DiagnosticIssue): string {
     return issue.severity === 'error' ? 'repair needed' : 'warning';
   }
@@ -916,6 +992,14 @@ export class App implements AfterViewInit, OnDestroy {
     return ['label', this.deviceName(device), device.kind ?? 'device', device.sourceType ?? ''].join(':').toLowerCase();
   }
 
+  private sensorKey(sensor: SensorInfo): string {
+    if (sensor.antId !== undefined) return `ant:${sensor.antId}`;
+    if (sensor.product !== undefined) {
+      return ['sensor-product', sensor.manufacturer, sensor.product, sensor.kind ?? 'sensor', sensor.sourceType ?? ''].join(':').toLowerCase();
+    }
+    return ['sensor-label', this.sensorName(sensor), sensor.kind ?? 'sensor', sensor.sourceType ?? ''].join(':').toLowerCase();
+  }
+
   private preferredDevice(a: DeviceInfo, b: DeviceInfo): DeviceInfo {
     return this.deviceScore(b) > this.deviceScore(a) ? b : a;
   }
@@ -938,19 +1022,33 @@ export class App implements AfterViewInit, OnDestroy {
     if (accessoryType !== undefined) return accessoryType;
 
     const kind = device.kind ?? 'device';
+    if (kind === 'heart_rate' && device.sourceType === 'antplus') return 'External heart rate';
+    if (kind === 'bike_radar') return 'Radar';
+    if (kind === 'bike_light_main' || kind === 'bike_light_shared') return 'Lights';
     if (kind === 'device' && device.sourceType === 'local') return 'Recording device';
     if (kind === 'device') return 'Device';
     return this.titleize(kind) ?? kind;
   }
 
-  private garminAccessoryTypeLabel(device: DeviceInfo): string | undefined {
+  private sensorName(sensor: SensorInfo): string {
+    return sensor.name ?? sensor.productName ?? `${sensor.manufacturer} ${this.sensorTypeLabel(sensor).toLowerCase()}`;
+  }
+
+  private sensorTypeLabel(sensor: SensorInfo): string {
+    const accessoryType = this.garminAccessoryTypeLabel(sensor);
+    if (accessoryType !== undefined) return accessoryType;
+    const kind = sensor.kind ?? 'sensor';
+    return this.titleize(kind) ?? kind;
+  }
+
+  private garminAccessoryTypeLabel(device: DeviceBrandCandidate): string | undefined {
     if (!this.isManufacturer(device, 'garmin')) return undefined;
 
     const productName = device.productName?.toLowerCase() ?? '';
     if (device.product === 4470 || productName.includes('varia vue')) return 'Headlight camera';
     if (device.product === 3808 || productName.includes('varia rct')) return 'Radar camera';
     if (productName.includes('varia radar')) return 'Radar';
-    if (productName.includes('varia ut') || productName.includes('varia headlight')) return 'Headlight';
+    if (device.product === 2567 || productName.includes('varia ut') || productName.includes('varia headlight')) return 'Headlight';
     if (productName.includes('varia taillight')) return 'Tail light';
     return undefined;
   }
@@ -970,6 +1068,16 @@ export class App implements AfterViewInit, OnDestroy {
     return parts.join(' / ');
   }
 
+  private sensorIdLabel(sensor: SensorInfo): string {
+    const parts = [`FIT index ${sensor.index}`];
+    if (sensor.antId !== undefined) parts.push(`ANT ${sensor.antId}`);
+    if (sensor.product !== undefined) parts.push(`product ${sensor.product}`);
+    if (sensor.softwareVersion !== undefined) parts.push(`software ${sensor.softwareVersion}`);
+    const wheelSize = sensor.wheelSizeAutoMm ?? sensor.wheelSizeManualMm;
+    if (wheelSize !== undefined) parts.push(`wheel ${wheelSize} mm`);
+    return parts.join(' / ');
+  }
+
   private deviceMarkText(manufacturer: string): string {
     const normalized = this.normalizeManufacturer(manufacturer);
     if (normalized === 'garmin') return 'GARMIN';
@@ -986,30 +1094,67 @@ export class App implements AfterViewInit, OnDestroy {
       .toUpperCase();
   }
 
-  private deviceLogoSrc(device: DeviceInfo): string | undefined {
-    const normalized = this.normalizeManufacturer(device.manufacturer);
-    if (normalized === 'garmin') return 'brands/garmin.svg';
-    if (normalized === 'polar') return 'brands/polar.svg';
-    if (normalized === 'wahoo' || normalized === 'wahoo fitness') return 'brands/wahoo.png';
-    if (normalized === 'shimano') return 'brands/shimano.svg';
-    if (normalized === 'sram') return 'brands/sram.svg';
+  private deviceLogoSrc(device: DeviceBrandCandidate): string | undefined {
+    const brand = this.deviceBrand(device);
+    if (brand === 'garmin') return 'brands/garmin.svg';
+    if (brand === 'polar') return 'brands/polar.svg';
+    if (brand === 'wahoo') return 'brands/wahoo.png';
+    if (brand === 'shimano') return 'brands/shimano.svg';
+    if (brand === 'sram') return 'brands/sram.svg';
     return undefined;
   }
 
-  private deviceLogoClass(device: DeviceInfo): string | undefined {
-    const normalized = this.normalizeManufacturer(device.manufacturer);
-    if (normalized === 'garmin') return 'garmin-logo';
-    if (normalized === 'shimano') return 'shimano-logo';
-    if (normalized === 'sram') return 'sram-logo';
+  private deviceLogoClass(device: DeviceBrandCandidate): string | undefined {
+    const brand = this.deviceBrand(device);
+    if (brand === 'garmin') return 'garmin-logo';
+    if (brand === 'shimano') return 'shimano-logo';
+    if (brand === 'sram') return 'sram-logo';
     return undefined;
   }
 
-  private isManufacturer(device: DeviceInfo, manufacturer: string): boolean {
-    return this.normalizeManufacturer(device.manufacturer) === manufacturer;
+  private isManufacturer(device: DeviceBrandCandidate, manufacturer: DeviceBrand): boolean {
+    return this.deviceBrand(device) === manufacturer;
+  }
+
+  private deviceBrand(device: DeviceBrandCandidate): DeviceBrand | undefined {
+    const normalized = this.normalizeManufacturer(device.manufacturer);
+    if (this.isDeviceBrand(normalized)) return normalized;
+
+    const labelBrand = this.deviceBrandFromLabel([device.productName, device.name].filter(Boolean).join(' '));
+    if (labelBrand !== undefined) return labelBrand;
+
+    return device.product === undefined ? undefined : DeviceBrandProductHints.get(device.product);
+  }
+
+  private deviceBrandFromLabel(label: string): DeviceBrand | undefined {
+    const normalized = label.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+    if (normalized.includes('sram')) return 'sram';
+    if (normalized.includes('shimano') || normalized.includes('di2')) return 'shimano';
+    if (normalized.includes('polar')) return 'polar';
+    if (normalized.includes('wahoo')) return 'wahoo';
+    if (
+      normalized.includes('garmin') ||
+      normalized.includes('tacx') ||
+      normalized.includes('rally') ||
+      normalized.includes('varia') ||
+      normalized.includes('edge') ||
+      normalized.includes('hrm dual') ||
+      normalized.includes('vector')
+    ) {
+      return 'garmin';
+    }
+    return undefined;
+  }
+
+  private isDeviceBrand(brand: string): brand is DeviceBrand {
+    return (KnownDeviceBrands as readonly string[]).includes(brand);
   }
 
   private normalizeManufacturer(manufacturer: string): string {
-    return manufacturer.trim().toLowerCase();
+    const normalized = manufacturer.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+    if (normalized === 'polar electro' || normalized === 'polar electro oy') return 'polar';
+    if (normalized === 'wahoo fitness') return 'wahoo';
+    return normalized;
   }
 
   private titleize(value: string | undefined): string | undefined {
@@ -1069,6 +1214,7 @@ export class App implements AfterViewInit, OnDestroy {
     this.renderedRouteIds = nextIds;
     this.fitRouteBounds(tracks.map((track) => track.geojson));
     map.resize();
+    this.clearMergeMapBusyWhenIdle();
   }
 
   private renderEditorRouteTrack(track: RouteTrack | null): void {
@@ -1078,6 +1224,7 @@ export class App implements AfterViewInit, OnDestroy {
     if (!track) {
       if (this.editorRouteRendered) this.removeEditorRouteLayers();
       this.editorRouteRendered = false;
+      this.editorMapBusy.set(null);
       return;
     }
 
@@ -1126,6 +1273,24 @@ export class App implements AfterViewInit, OnDestroy {
     this.renderEditorIssueSelection(this.emptyGeoJson());
     this.fitBoundsOnMap(map, [track.geojson], 38);
     map.resize();
+    this.clearEditorMapBusyWhenIdle();
+  }
+
+  private clearMergeMapBusyWhenIdle(): void {
+    if (!this.mergeMapBusy()) return;
+    this.clearMapBusyWhenIdle(this.map, () => this.mergeMapBusy.set(null));
+  }
+
+  private clearEditorMapBusyWhenIdle(): void {
+    if (!this.editorMapBusy()) return;
+    this.clearMapBusyWhenIdle(this.editorMap, () => this.editorMapBusy.set(null));
+  }
+
+  private clearMapBusyWhenIdle(map: MapLibreMap | undefined, clear: () => void): void {
+    if (!map) return;
+    map.once('idle', () => {
+      requestAnimationFrame(clear);
+    });
   }
 
   private renderEditorSelectedRow(row: EditorRecordRow | null): void {
