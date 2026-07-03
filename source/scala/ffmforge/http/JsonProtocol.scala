@@ -163,7 +163,7 @@ object JsonProtocol extends DefaultJsonProtocol {
   }
 
   /** Threshold (seconds) between consecutive record timestamps that counts as a recording gap on the map. */
-  private val GapThresholdSeconds = 30L
+  private val GapThresholdSeconds: Long = 30L
 
   /** A GeoJSON FeatureCollection: the track LineString plus start/finish/gap point features. */
   def trackGeoJson(file: FitFile): JsValue = {

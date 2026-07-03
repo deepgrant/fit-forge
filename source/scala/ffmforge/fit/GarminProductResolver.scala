@@ -1,13 +1,16 @@
 package ffmforge.fit
 
+import java.lang.reflect.Method
+
 import scala.util.Try
+import scala.util.matching.Regex
 
 /** Resolves Garmin manufacturer/product ids using the Garmin FIT SDK product table without importing SDK types here. */
 object GarminProductResolver {
 
-  private val GarminManufacturer = "garmin"
+  private val GarminManufacturer: String = "garmin"
 
-  private val ProductClass = "com.garmin.fit.GarminProduct"
+  private val ProductClass: String = "com.garmin.fit.GarminProduct"
 
   private val ProductOverrides: Map[Int, String] = Map(
     // Newer than the bundled Garmin FIT SDK product table in use here.
@@ -34,9 +37,9 @@ object GarminProductResolver {
   private val Acronyms: Set[String] =
     Set("ANT", "APAC", "GPS", "HRM", "MTB", "NFC", "OHR", "RCT", "RTL", "RVR", "SEA", "USB", "UT", "WW")
 
-  private val CompactModelPattern = "(?i)(RCT|RTL|RVR|UT)\\d+".r
+  private val CompactModelPattern: Regex = "(?i)(RCT|RTL|RVR|UT)\\d+".r
 
-  private lazy val getStringFromValue =
+  private lazy val getStringFromValue: Option[Method] =
     Try {
       val cls = Class.forName(ProductClass)
       cls.getMethod("getStringFromValue", classOf[Integer])

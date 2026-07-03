@@ -31,8 +31,8 @@ object LambdaCodecDemo {
 
   import JsonProtocol._
 
-  private val DefaultBaseUrl = "https://ffmforge.com"
-  private val DefaultSample  = "samples/19724302447_ACTIVITY.fit"
+  private val DefaultBaseUrl: String = "https://ffmforge.com"
+  private val DefaultSample: String  = "samples/19724302447_ACTIVITY.fit"
 
   def main(args: Array[String]): Unit = {
     val baseUrl = sys.props

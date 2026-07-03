@@ -70,8 +70,8 @@ final case class ExportRepairResponse(id: String, preview: RepairPreview)
 
 object FitEditor {
 
-  private val DefaultLimit              = 80
-  private val MaxInterpolatedGpsSamples = 5
+  private val DefaultLimit: Int              = 80
+  private val MaxInterpolatedGpsSamples: Int = 5
 
   def open(id: String, file: FitFile): EditorOpenResponse = {
     val diagnostics = diagnose(file)

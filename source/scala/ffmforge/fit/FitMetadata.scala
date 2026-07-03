@@ -1,5 +1,6 @@
 package ffmforge.fit
 
+import java.lang.reflect.Method
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -232,12 +233,12 @@ object FitMetadata {
 
   private val Acronyms: Set[String] = Set("ANT", "GPS", "HR", "HRM", "LED", "MTB", "SRAM", "TSS", "USB", "VAM")
 
-  private val IntegerFormat = NumberFormat.getIntegerInstance(Locale.US)
+  private val IntegerFormat: NumberFormat = NumberFormat.getIntegerInstance(Locale.US)
 
-  private lazy val factoryCreateMesg =
+  private lazy val factoryCreateMesg: Option[Method] =
     Try(Class.forName("com.garmin.fit.Factory").getMethod("createMesg", java.lang.Integer.TYPE)).toOption
 
-  private lazy val profileEnumValueName = {
+  private lazy val profileEnumValueName: Option[Method] = {
     val profileClass = Try(Class.forName("com.garmin.fit.Profile")).toOption
     val typeClass    = Try(Class.forName("com.garmin.fit.Profile$Type")).toOption
     for {
@@ -385,15 +386,17 @@ object FitMetadata {
       method <- profileEnumValueName
       field  <- sdkField(globalNum, fieldNum)
       tpe    <- field.profileType
-      raw <- Try(method.invoke(null, tpe, java.lang.Long.valueOf(value.toLong))).toOption.collect { case s: String =>
-        s
+      raw <- Try(method.invoke(method.getDeclaringClass, tpe, java.lang.Long.valueOf(value.toLong))).toOption.collect {
+        case s: String => s
       }
       cleaned <- Option(raw).map(_.trim).filter(_.nonEmpty).filterNot(_ == value.toLong.toString)
     } yield prettyEnumValue(cleaned)
 
   private def sdkMessage(globalNum: Int): Option[AnyRef] =
     factoryCreateMesg.flatMap(method =>
-      Try(method.invoke(null, Integer.valueOf(globalNum))).toOption.collect { case ref: AnyRef => ref }
+      Try(method.invoke(method.getDeclaringClass, Integer.valueOf(globalNum))).toOption.collect { case ref: AnyRef =>
+        ref
+      }
     )
 
   private def sdkField(globalNum: Int, fieldNum: Int): Option[SdkField] =
@@ -424,7 +427,7 @@ object FitMetadata {
     for {
       cls    <- Try(Class.forName(className)).toOption
       method <- Try(cls.getMethod("getStringFromValue", argumentType)).toOption
-      raw    <- Try(method.invoke(null, value)).toOption.collect { case s: String => s.trim }
+      raw    <- Try(method.invoke(method.getDeclaringClass, value)).toOption.collect { case s: String => s.trim }
     } yield raw
 
   private def prettyManufacturer(raw: String): String =
