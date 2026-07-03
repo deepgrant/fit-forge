@@ -57,6 +57,7 @@ interface MapLibreMap {
   on(type: 'click', listener: (event: MapClickEvent) => void): void;
   on(type: 'mousemove', listener: (event: MapMouseEvent) => void): void;
   on(type: 'mouseout', listener: () => void): void;
+  once(type: 'idle', listener: () => void): void;
   queryRenderedFeatures(point: MapFeatureQueryGeometry, options?: Readonly<Record<string, unknown>>): readonly unknown[];
   remove(): void;
   removeLayer(id: string): void;
@@ -158,6 +159,10 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly editorDownloadFormat = signal<DownloadFormat>('fit');
   protected readonly busy = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
+  protected readonly mergeUploadBusy = signal<string | null>(null);
+  protected readonly editorUploadBusy = signal<string | null>(null);
+  protected readonly mergeMapBusy = signal<string | null>(null);
+  protected readonly editorMapBusy = signal<string | null>(null);
   protected readonly editorFile = signal<SegmentFile | null>(null);
   protected readonly editorOpen = signal<EditorOpenResponse | null>(null);
   protected readonly editorRows = signal<EditorRowsResponse | null>(null);
@@ -248,6 +253,8 @@ export class App implements AfterViewInit, OnDestroy {
     try {
       await this.loadMapLibre();
     } catch (err) {
+      this.mergeMapBusy.set(null);
+      this.editorMapBusy.set(null);
       this.handleError(err);
       return;
     }
@@ -350,6 +357,8 @@ export class App implements AfterViewInit, OnDestroy {
     this.segments.set([]);
     this.descriptions.set([]);
     this.routeTracks.set([]);
+    this.mergeUploadBusy.set(null);
+    this.mergeMapBusy.set(null);
     this.dryRun.set(null);
     this.merged.set(null);
     this.error.set(null);
@@ -583,8 +592,11 @@ export class App implements AfterViewInit, OnDestroy {
       state: 'uploading' as const,
     }));
     this.segments.update((segments) => [...segments, ...additions]);
+    this.mergeUploadBusy.set('Uploading FIT files');
+    this.mergeMapBusy.set(null);
     this.busy.set('Uploading FIT files');
     this.error.set(null);
+    let routeRenderQueued = false;
 
     try {
       const uploaded = await this.api.uploadFiles(fitFiles);
@@ -595,6 +607,9 @@ export class App implements AfterViewInit, OnDestroy {
           return { ...segment, state: 'ready', remoteId: uploaded[index].id };
         }),
       );
+      this.mergeUploadBusy.set(null);
+      this.mergeMapBusy.set('Drawing route map');
+      routeRenderQueued = true;
       await this.describeReadyFiles();
     } catch (err) {
       const message = messageOf(err);
@@ -603,8 +618,11 @@ export class App implements AfterViewInit, OnDestroy {
           additions.some((addition) => addition.localId === segment.localId) ? { ...segment, state: 'failed', error: message } : segment,
         ),
       );
+      this.mergeMapBusy.set(null);
       this.handleError(err);
     } finally {
+      this.mergeUploadBusy.set(null);
+      if (!routeRenderQueued || this.routeTracks().length === 0) this.mergeMapBusy.set(null);
       this.busy.set(null);
     }
   }
@@ -630,13 +648,17 @@ export class App implements AfterViewInit, OnDestroy {
     this.editorExport.set(null);
     this.editorRouteTrack.set(null);
     this.editorSelectedRow.set(null);
+    this.editorUploadBusy.set('Uploading FIT file');
+    this.editorMapBusy.set(null);
     this.busy.set('Uploading FIT file for editor');
     this.error.set(null);
+    let routeRenderQueued = false;
 
     try {
       const uploaded = (await this.api.uploadFiles([file])).at(0);
       if (!uploaded) throw new Error('Upload did not return a file id.');
       this.editorFile.set({ ...local, state: 'ready', remoteId: uploaded.id });
+      this.editorUploadBusy.set('Opening FIT file');
       const opened = await this.api.editorOpen(uploaded.id);
       const defaultMessageType = this.defaultEditorMessageType(opened);
       this.editorOpen.set(opened);
@@ -647,12 +669,18 @@ export class App implements AfterViewInit, OnDestroy {
           : await this.api.editorRows(uploaded.id, defaultMessageType, 0, 80),
       );
       this.editorSelectedIssueId.set(opened.diagnostics.at(0)?.id ?? null);
+      this.editorUploadBusy.set(null);
+      this.editorMapBusy.set('Drawing route map');
+      routeRenderQueued = true;
       this.editorRouteTrack.set(await this.loadEditorRouteTrack(uploaded.id, file.name));
     } catch (err) {
       const message = messageOf(err);
       this.editorFile.set({ ...local, state: 'failed', error: message });
+      this.editorMapBusy.set(null);
       this.handleError(err);
     } finally {
+      this.editorUploadBusy.set(null);
+      if (!routeRenderQueued || !this.editorRouteTrack()) this.editorMapBusy.set(null);
       this.busy.set(null);
     }
   }
@@ -1127,6 +1155,7 @@ export class App implements AfterViewInit, OnDestroy {
     this.renderedRouteIds = nextIds;
     this.fitRouteBounds(tracks.map((track) => track.geojson));
     map.resize();
+    this.clearMergeMapBusyWhenIdle();
   }
 
   private renderEditorRouteTrack(track: RouteTrack | null): void {
@@ -1136,6 +1165,7 @@ export class App implements AfterViewInit, OnDestroy {
     if (!track) {
       if (this.editorRouteRendered) this.removeEditorRouteLayers();
       this.editorRouteRendered = false;
+      this.editorMapBusy.set(null);
       return;
     }
 
@@ -1184,6 +1214,24 @@ export class App implements AfterViewInit, OnDestroy {
     this.renderEditorIssueSelection(this.emptyGeoJson());
     this.fitBoundsOnMap(map, [track.geojson], 38);
     map.resize();
+    this.clearEditorMapBusyWhenIdle();
+  }
+
+  private clearMergeMapBusyWhenIdle(): void {
+    if (!this.mergeMapBusy()) return;
+    this.clearMapBusyWhenIdle(this.map, () => this.mergeMapBusy.set(null));
+  }
+
+  private clearEditorMapBusyWhenIdle(): void {
+    if (!this.editorMapBusy()) return;
+    this.clearMapBusyWhenIdle(this.editorMap, () => this.editorMapBusy.set(null));
+  }
+
+  private clearMapBusyWhenIdle(map: MapLibreMap | undefined, clear: () => void): void {
+    if (!map) return;
+    map.once('idle', () => {
+      requestAnimationFrame(clear);
+    });
   }
 
   private renderEditorSelectedRow(row: EditorRecordRow | null): void {

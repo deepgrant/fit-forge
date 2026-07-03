@@ -405,6 +405,21 @@ tasks.register('frontendBuild') {
   }
 }
 
+tasks.register('frontendTest') {
+  group = 'frontend'
+  description = 'Run Angular frontend tests'
+  dependsOn 'frontendInstall'
+  inputs.dir "$frontendProjectDir/src"
+  inputs.file "$frontendProjectDir/angular.json"
+  inputs.file "$frontendProjectDir/tsconfig.json"
+  inputs.file "$frontendProjectDir/tsconfig.spec.json"
+
+  doLast {
+    requireFrontendNode(frontendNodeCommand())
+    runCommand(frontendNgCommand(['test', '--watch=false']), frontendProjectDir)
+  }
+}
+
 tasks.register('frontendServe') {
   group = 'frontend'
   description = 'Run the Angular development server'

@@ -4,6 +4,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { App } from './app';
 import type { EditorOpenResponse } from './models';
 
+interface StringSignal {
+  set(value: string | null): void;
+}
+
 describe('App', () => {
   it('creates the merge workspace shell', async () => {
     await TestBed.configureTestingModule({
@@ -105,5 +109,45 @@ describe('App', () => {
     expect(fixture.nativeElement.textContent).toContain('CAD Pinarello');
     expect(fixture.nativeElement.textContent).toContain('Cadence');
     expect(fixture.nativeElement.textContent).toContain('ANT 6-1-7A-6CA2');
+  });
+
+  it('dims the merge workspace while uploads are in progress', async () => {
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [provideHttpClient()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(App);
+    const component = fixture.componentInstance as unknown as {
+      mergeUploadBusy: StringSignal;
+    };
+
+    component.mergeUploadBusy.set('Uploading FIT files');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.workspace-busy-overlay')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.workspace.workspace-busy')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Uploading FIT files');
+  });
+
+  it('dims the editor map while route rendering is in progress', async () => {
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [provideHttpClient()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(App);
+    const component = fixture.componentInstance as unknown as {
+      activeView: { set(value: 'editor'): void };
+      editorMapBusy: StringSignal;
+    };
+
+    component.activeView.set('editor');
+    component.editorMapBusy.set('Drawing route map');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.editor-map-shell.map-loading')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.map-busy-overlay')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Drawing route map');
   });
 });
