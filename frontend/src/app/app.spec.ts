@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 
 import { App } from './app';
+import type { EditorOpenResponse } from './models';
 
 describe('App', () => {
   it('creates the merge workspace shell', async () => {
@@ -61,5 +62,48 @@ describe('App', () => {
 
     expect(fixture.nativeElement.textContent).toContain('Merge & download .gpx');
     expect(fixture.nativeElement.textContent).toContain('Save repaired .gpx');
+  });
+
+  it('renders sensor settings in the editor devices panel', async () => {
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [provideHttpClient()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(App);
+    const component = fixture.componentInstance as unknown as {
+      activeView: { set(value: 'editor'): void };
+      editorOpen: { set(value: EditorOpenResponse): void };
+    };
+    const response: EditorOpenResponse = {
+      id: 'sample-id',
+      summary: {},
+      devices: [],
+      sensors: [
+        {
+          index: 0,
+          manufacturer: 'Garmin',
+          product: 9999,
+          kind: 'cadence',
+          name: 'CAD Pinarello',
+          antId: '6-1-7A-6CA2',
+          sourceType: 'antplus',
+          wheelSizeAutoMm: 2122,
+        },
+      ],
+      layout: { counts: [{ type: 'sensor', count: 1 }], totalMessages: 1, totalFields: 10 },
+      anatomy: [{ name: 'sensor', count: 1, status: 'ok', issues: 0 }],
+      diagnostics: [],
+      rows: { messageType: 'sensor', offset: 0, limit: 80, total: 1, rows: [] },
+      verification: { status: 'upload-safe', canExport: true, checks: [] },
+    };
+
+    component.activeView.set('editor');
+    component.editorOpen.set(response);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('CAD Pinarello');
+    expect(fixture.nativeElement.textContent).toContain('Cadence');
+    expect(fixture.nativeElement.textContent).toContain('ANT 6-1-7A-6CA2');
   });
 });

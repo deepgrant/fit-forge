@@ -15,6 +15,7 @@ import type {
   RepairPreview,
   RouteTrack,
   SegmentFile,
+  SensorInfo,
   TrackFeature,
   TrackGeoJson,
   UploadFileResult,
@@ -194,7 +195,14 @@ export class App implements AfterViewInit, OnDestroy {
     const selected = this.editorSelectedIssueId();
     return issues.find((issue) => issue.id === selected) ?? issues.at(0);
   });
-  protected readonly editorDevices = computed(() => this.editorOpen()?.devices.map((device) => this.displayDeviceOf(device, this.editorOpen()?.id ?? 'editor')) ?? []);
+  protected readonly editorDevices = computed(() => {
+    const open = this.editorOpen();
+    if (!open) return [];
+    return [
+      ...open.devices.map((device) => this.displayDeviceOf(device, open.id)),
+      ...open.sensors.map((sensor) => this.displaySensorOf(sensor, open.id)),
+    ].sort((a, b) => `${a.typeLabel}:${a.name}:${a.sourceLabel ?? ''}`.localeCompare(`${b.typeLabel}:${b.name}:${b.sourceLabel ?? ''}`));
+  });
   protected readonly canPreviewRepair = computed(() => this.editorOpen() !== null && this.editorOperations().length > 0 && this.busy() === null);
   protected readonly canExportRepair = computed(() => this.canPreviewRepair() && (this.editorPreview()?.verification.canExport ?? this.editorOpen()?.verification.canExport ?? false));
 
@@ -853,6 +861,24 @@ export class App implements AfterViewInit, OnDestroy {
     };
   }
 
+  private displaySensorOf(sensor: SensorInfo, recordingId: string): DisplayDevice {
+    return {
+      key: `${recordingId}:${this.sensorKey(sensor)}`,
+      manufacturer: sensor.manufacturer,
+      logoSrc: this.deviceLogoSrc(sensor),
+      logoAlt: `${sensor.manufacturer} sensor`,
+      logoClass: this.deviceLogoClass(sensor),
+      markText: this.deviceMarkText(sensor.manufacturer),
+      name: this.sensorName(sensor),
+      typeLabel: this.sensorTypeLabel(sensor),
+      sourceLabel: this.deviceSourceLabel(sensor.sourceType),
+      statusLabel: undefined,
+      idLabel: this.sensorIdLabel(sensor),
+      recordingCount: 1,
+      occurrenceCount: 1,
+    };
+  }
+
   protected issueSeverityLabel(issue: DiagnosticIssue): string {
     return issue.severity === 'error' ? 'repair needed' : 'warning';
   }
@@ -916,6 +942,14 @@ export class App implements AfterViewInit, OnDestroy {
     return ['label', this.deviceName(device), device.kind ?? 'device', device.sourceType ?? ''].join(':').toLowerCase();
   }
 
+  private sensorKey(sensor: SensorInfo): string {
+    if (sensor.antId !== undefined) return `ant:${sensor.antId}`;
+    if (sensor.product !== undefined) {
+      return ['sensor-product', sensor.manufacturer, sensor.product, sensor.kind ?? 'sensor', sensor.sourceType ?? ''].join(':').toLowerCase();
+    }
+    return ['sensor-label', this.sensorName(sensor), sensor.kind ?? 'sensor', sensor.sourceType ?? ''].join(':').toLowerCase();
+  }
+
   private preferredDevice(a: DeviceInfo, b: DeviceInfo): DeviceInfo {
     return this.deviceScore(b) > this.deviceScore(a) ? b : a;
   }
@@ -938,12 +972,26 @@ export class App implements AfterViewInit, OnDestroy {
     if (accessoryType !== undefined) return accessoryType;
 
     const kind = device.kind ?? 'device';
+    if (kind === 'heart_rate' && device.sourceType === 'antplus') return 'External heart rate';
+    if (kind === 'bike_radar') return 'Radar';
+    if (kind === 'bike_light_main' || kind === 'bike_light_shared') return 'Lights';
     if (kind === 'device' && device.sourceType === 'local') return 'Recording device';
     if (kind === 'device') return 'Device';
     return this.titleize(kind) ?? kind;
   }
 
-  private garminAccessoryTypeLabel(device: DeviceInfo): string | undefined {
+  private sensorName(sensor: SensorInfo): string {
+    return sensor.name ?? sensor.productName ?? `${sensor.manufacturer} ${this.sensorTypeLabel(sensor).toLowerCase()}`;
+  }
+
+  private sensorTypeLabel(sensor: SensorInfo): string {
+    const accessoryType = this.garminAccessoryTypeLabel(sensor);
+    if (accessoryType !== undefined) return accessoryType;
+    const kind = sensor.kind ?? 'sensor';
+    return this.titleize(kind) ?? kind;
+  }
+
+  private garminAccessoryTypeLabel(device: Pick<DeviceInfo | SensorInfo, 'manufacturer' | 'product' | 'productName'>): string | undefined {
     if (!this.isManufacturer(device, 'garmin')) return undefined;
 
     const productName = device.productName?.toLowerCase() ?? '';
@@ -970,6 +1018,16 @@ export class App implements AfterViewInit, OnDestroy {
     return parts.join(' / ');
   }
 
+  private sensorIdLabel(sensor: SensorInfo): string {
+    const parts = [`FIT index ${sensor.index}`];
+    if (sensor.antId !== undefined) parts.push(`ANT ${sensor.antId}`);
+    if (sensor.product !== undefined) parts.push(`product ${sensor.product}`);
+    if (sensor.softwareVersion !== undefined) parts.push(`software ${sensor.softwareVersion}`);
+    const wheelSize = sensor.wheelSizeAutoMm ?? sensor.wheelSizeManualMm;
+    if (wheelSize !== undefined) parts.push(`wheel ${wheelSize} mm`);
+    return parts.join(' / ');
+  }
+
   private deviceMarkText(manufacturer: string): string {
     const normalized = this.normalizeManufacturer(manufacturer);
     if (normalized === 'garmin') return 'GARMIN';
@@ -986,7 +1044,7 @@ export class App implements AfterViewInit, OnDestroy {
       .toUpperCase();
   }
 
-  private deviceLogoSrc(device: DeviceInfo): string | undefined {
+  private deviceLogoSrc(device: Pick<DeviceInfo | SensorInfo, 'manufacturer'>): string | undefined {
     const normalized = this.normalizeManufacturer(device.manufacturer);
     if (normalized === 'garmin') return 'brands/garmin.svg';
     if (normalized === 'polar') return 'brands/polar.svg';
@@ -996,7 +1054,7 @@ export class App implements AfterViewInit, OnDestroy {
     return undefined;
   }
 
-  private deviceLogoClass(device: DeviceInfo): string | undefined {
+  private deviceLogoClass(device: Pick<DeviceInfo | SensorInfo, 'manufacturer'>): string | undefined {
     const normalized = this.normalizeManufacturer(device.manufacturer);
     if (normalized === 'garmin') return 'garmin-logo';
     if (normalized === 'shimano') return 'shimano-logo';
@@ -1004,7 +1062,7 @@ export class App implements AfterViewInit, OnDestroy {
     return undefined;
   }
 
-  private isManufacturer(device: DeviceInfo, manufacturer: string): boolean {
+  private isManufacturer(device: Pick<DeviceInfo | SensorInfo, 'manufacturer'>, manufacturer: string): boolean {
     return this.normalizeManufacturer(device.manufacturer) === manufacturer;
   }
 

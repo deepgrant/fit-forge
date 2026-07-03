@@ -20,6 +20,22 @@ final case class DeviceInfo(
     productName.getOrElse(product.fold(manufacturer)(p => s"$manufacturer (product $p)"))
 }
 
+/** A configured sensor from a `sensor` settings message. */
+final case class SensorInfo(
+  index: Int,
+  manufacturer: String,
+  productName: Option[String],
+  product: Option[Int],
+  kind: Option[String],
+  name: Option[String],
+  antId: Option[String],
+  sourceType: Option[String],
+  softwareVersion: Option[Double],
+  wheelSizeManualMm: Option[Double],
+  wheelSizeAutoMm: Option[Double],
+  calibrationFactor: Option[Double],
+)
+
 /** Headline ride statistics (read from the `session`, with record-derived fallbacks). */
 final case class RideSummary(
   sport: Option[String],
@@ -50,6 +66,14 @@ object FitSummary {
       .toVector
       .sortBy(_.index)
 
+  /** Configured sensor settings, decoded from Garmin's `sensor` message when present. */
+  def sensors(file: FitFile): Vector[SensorInfo] =
+    file.messages
+      .filter(_.globalNum == Mesg.Sensor)
+      .zipWithIndex
+      .map { case (message, rowIndex) => toSensor(message, rowIndex) }
+      .sortBy(_.index)
+
   /** The device that recorded the file: the local head unit (lowest index), else the lowest-index device. */
   def primaryDevice(file: FitFile): Option[DeviceInfo] = {
     val ds = devices(file)
@@ -72,9 +96,10 @@ object FitSummary {
 
   private def toDevice(m: FitMessage): Option[DeviceInfo] =
     m.numeric(Dev.DeviceIndex).map { idx =>
-      val source       = m.numeric(Dev.SourceType).map(_.toInt)
-      val manufacturer = m.numeric(Dev.Manufacturer).map(v => ManufacturerEnum.nameOf(v.toInt)).getOrElse("unknown")
-      val product      = m.numeric(Dev.Product).map(_.toInt)
+      val source = m.numeric(Dev.SourceType).map(_.toInt)
+      val manufacturer =
+        m.numeric(Dev.Manufacturer).map(v => FitMetadata.manufacturerName(v.toInt)).getOrElse("unknown")
+      val product = m.numeric(Dev.Product).map(_.toInt)
       DeviceInfo(
         index = idx.toInt,
         manufacturer = manufacturer,
@@ -89,6 +114,25 @@ object FitSummary {
         sourceType = m.numeric(Dev.SourceType).flatMap(v => SourceTypeEnum.nameOf(v.toInt)),
       )
     }
+
+  private def toSensor(m: FitMessage, rowIndex: Int): SensorInfo = {
+    val manufacturer = m.numeric(33).map(v => FitMetadata.manufacturerName(v.toInt)).getOrElse("unknown")
+    val product      = m.numeric(32).map(_.toInt)
+    SensorInfo(
+      index = m.numeric(254).map(_.toInt).getOrElse(rowIndex),
+      manufacturer = manufacturer,
+      productName = product.flatMap(p => FitMetadata.sensorProductName(m, p)),
+      product = product,
+      kind = m.numeric(52).map(v => FitMetadata.sensorDeviceTypeName(m, v.toInt)),
+      name = m.text(2),
+      antId = FitMetadata.sensorAntId(m),
+      sourceType = m.numeric(73).flatMap(v => FitMetadata.sourceTypeName(v.toInt)),
+      softwareVersion = FitMetadata.sensorSoftwareVersion(m),
+      wheelSizeManualMm = m.numeric(10),
+      wheelSizeAutoMm = m.numeric(21),
+      calibrationFactor = m.numeric(14),
+    )
+  }
 
   def ride(file: FitFile): RideSummary = {
     val session  = file.messages.find(_.globalNum == Mesg.Session)

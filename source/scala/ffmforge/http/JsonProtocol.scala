@@ -41,6 +41,7 @@ import ffmforge.fit.RepairOperation
 import ffmforge.fit.RepairPreview
 import ffmforge.fit.RideSummary
 import ffmforge.fit.SegmentInfo
+import ffmforge.fit.SensorInfo
 
 /** Spray-JSON formats for the API + a GeoJSON writer for the track endpoint. */
 object JsonProtocol extends DefaultJsonProtocol {
@@ -73,6 +74,7 @@ object JsonProtocol extends DefaultJsonProtocol {
   implicit val fitStatsFormat: RootJsonFormat[FitStats]                     = jsonFormat3(FitStats.apply)
   implicit val rideSummaryFormat: RootJsonFormat[RideSummary]               = jsonFormat10(RideSummary.apply)
   implicit val deviceInfoFormat: RootJsonFormat[DeviceInfo]                 = jsonFormat9(DeviceInfo.apply)
+  implicit val sensorInfoFormat: RootJsonFormat[SensorInfo]                 = jsonFormat12(SensorInfo.apply)
   implicit val fitFileDescriptionFormat: RootJsonFormat[FitFileDescription] = jsonFormat7(FitFileDescription.apply)
   implicit val codecCheckFormat: RootJsonFormat[CodecCheck]                 = jsonFormat3(CodecCheck.apply)
   implicit val segmentInfoFormat: RootJsonFormat[SegmentInfo]               = jsonFormat4(SegmentInfo.apply)
@@ -123,7 +125,7 @@ object JsonProtocol extends DefaultJsonProtocol {
     }
   }
 
-  implicit val editorOpenResponseFormat: RootJsonFormat[EditorOpenResponse] = jsonFormat8(EditorOpenResponse.apply)
+  implicit val editorOpenResponseFormat: RootJsonFormat[EditorOpenResponse] = jsonFormat9(EditorOpenResponse.apply)
 
   implicit val summaryResponseFormat: RootJsonFormat[SummaryResponse]         = jsonFormat3(SummaryResponse.apply)
   implicit val codecDemoReportFormat: RootJsonFormat[CodecDemoReport]         = jsonFormat13(CodecDemoReport.apply)

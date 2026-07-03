@@ -85,6 +85,39 @@ final class FitSummarySpec extends AnyFunSuite with Matchers {
     devices.find(_.index == 8).map(_.manufacturer) shouldBe Some("SRAM")
   }
 
+  test("sensor settings are decoded into a hardware inventory") {
+    val cadence = FitMessage(FitProfile.Mesg.Sensor)
+      .setNumeric(254, 0)
+      .withField(RawField(50, Vector(FitValue.Num(6), FitValue.Num(1), FitValue.Num(0x7a), FitValue.Num(0x6ca2))))
+      .setText(2, "CAD Pinarello")
+      .setNumeric(10, 2096)
+      .setNumeric(21, 2122)
+      .setNumeric(32, 9999)
+      .setNumeric(33, 1)
+      .setNumeric(34, 240)
+      .setNumeric(52, 122)
+      .setNumeric(73, 1)
+    val shimano = FitMessage(FitProfile.Mesg.Sensor)
+      .setNumeric(254, 1)
+      .setNumeric(32, 12868)
+      .setNumeric(33, 41)
+      .setNumeric(52, 34)
+      .setNumeric(73, 1)
+
+    val sensors = FitSummary.sensors(FitFile(Vector(cadence, shimano)))
+
+    sensors should have size 2
+    sensors.head.name shouldBe Some("CAD Pinarello")
+    sensors.head.antId shouldBe Some("6-1-7A-6CA2")
+    sensors.head.kind shouldBe Some("cadence")
+    sensors.head.sourceType shouldBe Some("antplus")
+    sensors.head.softwareVersion shouldBe Some(2.4)
+    sensors.head.wheelSizeManualMm shouldBe Some(2096.0)
+    sensors.head.wheelSizeAutoMm shouldBe Some(2122.0)
+    sensors(1).manufacturer shouldBe "Shimano"
+    sensors(1).kind shouldBe Some("shimano di2")
+  }
+
   test("Garmin product ids are resolved through the FIT SDK product table") {
     GarminProductResolver.nameOf("Garmin", Some(4440)) shouldBe Some("Edge 1050")
     GarminProductResolver.nameOf("Garmin", Some(3808)) shouldBe Some("Varia RCT715")

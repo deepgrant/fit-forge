@@ -22,6 +22,7 @@ import ffmforge.fit.FitLayout
 import ffmforge.fit.FitStats
 import ffmforge.fit.RepairOperation
 import ffmforge.fit.RideSummary
+import ffmforge.fit.SensorInfo
 
 final class JsonProtocolSpec extends AnyFunSuite with Matchers {
 
@@ -69,6 +70,22 @@ final class JsonProtocolSpec extends AnyFunSuite with Matchers {
       summary =
         RideSummary(Some("cycling"), Some(90.0), Some(9.0), Some(9.0), Some(10.0), Some(12.0), None, None, None, None),
       devices = Vector.empty,
+      sensors = Vector(
+        SensorInfo(
+          index = 0,
+          manufacturer = "Garmin",
+          productName = None,
+          product = Some(9999),
+          kind = Some("cadence"),
+          name = Some("CAD Pinarello"),
+          antId = Some("6-1-7A-6CA2"),
+          sourceType = Some("antplus"),
+          softwareVersion = Some(2.4),
+          wheelSizeManualMm = Some(2096.0),
+          wheelSizeAutoMm = Some(2122.0),
+          calibrationFactor = None,
+        )
+      ),
       layout = FitLayout(Vector("record" -> 10), totalMessages = 10, totalFields = 40),
       anatomy = Vector(EditorMessageGroup("record", count = 10, status = "warning", issues = 1)),
       diagnostics = Vector(
