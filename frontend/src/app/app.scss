@@ -217,9 +217,34 @@
 }
 
 .workspace {
+  position: relative;
   width: min(1440px, 100%);
   margin: 0 auto;
   padding: clamp(18px, 3vw, 34px);
+}
+
+.workspace.workspace-busy .workspace-header,
+.workspace.workspace-busy .grid,
+.workspace.workspace-busy .editor-grid {
+  filter: grayscale(0.55);
+  opacity: 0.34;
+  pointer-events: none;
+  user-select: none;
+}
+
+.workspace-busy-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  color: var(--ff-text);
+  background: color-mix(in srgb, var(--ff-bg), transparent 28%);
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+  backdrop-filter: blur(1px);
 }
 
 .workspace-header {
@@ -534,6 +559,28 @@ h2 {
 .map-host {
   width: 100%;
   height: 100%;
+}
+
+.map-shell.map-loading .map-host,
+.map-shell.map-loading .map-empty {
+  filter: grayscale(0.6);
+  opacity: 0.34;
+  pointer-events: none;
+}
+
+.map-busy-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  color: var(--ff-text);
+  background: color-mix(in srgb, var(--ff-raised), transparent 20%);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  backdrop-filter: blur(1px);
 }
 
 .map-empty {
@@ -961,7 +1008,7 @@ select {
   text-align: center;
 }
 
-.table-busy-mark {
+.busy-mark {
   width: 42px;
   height: 42px;
   display: grid;
@@ -973,7 +1020,7 @@ select {
   animation: table-busy-spin 0.45s linear infinite;
 }
 
-.table-busy-mark svg {
+.busy-mark svg {
   width: 23px;
   height: 23px;
 }
@@ -985,7 +1032,7 @@ select {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .table-busy-mark,
+  .busy-mark,
   .anatomy-row.map-row {
     animation: none;
   }

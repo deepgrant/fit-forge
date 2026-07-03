@@ -22,8 +22,8 @@ final case class FFMForgeConfig(
 
 object FFMForgeConfig {
 
-  val EnvironmentVariable = "FFMFORGE_CONFIG"
-  private val RootPath    = "ffmforge"
+  val EnvironmentVariable: String = "FFMFORGE_CONFIG"
+  private val RootPath: String    = "ffmforge"
 
   def fromEnv(): FFMForgeConfig =
     fromEnv(sys.env)

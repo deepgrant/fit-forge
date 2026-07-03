@@ -127,11 +127,47 @@ final class FitEditorSpec extends AnyFunSuite with Matchers {
       1 -> "Hardware",
     )
     readableFields("sensor", FitProfile.Mesg.Sensor)(
-      0   -> "Serial",
-      2   -> "Name",
-      32  -> "Product",
-      34  -> "Software",
-      254 -> "Index",
+      0   -> "serial",
+      2   -> "name",
+      32  -> "product",
+      34  -> "software",
+      254 -> "message index",
+    )
+  }
+
+  test("sensor rows render FitFileViewer-style columns and values") {
+    val sensor = FitMessage(FitProfile.Mesg.Sensor)
+      .setNumeric(254, 0)
+      .withField(RawField(50, Vector(FitValue.Num(6), FitValue.Num(1), FitValue.Num(0x7a), FitValue.Num(0x6ca2))))
+      .setText(2, "CAD Pinarello")
+      .setNumeric(10, 2096)
+      .setNumeric(14, 100)
+      .setNumeric(21, 2122)
+      .setNumeric(32, 9999)
+      .setNumeric(33, 1)
+      .setNumeric(73, 1)
+      .setNumeric(52, 122)
+    val row = FitEditor.rows(FitFile(Vector(sensor)), "sensor", 0, 10).rows.head
+
+    row.fields.map(_.field).take(10) shouldBe Vector(
+      "message index",
+      "ant id",
+      "name",
+      "wheel size manual (mm)",
+      "calibration factor",
+      "wheel size auto (mm)",
+      "product",
+      "manufacturer",
+      "connection type",
+      "device type",
+    )
+    row.fields.map(field => field.field -> field.value) should contain allOf (
+      "ant id"                 -> "6-1-7A-6CA2",
+      "wheel size manual (mm)" -> "2,096",
+      "wheel size auto (mm)"   -> "2,122",
+      "manufacturer"           -> "garmin",
+      "connection type"        -> "antplus",
+      "device type"            -> "cadence",
     )
   }
 

@@ -51,6 +51,21 @@ const DeviceInfoSchema = z.object({
   sourceType: MaybeString,
 });
 
+const SensorInfoSchema = z.object({
+  index: z.number(),
+  manufacturer: z.string(),
+  productName: MaybeString,
+  product: MaybeNumber,
+  kind: MaybeString,
+  name: MaybeString,
+  antId: MaybeString,
+  sourceType: MaybeString,
+  softwareVersion: MaybeNumber,
+  wheelSizeManualMm: MaybeNumber,
+  wheelSizeAutoMm: MaybeNumber,
+  calibrationFactor: MaybeNumber,
+});
+
 const UploadUrlResultSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -207,6 +222,7 @@ const EditorOpenResponseSchema = z.object({
   id: z.string(),
   summary: RideSummarySchema,
   devices: z.array(DeviceInfoSchema),
+  sensors: z.array(SensorInfoSchema),
   layout: FitLayoutSchema,
   anatomy: z.array(EditorMessageGroupSchema),
   diagnostics: z.array(DiagnosticIssueSchema),

@@ -41,6 +41,21 @@ export interface DeviceInfo {
   readonly sourceType?: string;
 }
 
+export interface SensorInfo {
+  readonly index: number;
+  readonly manufacturer: string;
+  readonly productName?: string;
+  readonly product?: number;
+  readonly kind?: string;
+  readonly name?: string;
+  readonly antId?: string;
+  readonly sourceType?: string;
+  readonly softwareVersion?: number;
+  readonly wheelSizeManualMm?: number;
+  readonly wheelSizeAutoMm?: number;
+  readonly calibrationFactor?: number;
+}
+
 export interface FitLayout {
   readonly counts: ReadonlyArray<{ readonly type: string; readonly count: number }>;
   readonly totalMessages: number;
@@ -199,6 +214,7 @@ export interface EditorOpenResponse {
   readonly id: string;
   readonly summary: RideSummary;
   readonly devices: readonly DeviceInfo[];
+  readonly sensors: readonly SensorInfo[];
   readonly layout: FitLayout;
   readonly anatomy: readonly EditorMessageGroup[];
   readonly diagnostics: readonly DiagnosticIssue[];
