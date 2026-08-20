@@ -129,7 +129,7 @@ object JsonProtocol extends DefaultJsonProtocol {
 
   implicit val summaryResponseFormat: RootJsonFormat[SummaryResponse]         = jsonFormat3(SummaryResponse.apply)
   implicit val codecDemoReportFormat: RootJsonFormat[CodecDemoReport]         = jsonFormat13(CodecDemoReport.apply)
-  implicit val mergeReportFormat: RootJsonFormat[MergeReport]                 = jsonFormat8(MergeReport.apply)
+  implicit val mergeReportFormat: RootJsonFormat[MergeReport]                 = jsonFormat10(MergeReport.apply)
   implicit val uploadFileResultFormat: RootJsonFormat[UploadFileResult]       = jsonFormat5(UploadFileResult.apply)
   implicit val uploadResponseFormat: RootJsonFormat[UploadResponse]           = jsonFormat1(UploadResponse.apply)
   implicit val uploadUrlRequestFormat: RootJsonFormat[UploadUrlRequest]       = jsonFormat1(UploadUrlRequest.apply)

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 
 import { App } from './app';
-import type { EditorOpenResponse } from './models';
+import type { EditorOpenResponse, MergeResponse } from './models';
 
 interface StringSignal {
   set(value: string | null): void;
@@ -19,6 +19,42 @@ describe('App', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Forge split recordings into one ride.');
+  });
+
+  it('shows combined ascent and descent in the route preview', async () => {
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [provideHttpClient()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(App);
+    const component = fixture.componentInstance as unknown as {
+      dryRun: { set(value: MergeResponse): void };
+    };
+    component.dryRun.set({
+      report: {
+        segments: [
+          { records: 100, start: '2026-08-20T12:00:00Z', end: '2026-08-20T13:00:00Z', distanceM: 20000 },
+          { records: 100, start: '2026-08-20T13:10:00Z', end: '2026-08-20T14:10:00Z', distanceM: 20000 },
+        ],
+        gaps: [{ afterSegment: 1, seconds: 600 }],
+        totalDistanceM: 40000,
+        totalAscentM: 350,
+        totalDescentM: 120,
+        elapsedSeconds: 7800,
+        movingSeconds: 7200,
+        timerEventsAdded: 4,
+        lapStrategy: 'OnePerSegment',
+        layout: { counts: [{ type: 'record', count: 200 }], totalMessages: 210, totalFields: 1800 },
+      },
+    });
+    fixture.detectChanges();
+
+    const elevationCard = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('.metric')).find((card) =>
+      card.textContent?.includes('Elevation gain / loss'),
+    );
+    expect(elevationCard?.textContent).toContain('350 m / 1148 ft');
+    expect(elevationCard?.textContent).toContain('120 m / 394 ft');
   });
 
   it('switches to the editor workspace shell', async () => {

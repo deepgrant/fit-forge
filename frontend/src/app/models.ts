@@ -86,6 +86,8 @@ export interface MergeReport {
   readonly segments: readonly SegmentInfo[];
   readonly gaps: readonly GapInfo[];
   readonly totalDistanceM?: number;
+  readonly totalAscentM?: number;
+  readonly totalDescentM?: number;
   readonly elapsedSeconds?: number;
   readonly movingSeconds?: number;
   readonly timerEventsAdded: number;

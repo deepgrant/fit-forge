@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, computed, effect, inject, signal } from '@angular/core';
 
 import { FfmForgeApi, isSessionExpired, messageOf } from './api-client';
-import { distance, duration, fileSize, power, speed, temp, timeRange } from './format';
+import { distance, duration, elevation, fileSize, power, speed, temp, timeRange } from './format';
 import type {
   DeviceInfo,
   DiagnosticIssue,
@@ -214,6 +214,8 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly gapSeconds = computed(() => this.report()?.gaps.reduce((sum, gap) => sum + gap.seconds, 0) ?? 0);
   protected readonly gapWeight = computed(() => Math.max(1, this.gapSeconds()));
   protected readonly displayDistanceM = computed(() => this.report()?.totalDistanceM ?? this.primaryActivity()?.summary.totalDistanceM);
+  protected readonly displayAscentM = computed(() => this.report()?.totalAscentM);
+  protected readonly displayDescentM = computed(() => this.report()?.totalDescentM);
   protected readonly displayMovingSeconds = computed(() => this.report()?.movingSeconds ?? this.primaryActivity()?.summary.movingSeconds);
   protected readonly displayElapsedSeconds = computed(() => this.report()?.elapsedSeconds ?? this.primaryActivity()?.summary.elapsedSeconds);
   protected readonly editorIssues = computed(() => this.editorOpen()?.diagnostics ?? []);
@@ -235,6 +237,7 @@ export class App implements AfterViewInit, OnDestroy {
 
   protected readonly distance = distance;
   protected readonly duration = duration;
+  protected readonly elevation = elevation;
   protected readonly fileSize = fileSize;
   protected readonly power = power;
   protected readonly speed = speed;

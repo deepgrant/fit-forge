@@ -778,6 +778,8 @@ components:
         - segments
         - gaps
         - totalDistanceM
+        - totalAscentM
+        - totalDescentM
         - elapsedSeconds
         - movingSeconds
         - timerEventsAdded
@@ -796,6 +798,16 @@ components:
           type: number
           format: double
           nullable: true
+        totalAscentM:
+          type: number
+          format: double
+          nullable: true
+          description: Combined device-calculated ascent across all source recordings.
+        totalDescentM:
+          type: number
+          format: double
+          nullable: true
+          description: Combined device-calculated descent across all source recordings.
         elapsedSeconds:
           type: number
           format: double

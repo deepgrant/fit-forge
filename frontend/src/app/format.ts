@@ -3,6 +3,11 @@ export function distance(meters?: number): string {
   return `${(meters / 1000).toFixed(2)} km / ${(meters / 1609.344).toFixed(2)} mi`;
 }
 
+export function elevation(meters?: number): string {
+  if (meters === undefined) return '-';
+  return `${Math.round(meters)} m / ${Math.round(meters * 3.28084)} ft`;
+}
+
 export function speed(mps?: number): string {
   if (mps === undefined) return '-';
   return `${(mps * 3.6).toFixed(1)} km/h / ${(mps * 2.236936).toFixed(1)} mph`;

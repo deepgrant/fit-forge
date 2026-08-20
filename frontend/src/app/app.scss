@@ -626,7 +626,12 @@ h2 {
   background: color-mix(in srgb, var(--ff-gap), transparent 42%);
 }
 
-.metric-grid,
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .report-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -655,6 +660,24 @@ h2 {
   font-size: 19px;
   font-weight: 500;
   line-height: 1.1;
+}
+
+.elevation-metric b,
+.elevation-metric small {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.elevation-arrow {
+  color: var(--ff-orange);
+  font-size: 0.82em;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.elevation-arrow.loss {
+  color: var(--ff-active);
 }
 
 .controls-panel {
@@ -1193,6 +1216,12 @@ button.editor-row:hover {
 
   .editor-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) and (min-width: 721px) {
+  .route-panel .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

@@ -105,6 +105,8 @@ const MergeReportSchema = z.object({
   ),
   gaps: z.array(z.object({ afterSegment: z.number(), seconds: z.number() })),
   totalDistanceM: MaybeNumber,
+  totalAscentM: MaybeNumber,
+  totalDescentM: MaybeNumber,
   elapsedSeconds: MaybeNumber,
   movingSeconds: MaybeNumber,
   timerEventsAdded: z.number(),

@@ -242,6 +242,15 @@
             <span>Records</span>
             <b>{{ totalRecords() || '-' }}</b>
           </div>
+          <div class="metric elevation-metric">
+            <span>Elevation gain / loss</span>
+            @if (displayAscentM() !== undefined || displayDescentM() !== undefined) {
+              <b><i class="elevation-arrow gain" aria-hidden="true">↗</i>{{ elevation(displayAscentM()) }}</b>
+              <small><i class="elevation-arrow loss" aria-hidden="true">↘</i>{{ elevation(displayDescentM()) }}</small>
+            } @else {
+              <b>-</b>
+            }
+          </div>
         </div>
         </section>
 

@@ -29,6 +29,8 @@ final case class MergeReport(
   segments: Vector[SegmentInfo],
   gaps: Vector[GapInfo],
   totalDistanceM: Option[Double],
+  totalAscentM: Option[Double],
+  totalDescentM: Option[Double],
   elapsedSeconds: Double,
   movingSeconds: Double,
   timerEventsAdded: Int,
@@ -52,6 +54,16 @@ final case class MergeOutcome(file: FitFile, report: MergeReport)
 object FitMerge {
 
   private val Handled: Set[Int] = Set(Mesg.FileId, Mesg.Record, Mesg.Event, Mesg.Lap, Mesg.Session, Mesg.Activity)
+  private val ElevationNoiseThresholdM: Double = 1.0
+
+  private final case class ElevationTotals(totalAscentM: Option[Double], totalDescentM: Option[Double])
+  private final case class ElevationAccumulator(
+    pivot: Double,
+    extreme: Double,
+    trend: Int,
+    ascentM: Double,
+    descentM: Double,
+  )
 
   private final case class ElevationSummary(
     totalAscentM: Option[Double],
@@ -98,13 +110,16 @@ object FitMerge {
       .collect { case (Seq(a, b), i) => GapInfo(i + 1, seconds(a.records.last.timestamp, b.records.head.timestamp)) }
       .toVector
 
-    val start = ordered.head.records.head.timestamp
-    val end   = ordered.last.records.last.timestamp
+    val start   = ordered.head.records.head.timestamp
+    val end     = ordered.last.records.last.timestamp
+    val session = merged.messages.find(_.globalNum == Mesg.Session)
 
     MergeReport(
       segments = segments,
       gaps = gaps,
       totalDistanceM = merged.sessions.headOption.flatMap(_.totalDistanceM),
+      totalAscentM = session.flatMap(_.numeric(Ses.TotalAscent)),
+      totalDescentM = session.flatMap(_.numeric(Ses.TotalDescent)),
       elapsedSeconds = seconds(start, end),
       movingSeconds = ordered.map(f => seconds(f.records.head.timestamp, f.records.last.timestamp)).sum,
       timerEventsAdded = timerEvents(ordered).size,
@@ -226,26 +241,89 @@ object FitMerge {
       .toVector
 
   /**
-   * Preserve device-calculated climbing totals without treating the altitude jump between recordings as real terrain. A
-   * total is emitted only when every segment has a trustworthy session or lap summary; record samples still provide
-   * whole-activity average/min/max altitude.
+   * Prefer device-calculated climbing totals, falling back to each segment's altitude records without treating the jump
+   * between recordings as real terrain. Record samples also provide whole-activity average/min/max altitude.
    */
   private def elevationSummary(files: Seq[FitFile], records: Seq[FitMessage]): ElevationSummary = {
-    val altitudes = records.flatMap(r => r.numeric(Rec.EnhancedAltitude).orElse(r.numeric(Rec.Altitude)))
+    val altitudes     = recordAltitudes(records)
+    val segmentTotals = files.map(sourceElevationTotals)
     ElevationSummary(
-      totalAscentM = completeSum(files.map(sourceElevationTotal(_, Ses.TotalAscent, Lp.TotalAscent))),
-      totalDescentM = completeSum(files.map(sourceElevationTotal(_, Ses.TotalDescent, Lp.TotalDescent))),
+      totalAscentM = completeSum(segmentTotals.map(_.totalAscentM)),
+      totalDescentM = completeSum(segmentTotals.map(_.totalDescentM)),
       avgAltitudeM = mean(altitudes),
       minAltitudeM = altitudes.minOption,
       maxAltitudeM = altitudes.maxOption,
     )
   }
 
-  private def sourceElevationTotal(file: FitFile, sessionField: Int, lapField: Int): Option[Double] = {
+  private def sourceElevationTotals(file: FitFile): ElevationTotals = {
+    val derived = derivedElevationTotals(file.recordMessages)
+    ElevationTotals(
+      totalAscentM = summarizedElevationTotal(file, Ses.TotalAscent, Lp.TotalAscent)
+        .orElse(derived.flatMap(_.totalAscentM)),
+      totalDescentM = summarizedElevationTotal(file, Ses.TotalDescent, Lp.TotalDescent)
+        .orElse(derived.flatMap(_.totalDescentM)),
+    )
+  }
+
+  private def summarizedElevationTotal(file: FitFile, sessionField: Int, lapField: Int): Option[Double] = {
     val sessions = file.messages.filter(_.globalNum == Mesg.Session)
     val laps     = file.messages.filter(_.globalNum == Mesg.Lap)
     completeSum(sessions.map(_.numeric(sessionField))).orElse(completeSum(laps.map(_.numeric(lapField))))
   }
+
+  /**
+   * Derive gain/loss from one recording's altitude samples when its summary messages omit those totals. The hysteresis
+   * ignores sub-metre sensor jitter while retaining gradual climbs, and operating per file avoids counting the altitude
+   * discontinuity between recordings.
+   */
+  private def derivedElevationTotals(records: Seq[FitMessage]): Option[ElevationTotals] = {
+    val altitudes = recordAltitudes(records)
+    altitudes.headOption.filter(_ => altitudes.size >= 2).map { first =>
+      val initial = ElevationAccumulator(first, first, trend = 0, ascentM = 0.0, descentM = 0.0)
+      val accumulated = altitudes.tail.foldLeft(initial) { (state, altitude) =>
+        state.trend match {
+          case 0 if altitude - state.pivot >= ElevationNoiseThresholdM =>
+            state.copy(extreme = altitude, trend = 1)
+          case 0 if state.pivot - altitude >= ElevationNoiseThresholdM =>
+            state.copy(extreme = altitude, trend = -1)
+          case 1 if altitude > state.extreme =>
+            state.copy(extreme = altitude)
+          case 1 if state.extreme - altitude >= ElevationNoiseThresholdM =>
+            state.copy(
+              pivot = state.extreme,
+              extreme = altitude,
+              trend = -1,
+              ascentM = state.ascentM + state.extreme - state.pivot,
+            )
+          case -1 if altitude < state.extreme =>
+            state.copy(extreme = altitude)
+          case -1 if altitude - state.extreme >= ElevationNoiseThresholdM =>
+            state.copy(
+              pivot = state.extreme,
+              extreme = altitude,
+              trend = 1,
+              descentM = state.descentM + state.pivot - state.extreme,
+            )
+          case _ => state
+        }
+      }
+
+      val ascent =
+        if (accumulated.trend > 0) accumulated.ascentM + accumulated.extreme - accumulated.pivot
+        else accumulated.ascentM
+      val descent =
+        if (accumulated.trend < 0) accumulated.descentM + accumulated.pivot - accumulated.extreme
+        else accumulated.descentM
+
+      ElevationTotals(Some(ascent), Some(descent))
+    }
+  }
+
+  private def recordAltitudes(records: Seq[FitMessage]): Seq[Double] =
+    records
+      .flatMap(record => record.numeric(Rec.EnhancedAltitude).orElse(record.numeric(Rec.Altitude)))
+      .filter(_.isFinite)
 
   private def applySessionElevation(message: FitMessage, elevation: ElevationSummary): FitMessage =
     Vector(
