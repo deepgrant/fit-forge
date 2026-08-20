@@ -38,6 +38,10 @@ final case class FitMessage(globalNum: Int, fields: Vector[RawField], original: 
   def withField(f: RawField): FitMessage =
     copy(fields = fields.filterNot(_.num == f.num) :+ f, original = None)
 
+  /** Remove a field when a recalculated value is unavailable, so an inherited summary cannot remain stale. */
+  def removeField(num: Int): FitMessage =
+    if (fields.exists(_.num == num)) copy(fields = fields.filterNot(_.num == num), original = None) else this
+
   def setNumeric(num: Int, value: Double): FitMessage = withField(RawField(num, Vector(FitValue.Num(value))))
   def setText(num: Int, value: String): FitMessage    = withField(RawField(num, Vector(FitValue.Text(value))))
   def setInstant(num: Int, i: Instant): FitMessage    = setNumeric(num, FitProfile.instantToFitSeconds(i).toDouble)

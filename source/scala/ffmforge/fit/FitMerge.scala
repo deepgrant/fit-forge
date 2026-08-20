@@ -53,6 +53,14 @@ object FitMerge {
 
   private val Handled: Set[Int] = Set(Mesg.FileId, Mesg.Record, Mesg.Event, Mesg.Lap, Mesg.Session, Mesg.Activity)
 
+  private final case class ElevationSummary(
+    totalAscentM: Option[Double],
+    totalDescentM: Option[Double],
+    avgAltitudeM: Option[Double],
+    minAltitudeM: Option[Double],
+    maxAltitudeM: Option[Double],
+  )
+
   /** Merge `files` (in any order) into one activity, or describe why it can't. */
   def merge(files: Seq[FitFile], options: MergeOptions = MergeOptions()): Either[String, FitFile] =
     validated(files).map(assemble(_, options))
@@ -124,6 +132,7 @@ object FitMerge {
     val elapsedS      = seconds(start, end)
     val timerS        = ordered.map(f => seconds(f.records.head.timestamp, f.records.last.timestamp)).sum
     val totalDistance = allRecords.lastOption.flatMap(_.numeric(Rec.Distance))
+    val elevation     = elevationSummary(ordered, allRecords)
 
     val timerEventMsgs = timerEvents(ordered).map(FitViews.toMessage)
     val otherEventMsgs = ordered.flatMap(_.messages).filter { m =>
@@ -131,16 +140,19 @@ object FitMerge {
     }
 
     val lapMsgs = options.lapStrategy match {
-      case LapStrategy.OnePerSegment => onePerSegmentLaps(rebasedPerFile).map(FitViews.toMessage)
+      case LapStrategy.OnePerSegment => onePerSegmentLaps(ordered, rebasedPerFile)
       case LapStrategy.KeepOriginal  => ordered.flatMap(_.messages).filter(_.globalNum == Mesg.Lap).toVector
     }
 
-    val sessionMsg = baseMessage(ordered, Mesg.Session)
-      .setInstant(Ses.StartTime, start)
-      .setInstant(Ses.Timestamp, end)
-      .setNumeric(Ses.TotalElapsed, elapsedS)
-      .setNumeric(Ses.TotalTimer, timerS)
-      .setNumericOpt(Ses.TotalDistance, totalDistance)
+    val sessionMsg = applySessionElevation(
+      baseMessage(ordered, Mesg.Session)
+        .setInstant(Ses.StartTime, start)
+        .setInstant(Ses.Timestamp, end)
+        .setNumeric(Ses.TotalElapsed, elapsedS)
+        .setNumeric(Ses.TotalTimer, timerS)
+        .setNumericOpt(Ses.TotalDistance, totalDistance),
+      elevation,
+    )
 
     val activityMsg = baseMessage(ordered, Mesg.Activity)
       .setInstant(Act.Timestamp, end)
@@ -186,21 +198,86 @@ object FitMerge {
     (opening ++ gaps ++ closing).toVector
   }
 
-  private def onePerSegmentLaps(rebasedPerFile: Vector[Vector[FitMessage]]): Vector[Lap] =
-    rebasedPerFile.flatMap { recs =>
-      for {
-        first <- recs.headOption
-        last  <- recs.lastOption
-        st    <- first.instant(Rec.Timestamp)
-        ts    <- last.instant(Rec.Timestamp)
-      } yield Lap(
-        startTime = st,
-        timestamp = ts,
-        totalElapsedTimeS = Some(seconds(st, ts)),
-        totalTimerTimeS = Some(seconds(st, ts)),
-        totalDistanceM = last.numeric(Rec.Distance).map(_ - first.numeric(Rec.Distance).getOrElse(0.0)),
-      )
-    }
+  private def onePerSegmentLaps(
+    ordered: Seq[FitFile],
+    rebasedPerFile: Vector[Vector[FitMessage]],
+  ): Vector[FitMessage] =
+    ordered
+      .zip(rebasedPerFile)
+      .flatMap { case (file, recs) =>
+        for {
+          first <- recs.headOption
+          last  <- recs.lastOption
+          st    <- first.instant(Rec.Timestamp)
+          ts    <- last.instant(Rec.Timestamp)
+        } yield applyLapElevation(
+          FitViews.toMessage(
+            Lap(
+              startTime = st,
+              timestamp = ts,
+              totalElapsedTimeS = Some(seconds(st, ts)),
+              totalTimerTimeS = Some(seconds(st, ts)),
+              totalDistanceM = last.numeric(Rec.Distance).map(_ - first.numeric(Rec.Distance).getOrElse(0.0)),
+            )
+          ),
+          elevationSummary(Seq(file), recs),
+        )
+      }
+      .toVector
+
+  /**
+   * Preserve device-calculated climbing totals without treating the altitude jump between recordings as real terrain. A
+   * total is emitted only when every segment has a trustworthy session or lap summary; record samples still provide
+   * whole-activity average/min/max altitude.
+   */
+  private def elevationSummary(files: Seq[FitFile], records: Seq[FitMessage]): ElevationSummary = {
+    val altitudes = records.flatMap(r => r.numeric(Rec.EnhancedAltitude).orElse(r.numeric(Rec.Altitude)))
+    ElevationSummary(
+      totalAscentM = completeSum(files.map(sourceElevationTotal(_, Ses.TotalAscent, Lp.TotalAscent))),
+      totalDescentM = completeSum(files.map(sourceElevationTotal(_, Ses.TotalDescent, Lp.TotalDescent))),
+      avgAltitudeM = mean(altitudes),
+      minAltitudeM = altitudes.minOption,
+      maxAltitudeM = altitudes.maxOption,
+    )
+  }
+
+  private def sourceElevationTotal(file: FitFile, sessionField: Int, lapField: Int): Option[Double] = {
+    val sessions = file.messages.filter(_.globalNum == Mesg.Session)
+    val laps     = file.messages.filter(_.globalNum == Mesg.Lap)
+    completeSum(sessions.map(_.numeric(sessionField))).orElse(completeSum(laps.map(_.numeric(lapField))))
+  }
+
+  private def applySessionElevation(message: FitMessage, elevation: ElevationSummary): FitMessage =
+    Vector(
+      Ses.TotalAscent         -> elevation.totalAscentM,
+      Ses.TotalDescent        -> elevation.totalDescentM,
+      Ses.AvgAltitude         -> elevation.avgAltitudeM,
+      Ses.MaxAltitude         -> elevation.maxAltitudeM,
+      Ses.EnhancedAvgAltitude -> elevation.avgAltitudeM,
+      Ses.EnhancedMinAltitude -> elevation.minAltitudeM,
+      Ses.EnhancedMaxAltitude -> elevation.maxAltitudeM,
+    ).foldLeft(message) { case (result, (field, value)) => setNumericOrRemove(result, field, value) }
+
+  private def applyLapElevation(message: FitMessage, elevation: ElevationSummary): FitMessage =
+    Vector(
+      Lp.TotalAscent         -> elevation.totalAscentM,
+      Lp.TotalDescent        -> elevation.totalDescentM,
+      Lp.AvgAltitude         -> elevation.avgAltitudeM,
+      Lp.MinAltitude         -> elevation.minAltitudeM,
+      Lp.MaxAltitude         -> elevation.maxAltitudeM,
+      Lp.EnhancedAvgAltitude -> elevation.avgAltitudeM,
+      Lp.EnhancedMinAltitude -> elevation.minAltitudeM,
+      Lp.EnhancedMaxAltitude -> elevation.maxAltitudeM,
+    ).foldLeft(message) { case (result, (field, value)) => setNumericOrRemove(result, field, value) }
+
+  private def setNumericOrRemove(message: FitMessage, field: Int, value: Option[Double]): FitMessage =
+    value.fold(message.removeField(field))(message.setNumeric(field, _))
+
+  private def completeSum(values: Seq[Option[Double]]): Option[Double] =
+    Option.when(values.nonEmpty && values.forall(_.isDefined))(values.flatten.sum)
+
+  private def mean(values: Seq[Double]): Option[Double] =
+    Option.when(values.nonEmpty)(values.sum / values.size)
 
   /** The first existing message of `num` across the segments (to preserve its extra fields), or a fresh one. */
   private def baseMessage(ordered: Seq[FitFile], num: Int): FitMessage =

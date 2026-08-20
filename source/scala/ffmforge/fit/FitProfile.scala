@@ -70,21 +70,28 @@ object FitProfile {
   }
 
   object Ses {
-    val Event: Int            = 0
-    val EventType: Int        = 1
-    val StartTime: Int        = 2
-    val Sport: Int            = 5
-    val SubSport: Int         = 6
-    val TotalElapsed: Int     = 7
-    val TotalTimer: Int       = 8
-    val TotalDistance: Int    = 9
-    val AvgSpeed: Int         = 14
-    val MaxSpeed: Int         = 15
-    val AvgPower: Int         = 20
-    val MaxPower: Int         = 21
-    val EnhancedAvgSpeed: Int = 124
-    val EnhancedMaxSpeed: Int = 125
-    val Timestamp: Int        = 253
+    val Event: Int               = 0
+    val EventType: Int           = 1
+    val StartTime: Int           = 2
+    val Sport: Int               = 5
+    val SubSport: Int            = 6
+    val TotalElapsed: Int        = 7
+    val TotalTimer: Int          = 8
+    val TotalDistance: Int       = 9
+    val AvgSpeed: Int            = 14
+    val MaxSpeed: Int            = 15
+    val AvgPower: Int            = 20
+    val MaxPower: Int            = 21
+    val TotalAscent: Int         = 22
+    val TotalDescent: Int        = 23
+    val AvgAltitude: Int         = 49
+    val MaxAltitude: Int         = 50
+    val EnhancedAvgSpeed: Int    = 124
+    val EnhancedMaxSpeed: Int    = 125
+    val EnhancedAvgAltitude: Int = 126
+    val EnhancedMinAltitude: Int = 127
+    val EnhancedMaxAltitude: Int = 128
+    val Timestamp: Int           = 253
   }
 
   object Dev {
@@ -101,13 +108,21 @@ object FitProfile {
   }
 
   object Lp {
-    val Event: Int         = 0
-    val EventType: Int     = 1
-    val StartTime: Int     = 2
-    val TotalElapsed: Int  = 7
-    val TotalTimer: Int    = 8
-    val TotalDistance: Int = 9
-    val Timestamp: Int     = 253
+    val Event: Int               = 0
+    val EventType: Int           = 1
+    val StartTime: Int           = 2
+    val TotalElapsed: Int        = 7
+    val TotalTimer: Int          = 8
+    val TotalDistance: Int       = 9
+    val TotalAscent: Int         = 21
+    val TotalDescent: Int        = 22
+    val AvgAltitude: Int         = 42
+    val MaxAltitude: Int         = 43
+    val MinAltitude: Int         = 62
+    val EnhancedAvgAltitude: Int = 112
+    val EnhancedMinAltitude: Int = 113
+    val EnhancedMaxAltitude: Int = 114
+    val Timestamp: Int           = 253
   }
 
   object Ev {

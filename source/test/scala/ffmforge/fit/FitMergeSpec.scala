@@ -21,6 +21,37 @@ final class FitMergeSpec extends AnyFunSuite with Matchers {
     FitFile.of(FileId(), records)
   }
 
+  private def elevatedSegment(
+    start: Instant,
+    baseAltitudeM: Double,
+    ascentM: Double,
+    descentM: Double,
+    includeElevationTotals: Boolean = true,
+  ): FitFile = {
+    val end = start.plus(60, ChronoUnit.SECONDS)
+    val records = Vector(
+      Record(start, distanceM = Some(0.0), altitudeM = Some(baseAltitudeM)),
+      Record(start.plus(30, ChronoUnit.SECONDS), distanceM = Some(250.0), altitudeM = Some(baseAltitudeM + ascentM)),
+      Record(end, distanceM = Some(500.0), altitudeM = Some(baseAltitudeM + ascentM - descentM)),
+    )
+    val session = FitViews.toMessage(
+      Session(start, end, Some(60.0), Some(60.0), Some(500.0), Some("CYCLING"))
+    )
+    val lap = FitViews.toMessage(Lap(start, end, Some(60.0), Some(60.0), Some(500.0)))
+    val (sessionWithElevation, lapWithElevation) =
+      if (includeElevationTotals)
+        (
+          session.setNumeric(FitProfile.Ses.TotalAscent, ascentM).setNumeric(FitProfile.Ses.TotalDescent, descentM),
+          lap.setNumeric(FitProfile.Lp.TotalAscent, ascentM).setNumeric(FitProfile.Lp.TotalDescent, descentM),
+        )
+      else (session, lap)
+    FitFile(
+      Vector(FitViews.toMessage(FileId(timeCreated = Some(start)))) ++
+        records.map(FitViews.toMessage) ++
+        Vector(lapWithElevation, sessionWithElevation)
+    )
+  }
+
   private val t0 = Instant.parse("2026-06-15T08:00:00Z")
 
   test("merge preserves the gap: elapsed includes it, timer time excludes it") {
@@ -71,6 +102,62 @@ final class FitMergeSpec extends AnyFunSuite with Matchers {
     val perSegment = 59 * 8.0
     merged.records.last.distanceM.get shouldBe (perSegment * 2) +- 0.001
     merged.sessions.head.totalDistanceM.get shouldBe (perSegment * 2) +- 0.001
+  }
+
+  test("merge aggregates elevation totals and altitude statistics across every segment") {
+    val segA    = elevatedSegment(t0, baseAltitudeM = 10.0, ascentM = 100.0, descentM = 40.0)
+    val segB    = elevatedSegment(t0.plus(120, ChronoUnit.SECONDS), 200.0, ascentM = 250.0, descentM = 80.0)
+    val merged  = FitMerge.merge(Seq(segB, segA)).toOption.get // deliberately out of order
+    val session = merged.messages.find(_.globalNum == FitProfile.Mesg.Session).get
+
+    merged.records.flatMap(_.altitudeM) shouldBe Vector(10.0, 110.0, 70.0, 200.0, 450.0, 370.0)
+    session.numeric(FitProfile.Ses.TotalAscent).get shouldBe 350.0 +- 0.001
+    session.numeric(FitProfile.Ses.TotalDescent).get shouldBe 120.0 +- 0.001
+    session.numeric(FitProfile.Ses.EnhancedAvgAltitude).get shouldBe (1210.0 / 6.0) +- 0.001
+    session.numeric(FitProfile.Ses.EnhancedMinAltitude).get shouldBe 10.0 +- 0.001
+    session.numeric(FitProfile.Ses.EnhancedMaxAltitude).get shouldBe 450.0 +- 0.001
+  }
+
+  test("OnePerSegment laps carry each source segment's elevation summary") {
+    val segA   = elevatedSegment(t0, baseAltitudeM = 10.0, ascentM = 100.0, descentM = 40.0)
+    val segB   = elevatedSegment(t0.plus(120, ChronoUnit.SECONDS), 200.0, ascentM = 250.0, descentM = 80.0)
+    val merged = FitMerge.merge(Seq(segA, segB)).toOption.get
+    val laps   = merged.messages.filter(_.globalNum == FitProfile.Mesg.Lap)
+
+    laps.flatMap(_.numeric(FitProfile.Lp.TotalAscent)) shouldBe Vector(100.0, 250.0)
+    laps.flatMap(_.numeric(FitProfile.Lp.TotalDescent)) shouldBe Vector(40.0, 80.0)
+    laps.flatMap(_.numeric(FitProfile.Lp.EnhancedMinAltitude)) shouldBe Vector(10.0, 200.0)
+    laps.flatMap(_.numeric(FitProfile.Lp.EnhancedMaxAltitude)) shouldBe Vector(110.0, 450.0)
+  }
+
+  test("KeepOriginal preserves source lap elevation summaries") {
+    val segA = elevatedSegment(t0, baseAltitudeM = 10.0, ascentM = 100.0, descentM = 40.0)
+    val segB = elevatedSegment(t0.plus(120, ChronoUnit.SECONDS), 200.0, ascentM = 250.0, descentM = 80.0)
+    val merged = FitMerge
+      .merge(Seq(segA, segB), MergeOptions(LapStrategy.KeepOriginal))
+      .toOption
+      .get
+    val laps = merged.messages.filter(_.globalNum == FitProfile.Mesg.Lap)
+
+    laps.flatMap(_.numeric(FitProfile.Lp.TotalAscent)) shouldBe Vector(100.0, 250.0)
+    laps.flatMap(_.numeric(FitProfile.Lp.TotalDescent)) shouldBe Vector(40.0, 80.0)
+  }
+
+  test("merge removes a partial inherited elevation total when any segment lacks a summary") {
+    val segA = elevatedSegment(t0, baseAltitudeM = 10.0, ascentM = 100.0, descentM = 40.0)
+    val segB = elevatedSegment(
+      t0.plus(120, ChronoUnit.SECONDS),
+      baseAltitudeM = 200.0,
+      ascentM = 250.0,
+      descentM = 80.0,
+      includeElevationTotals = false,
+    )
+    val merged  = FitMerge.merge(Seq(segA, segB)).toOption.get
+    val session = merged.messages.find(_.globalNum == FitProfile.Mesg.Session).get
+
+    session.numeric(FitProfile.Ses.TotalAscent) shouldBe None
+    session.numeric(FitProfile.Ses.TotalDescent) shouldBe None
+    session.numeric(FitProfile.Ses.EnhancedMaxAltitude) shouldBe Some(450.0)
   }
 
   test("OnePerSegment lap strategy yields one lap per source file") {
@@ -124,9 +211,19 @@ final class FitMergeSpec extends AnyFunSuite with Matchers {
 
   test("merged file survives a codec round-trip") {
     val codec = new GarminFitCodec()
-    val merged =
-      FitMerge.merge(Seq(segment(t0, 60, 0.0), segment(t0.plus(660, ChronoUnit.SECONDS), 60, 0.0))).toOption.get
+    val merged = FitMerge
+      .merge(
+        Seq(
+          elevatedSegment(t0, baseAltitudeM = 10.0, ascentM = 100.0, descentM = 40.0),
+          elevatedSegment(t0.plus(660, ChronoUnit.SECONDS), 200.0, ascentM = 250.0, descentM = 80.0),
+        )
+      )
+      .toOption
+      .get
     val decoded = codec.decode(codec.encode(merged))
     decoded.records should have size merged.records.size
+    val session = decoded.messages.find(_.globalNum == FitProfile.Mesg.Session).get
+    session.numeric(FitProfile.Ses.TotalAscent).get shouldBe 350.0 +- 0.001
+    session.numeric(FitProfile.Ses.TotalDescent).get shouldBe 120.0 +- 0.001
   }
 }
